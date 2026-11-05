@@ -23,8 +23,8 @@ export async function POST(req: Request) {
     if (isHosted && file) {
       const quotaCheck = await pool.query("SELECT COALESCE(SUM(file_size), 0) as used FROM seals WHERE author_id = $1 AND is_hosted = true", [authorId]);
       const currentUsage = parseInt(quotaCheck.rows[0].used);
-      if (currentUsage + file.size > 500 * 1024 * 1024) {
-        return NextResponse.json({ error: 'Quota de 500 Mo dépassé.' }, { status: 403 });
+      if (currentUsage + file.size > 100 * 1024 * 1024) {
+        return NextResponse.json({ error: 'Quota de 100 Mo dépassé.' }, { status: 403 });
       }
     }
 

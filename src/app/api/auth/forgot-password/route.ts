@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/db/pool';
 import crypto from 'crypto';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: Request) {
   const { email } = await req.json();
@@ -15,28 +17,16 @@ export async function POST(req: Request) {
 
   await pool.query("UPDATE users SET reset_token = $1, reset_expiry = $2 WHERE email = $3", [token, expiry, email]);
 
-  // --- ENVOI DU VRAI EMAIL ---
+  const resetLink = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${token}`;
+  
   try {
-    // On crée un compte de test Ethereal à la volée
-    const testAccount = await nodemailer.createTestAccount();
-    const transporter = nodemailer.createTransport({
-      host: "smtp.ethereal.email",
-      port: 587,
-      secure: false,
-      auth: { user: testAccount.user, pass: testAccount.pass },
-    });
-
-    const resetLink = `http://localhost:3000/reset-password?token=${token}`;
-    const info = await transporter.sendMail({
-      from: '"SCEAU" <no-reply@sceau.app>',
+    await resend.emails.send({
+      from: 'SCEAU <onboarding@resend.dev>', // Resend fournit ce domaine gratuit pour les tests
       to: email,
       subject: "Réinitialisation de votre mot de passe",
       html: `<p>Bonjour,</p><p>Voici votre lien : <a href="${resetLink}">Réinitialiser mon mot de passe</a></p>`,
     });
-
-    // On renvoie le lien de prévisualisation Ethereal pour que tu puisses voir l'email !
-    const previewUrl = nodemailer.getTestMessageUrl(info);
-    return NextResponse.json({ success: true, preview: previewUrl });
+    return NextResponse.json({ success: true, message: "Email envoyé !" });
   } catch (error) {
     return NextResponse.json({ error: "Erreur d'envoi d'email" }, { status: 500 });
   }

@@ -7,10 +7,14 @@ import { generateCertificate } from '@/lib/pdf';
 export default function Feed() {
   const [seals, setSeals] = useState<any[]>([]);
   const [selectedSeal, setSelectedSeal] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const qrRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch('/api/feed').then(res => res.json()).then(data => setSeals(data.seals || []));
+    fetch('/api/feed').then(res => res.json()).then(data => {
+      setSeals(data.seals || []);
+      setLoading(false);
+    });
   }, []);
 
   const downloadPdf = () => {
@@ -21,10 +25,21 @@ export default function Feed() {
   };
 
   return (
-    <main className="min-h-screen p-6 font-serif">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-4xl font-black mb-8" style={{color: 'var(--text-main)'}}>SCEAU<span className="text-[#E76F51] italic">.</span></h1>
-        
+    <main className="min-h-screen p-6 font-serif max-w-3xl mx-auto">
+      <h1 className="text-4xl font-black mb-8" style={{color: 'var(--text-main)'}}>SCEAU<span className="text-[#E76F51] italic">.</span></h1>
+      
+      {loading ? (
+         <p className="text-center font-mono text-[var(--text-muted)] py-10">Chargement du réseau...</p>
+      ) : seals.length === 0 ? (
+        <div className="text-center bg-[var(--bg-surface)] border border-[var(--border-color)] p-10 rounded-3xl mt-10">
+          <div className="text-5xl mb-4">🌱</div>
+          <h2 className="text-2xl font-bold mb-2" style={{color: 'var(--text-main)'}}>Le réseau attend sa première œuvre.</h2>
+          <p className="text-[var(--text-muted)] mb-6 italic">Personne n'a encore publié de création.</p>
+          <Link href="/seal" className="inline-block bg-[#E76F51] text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-[#F4A261] transition">
+            Sceller ma première œuvre
+          </Link>
+        </div>
+      ) : (
         <div className="grid gap-6">
           {seals.map((seal) => (
             <div key={seal.id} onClick={() => setSelectedSeal(seal)} className="bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm cursor-pointer hover:shadow-md transition">
@@ -35,10 +50,11 @@ export default function Feed() {
               <p className="text-sm text-[var(--text-muted)] mb-2">
                 Par <Link href={`/u/${seal.author}`} onClick={e => e.stopPropagation()} className="font-bold text-[#E76F51] hover:underline">@{seal.author}</Link> • {new Date(seal.timestamp).toLocaleDateString('fr-FR')}
               </p>
+              {seal.description && <p className="text-sm italic mb-4 opacity-80" style={{color: 'var(--text-main)'}}>"{seal.description}"</p>}
             </div>
           ))}
         </div>
-      </div>
+      )}
 
       {selectedSeal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedSeal(null)}>
@@ -53,7 +69,6 @@ export default function Feed() {
               <p className="text-xs font-mono break-all" style={{color: 'var(--text-main)'}}>{selectedSeal.hash}</p>
             </div>
 
-            {/* BOUTONS D'ACTION */}
             <div className="flex flex-col gap-3 mb-4">
               {selectedSeal.is_hosted && (
                 <a href={selectedSeal.file_path} target="_blank" className="w-full text-center bg-[#E76F51] text-white py-3 rounded-xl font-bold shadow-md hover:bg-[#F4A261] transition">
@@ -66,7 +81,7 @@ export default function Feed() {
             </div>
 
             <div ref={qrRef} className="hidden">
-              <QRCodeCanvas value={`http://localhost:3000/verify?hash=${encodeURIComponent(selectedSeal.hash)}`} size={256} />
+              <QRCodeCanvas value={`https://sceau-app.vercel.app/verify?hash=${encodeURIComponent(selectedSeal.hash)}`} size={256} />
             </div>
           </div>
         </div>
