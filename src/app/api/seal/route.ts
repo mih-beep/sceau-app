@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { pool } from '@/db/pool';
 import { r2Client } from '@/lib/r2';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
-const OpenTimestamps = require('javascript-opentimestamps');
 
 export async function POST(req: Request) {
   try {
@@ -20,6 +19,7 @@ export async function POST(req: Request) {
     if (user.rows.length === 0) return NextResponse.json({ error: 'Utilisateur inconnu' }, { status: 401 });
     const authorId = user.rows[0].id;
 
+    // Vérification du quota (100 Mo)
     if (isHosted && file) {
       const quotaCheck = await pool.query("SELECT COALESCE(SUM(file_size), 0) as used FROM seals WHERE author_id = $1 AND is_hosted = true", [authorId]);
       const currentUsage = parseInt(quotaCheck.rows[0].used);
@@ -46,20 +46,12 @@ export async function POST(req: Request) {
         filePath = `${process.env.AWS_ENDPOINT_URL_S3}/${process.env.S3_BUCKET}/${filename}`;
       } catch (s3Error) {
         console.error("Erreur S3:", s3Error);
-        // LA CORRECTION EST ICI (guillemets doubles au lieu du double backslash)
         return NextResponse.json({ error: "Erreur lors de l'hébergement du fichier" }, { status: 500 });
       }
     }
 
+    // On utilise simplement l'heure du serveur pour le MVP
     let timestamp = new Date().toISOString();
-    
-    try {
-      const hashBuffer = Buffer.from(hash, 'base64');
-      const detached = OpenTimestamps.DetachedTimestampFile.fromHash(new OpenTimestamps.Ops.OpSHA256(), hashBuffer);
-      await OpenTimestamps.stamp(detached);
-    } catch (otsError) {
-      console.error("OpenTimestamps a échoué (on continue quand même) :", otsError);
-    }
 
     await pool.query(
       `INSERT INTO seals (hash, timestamp, author_id, title, description, category, is_public, is_hosted, file_path, file_size) 

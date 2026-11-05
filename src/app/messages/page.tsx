@@ -15,32 +15,55 @@ export default function Messages() {
   const [pactFile, setPactFile] = useState<File | null>(null);
   const [activePact, setActivePact] = useState<any>(null);
 
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Charger les contacts au démarrage
   useEffect(() => {
     setMyHandle(localStorage.getItem('sceau_handle') || '');
     fetch('/api/messages').then(r => r.json()).then(d => setContacts(d.contacts || []));
   }, []);
 
-  // Rafraîchissement automatique toutes les 3 secondes
+  // Rafraîchissement automatique (toutes les 2 secondes)
   useEffect(() => {
-    if (!activeContact) return;
+    if (!activeContact || !myHandle) return;
+    
     const load = () => {
       fetch(`/api/messages/${activeContact.handle}?me=${myHandle}`)
         .then(r => r.json())
-        .then(data => setMessages(data.messages || []));
+        .then(data => {
+          setMessages(data.messages || []);
+        });
     };
-    load();
-    const interval = setInterval(load, 3000);
+    
+    load(); // Premier chargement immédiat
+    const interval = setInterval(load, 2000);
     return () => clearInterval(interval);
   }, [activeContact, myHandle]);
 
+  // Scroll automatique vers le bas quand un nouveau message arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
   async function sendMessage() {
-    if (!newMessage || !activeContact) return;
-    await fetch('/api/messages', { method: 'POST', body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeContact.handle, content: newMessage }) });
-    setNewMessage('');
-    // On recharge immédiatement
-    const res = await fetch(`/api/messages/${activeContact.handle}?me=${myHandle}`);
-    const data = await res.json();
-    setMessages(data.messages || []);
+    if (!newMessage.trim() || !activeContact) return;
+    
+    const msgToSend = newMessage;
+    setNewMessage(''); // On vide le champ tout de suite
+    
+    // MISE À JOUR OPTIMISTE : On l'affiche direct chez soi
+    const optimisticMsg = { 
+      content: msgToSend, 
+      sender: myHandle, 
+      created_at: new Date().toISOString() 
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
+
+    // On envoie au serveur en arrière-plan
+    await fetch('/api/messages', { 
+      method: 'POST', 
+      body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeContact.handle, content: msgToSend }) 
+    });
   }
 
   async function createPact() {
@@ -85,7 +108,7 @@ export default function Messages() {
               <button onClick={() => setActiveContact(null)} className="md:hidden text-xl font-bold" style={{color: 'var(--text-main)'}}>←</button>
               <h2 className="text-lg font-bold" style={{color: 'var(--text-main)'}}>@{activeContact.handle}</h2>
             </div>
-            <button onClick={() => setShowPactModal(true)} className="bg-[#E76F51] text-white text-xs font-bold px-3 py-1 rounded-lg">+ Créer un Pacte</button>
+            <button onClick={() => setShowPactModal(true)} className="bg-[#E76F51] text-white text-xs font-bold px-3 py-1 rounded-lg">+ Pacte</button>
           </div>
           
           <div className="flex-1 p-4 overflow-y-auto space-y-3">
@@ -93,9 +116,9 @@ export default function Messages() {
               if (m.content.startsWith('[PACTE]')) {
                 const [id, title] = m.content.replace('[PACTE]', '').split('|');
                 return (
-                  <div key={i} className="bg-[var(--bg-main)] border-2 border-[#E76F51] p-4 rounded-xl text-center">
-                    <div className="font-bold text-lg" style={{color: 'var(--text-main)'}}>🤝 {title}</div>
-                    <button onClick={() => setActivePact(id)} className="mt-2 bg-[#E76F51] text-white px-4 py-2 rounded-lg text-xs font-bold">Voir / Signer le Pacte</button>
+                  <div key={i} className="bg-[var(--bg-main)] border-2 border-[#E76F51] p-4 rounded-xl text-center my-4">
+                    <div className="font-bold text-lg mb-2" style={{color: 'var(--text-main)'}}>🤝 {title}</div>
+                    <button onClick={() => setActivePact(id)} className="bg-[#E76F51] text-white px-4 py-2 rounded-lg text-xs font-bold">Voir / Signer le Pacte</button>
                   </div>
                 );
               }
@@ -105,6 +128,7 @@ export default function Messages() {
                 </div>
               );
             })}
+            <div ref={messagesEndRef} /> {/* Ancre pour le scroll */}
           </div>
 
           <div className="p-4 border-t border-[var(--border-color)] flex gap-2">
@@ -129,7 +153,7 @@ export default function Messages() {
             <input type="file" className="w-full mb-4 text-sm" onChange={e => setPactFile(e.target.files?.[0] || null)} />
             <div className="flex gap-2">
               <button onClick={() => setShowPactModal(false)} className="flex-1 py-2 font-bold opacity-50">Annuler</button>
-              <button onClick={createPact} className="flex-1 bg-[#E76F51] text-white py-2 rounded-xl font-bold">Envoyer le Pacte</button>
+              <button onClick={createPact} className="flex-1 bg-[#E76F51] text-white py-2 rounded-xl font-bold">Envoyer</button>
             </div>
           </div>
         </div>
