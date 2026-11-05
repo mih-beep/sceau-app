@@ -39,12 +39,11 @@ export default function Signup() {
         setStatus("✅ Compte créé !");
         setTimeout(() => router.push('/feed'), 500);
       } else {
-        setStatus("❌ " + data.error);
+        setStatus("❌ " + (data.error || "Une erreur est survenue"));
       }
-    } catch (e) { setStatus("❌ Erreur réseau"); }
+    } catch (e) { setStatus("❌ Impossible de contacter le serveur. Vérifiez votre connexion."); }
   }
 
-  // La fonction magique pour "Entrée"
   const handleKeyPress = (e: React.KeyboardEvent) => { if (e.key === 'Enter') handleSignup(); };
 
   return (
