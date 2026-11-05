@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ed25519 } from '@noble/curves/ed25519';
+import Link from 'next/link';
 
 export default function Signup() {
   const router = useRouter();
@@ -36,44 +37,36 @@ export default function Signup() {
         localStorage.setItem('sceau_pubkey', pubkeyB64);
         localStorage.setItem('sceau_handle', handle);
         setStatus("✅ Compte créé !");
-        setTimeout(() => router.push('/feed'), 1000);
+        setTimeout(() => router.push('/feed'), 500);
       } else {
         setStatus("❌ " + data.error);
       }
     } catch (e) { setStatus("❌ Erreur réseau"); }
   }
 
+  // La fonction magique pour "Entrée"
+  const handleKeyPress = (e: React.KeyboardEvent) => { if (e.key === 'Enter') handleSignup(); };
+
   return (
-    <div className="max-w-md mx-auto bg-[#FFFCF7] p-8 rounded-3xl border border-[#EFE0CA] shadow-sm mt-10">
-      <h1 className="text-3xl font-bold mb-6 font-serif">Créer un compte</h1>
+    <div className="max-w-md mx-auto bg-[var(--bg-surface)] p-8 rounded-3xl border border-[var(--border-color)] shadow-sm mt-10">
+      <h1 className="text-3xl font-bold mb-6 font-serif" style={{color: 'var(--text-main)'}}>Créer un compte</h1>
       
-      <label className="block text-xs font-bold text-[#A89070] uppercase mb-1 font-mono">Pseudo</label>
-      <input type="text" className="w-full border-2 border-[#EFE0CA] p-3 rounded-xl mb-4" value={handle} onChange={(e) => setHandle(e.target.value)} />
+      <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1 font-mono">Pseudo</label>
+      <input type="text" onKeyDown={handleKeyPress} className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={handle} onChange={(e) => setHandle(e.target.value)} />
       
-      <label className="block text-xs font-bold text-[#A89070] uppercase mb-1 font-mono">Email</label>
-      <input type="email" className="w-full border-2 border-[#EFE0CA] p-3 rounded-xl mb-4" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1 font-mono">Email</label>
+      <input type="email" onKeyDown={handleKeyPress} className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={email} onChange={(e) => setEmail(e.target.value)} />
       
-      <label className="block text-xs font-bold text-[#A89070] uppercase mb-1 font-mono">Mot de passe</label>
+      <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1 font-mono">Mot de passe</label>
       <div className="relative mb-6">
-        <input 
-          type={showPassword ? "text" : "password"} 
-          className="w-full border-2 border-[#EFE0CA] p-3 rounded-xl pr-10" 
-          value={password} 
-          onChange={(e) => setPassword(e.target.value)} 
-        />
-        <button 
-          type="button" 
-          onClick={() => setShowPassword(!showPassword)} 
-          className="absolute right-3 top-3 text-gray-500 hover:text-black"
-        >
-          {showPassword ? "🙈" : "👁️"}
-        </button>
+        <input type={showPassword ? "text" : "password"} onKeyDown={handleKeyPress} className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl pr-10 bg-transparent" style={{color: 'var(--text-main)'}} value={password} onChange={(e) => setPassword(e.target.value)} />
+        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 opacity-50">{showPassword ? "🙈" : "👁️"}</button>
       </div>
       
       <button onClick={handleSignup} className="w-full bg-gradient-to-r from-[#E76F51] to-[#F4A261] text-white p-4 rounded-xl font-bold">S'inscrire</button>
-      {status && <p className="mt-4 text-center font-bold text-[#C44A2E]">{status}</p>}
+      {status && <p className="mt-4 text-center font-bold text-[#E76F51]">{status}</p>}
       
-      <p className="text-center mt-4 text-sm text-[#A89070]">Déjà un compte ? <a href="/login" className="underline font-bold">Se connecter</a></p>
+      <p className="text-center mt-4 text-sm text-[var(--text-muted)]">Déjà un compte ? <Link href="/login" className="underline font-bold">Se connecter</Link></p>
     </div>
   );
 }

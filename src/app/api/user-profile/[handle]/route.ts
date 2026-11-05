@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/db/pool';
 
-export async function GET(req: Request, { params }: { params: { handle: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ handle: string }> }) {
+  const { handle } = await params;
+  
   try {
-    const user = await pool.query("SELECT id, handle FROM users WHERE handle = $1", [params.handle]);
+    const user = await pool.query("SELECT id, handle FROM users WHERE handle = $1", [handle]);
     if (user.rows.length === 0) return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
     
     const seals = await pool.query(`

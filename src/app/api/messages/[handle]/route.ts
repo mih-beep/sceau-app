@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/db/pool';
 
-export async function GET(req: Request, { params }: { params: { handle: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ handle: string }> }) {
+  const { handle } = await params;
   const { searchParams } = new URL(req.url);
   const myHandle = searchParams.get('me');
 
   try {
     const myIdResult = await pool.query("SELECT id FROM users WHERE handle = $1", [myHandle]);
-    const otherIdResult = await pool.query("SELECT id FROM users WHERE handle = $1", [params.handle]);
+    const otherIdResult = await pool.query("SELECT id FROM users WHERE handle = $1", [handle]);
     
     if (myIdResult.rows.length === 0 || otherIdResult.rows.length === 0) return NextResponse.json({ error: 'Erreur' }, { status: 400 });
     
