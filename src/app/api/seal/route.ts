@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       const quotaCheck = await pool.query("SELECT COALESCE(SUM(file_size), 0) as used FROM seals WHERE author_id = $1 AND is_hosted = true", [authorId]);
       const currentUsage = parseInt(quotaCheck.rows[0].used);
       if (currentUsage + file.size > 100 * 1024 * 1024) {
-        return NextResponse.json({ error: 'Quota de 100 Mo dépassé' }, { status: 403 });
+        return NextResponse.json({ error: 'Quota de 100 Mo dépassé.' }, { status: 403 });
       }
     }
 
@@ -46,7 +46,8 @@ export async function POST(req: Request) {
         filePath = `${process.env.AWS_ENDPOINT_URL_S3}/${process.env.S3_BUCKET}/${filename}`;
       } catch (s3Error) {
         console.error("Erreur S3:", s3Error);
-        return NextResponse.json({ error: 'Erreur hebergement fichier' }, { status: 500 });
+        // LA CORRECTION EST ICI (guillemets doubles au lieu du double backslash)
+        return NextResponse.json({ error: "Erreur lors de l'hébergement du fichier" }, { status: 500 });
       }
     }
 
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
       const detached = OpenTimestamps.DetachedTimestampFile.fromHash(new OpenTimestamps.Ops.OpSHA256(), hashBuffer);
       await OpenTimestamps.stamp(detached);
     } catch (otsError) {
-      console.error("OpenTimestamps a echoue (on continue) :", otsError);
+      console.error("OpenTimestamps a échoué (on continue quand même) :", otsError);
     }
 
     await pool.query(

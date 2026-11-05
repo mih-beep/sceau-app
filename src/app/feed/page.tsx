@@ -40,20 +40,29 @@ export default function Feed() {
           </Link>
         </div>
       ) : (
-        <div className="grid gap-6">
-          {seals.map((seal) => (
-            <div key={seal.id} onClick={() => setSelectedSeal(seal)} className="bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm cursor-pointer hover:shadow-md transition">
-              <div className="flex justify-between items-start mb-2">
-                <h2 className="text-2xl font-bold" style={{color: 'var(--text-main)'}}>{seal.title}</h2>
-                {seal.is_hosted && <span className="text-xs font-mono bg-[#F5F9EE] text-[#5D7A3A] px-2 py-1 rounded">📁 Hébergé</span>}
+        <>
+          <div className="grid gap-6 mb-10">
+            {seals.map((seal) => (
+              <div key={seal.id} onClick={() => setSelectedSeal(seal)} className="bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm cursor-pointer hover:shadow-md transition">
+                <div className="flex justify-between items-start mb-2">
+                  <h2 className="text-2xl font-bold" style={{color: 'var(--text-main)'}}>{seal.title}</h2>
+                  {seal.is_hosted && <span className="text-xs font-mono bg-[#F5F9EE] text-[#5D7A3A] px-2 py-1 rounded">📁 Hébergé</span>}
+                </div>
+                <p className="text-sm text-[var(--text-muted)] mb-2">
+                  Par <Link href={`/u/${seal.author}`} onClick={e => e.stopPropagation()} className="font-bold text-[#E76F51] hover:underline">@{seal.author}</Link> • {new Date(seal.timestamp).toLocaleDateString('fr-FR')}
+                </p>
+                {seal.description && <p className="text-sm italic mb-4 opacity-80" style={{color: 'var(--text-main)'}}>"{seal.description}"</p>}
               </div>
-              <p className="text-sm text-[var(--text-muted)] mb-2">
-                Par <Link href={`/u/${seal.author}`} onClick={e => e.stopPropagation()} className="font-bold text-[#E76F51] hover:underline">@{seal.author}</Link> • {new Date(seal.timestamp).toLocaleDateString('fr-FR')}
-              </p>
-              {seal.description && <p className="text-sm italic mb-4 opacity-80" style={{color: 'var(--text-main)'}}>"{seal.description}"</p>}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+          {/* Le fameux message d'encouragement en bas */}
+          <div className="text-center p-6 border-2 border-dashed border-[var(--border-color)] rounded-2xl">
+            <p className="italic text-[var(--text-muted)] mb-4">Tu as aimé ces créations ?</p>
+            <Link href="/seal" className="inline-block bg-[#2C1810] text-white px-6 py-3 rounded-xl font-bold shadow-md hover:opacity-80 transition">
+              Sceller une œuvre à mon tour
+            </Link>
+          </div>
+        </>
       )}
 
       {selectedSeal && (
