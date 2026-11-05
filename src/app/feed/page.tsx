@@ -31,7 +31,7 @@ export default function Feed() {
       {loading ? (
          <p className="text-center font-mono text-[var(--text-muted)] py-10">Chargement du réseau...</p>
       ) : seals.length === 0 ? (
-        <div className="text-center bg-[var(--bg-surface)] border border-[var(--border-color)] p-10 rounded-3xl mt-10">
+        <div className="text-center bg-[var(--bg-surface)] border border-[var(--border-color)] p-10 rounded-3xl mt-10 shadow-sm">
           <div className="text-5xl mb-4">🌱</div>
           <h2 className="text-2xl font-bold mb-2" style={{color: 'var(--text-main)'}}>Le réseau attend sa première œuvre.</h2>
           <p className="text-[var(--text-muted)] mb-6 italic">Personne n'a encore publié de création.</p>

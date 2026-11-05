@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     const file = data.get('file') as File;
 
     const user = await pool.query("SELECT id FROM users WHERE encode(pubkey, 'base64') = $1", [pubkey]);
-    if (user.rows.length === 0) return NextResponse.json({ error: 'Inconnu' }, { status: 401 });
+    if (user.rows.length === 0) return NextResponse.json({ error: 'Utilisateur inconnu' }, { status: 401 });
     const authorId = user.rows[0].id;
 
     if (isHosted && file) {
@@ -36,25 +36,31 @@ export async function POST(req: Request) {
       const buffer = Buffer.from(await file.arrayBuffer());
       const filename = `${hash.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)}-${file.name}`;
       
-      await r2Client.send(new PutObjectCommand({
-        Bucket: process.env.S3_BUCKET,
-        Key: filename,
-        Body: buffer,
-        ContentType: file.type,
-      }));
-
-      // URL publique de Neon Storage (construite à partir de ton endpoint)
-      filePath = `${process.env.AWS_ENDPOINT_URL_S3}/${process.env.S3_BUCKET}/${filename}`;
+      try {
+        await r2Client.send(new PutObjectCommand({
+          Bucket: process.env.S3_BUCKET,
+          Key: filename,
+          Body: buffer,
+          ContentType: file.type,
+        }));
+        filePath = `${process.env.AWS_ENDPOINT_URL_S3}/${process.env.S3_BUCKET}/${filename}`;
+      } catch (s3Error) {
+        console.error("Erreur S3:", s3Error);
+        return NextResponse.json({ error: 'Erreur lors de l\\'hébergement du fichier' }, { status: 500 });
+      }
     }
 
-    let otsProof = null;
     let timestamp = new Date().toISOString();
+    
+    // On isole OpenTimestamps dans son propre try/catch pour qu'il ne bloque JAMAIS le scellement
     try {
       const hashBuffer = Buffer.from(hash, 'base64');
       const detached = OpenTimestamps.DetachedTimestampFile.fromHash(new OpenTimestamps.Ops.OpSHA256(), hashBuffer);
       await OpenTimestamps.stamp(detached);
-      otsProof = Buffer.from(detached.serialize()).toString('base64');
-    } catch (otsError) { console.error("Erreur OTS:", otsError); }
+      // On pourrait sauvegarder la preuve .ots en base64 ici plus tard
+    } catch (otsError) {
+      console.error("OpenTimestamps a échoué (on continue quand même) :", otsError);
+    }
 
     await pool.query(
       `INSERT INTO seals (hash, timestamp, author_id, title, description, category, is_public, is_hosted, file_path, file_size) 
@@ -63,8 +69,8 @@ export async function POST(req: Request) {
     );
 
     return NextResponse.json({ seal_id: Math.random().toString(36).substring(2, 10), timestamp });
-  } catch (error) { 
+  } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: 'Erreur' }, { status: 500 }); 
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }

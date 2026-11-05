@@ -5,14 +5,24 @@ import { useRouter } from 'next/navigation';
 export default function Profil() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
+  const [error, setError] = useState('');
 
   async function loadProfil() {
     const pubkey = localStorage.getItem('sceau_pubkey');
     if (!pubkey) { router.push('/login'); return; }
-    const res = await fetch(`/api/profil?pubkey=${pubkey}`);
-    const d = await res.json();
-    if (res.ok && d.handle) setData(d);
-    else { localStorage.clear(); router.push('/login'); }
+    
+    try {
+      const res = await fetch(`/api/profil?pubkey=${encodeURIComponent(pubkey)}`);
+      const d = await res.json();
+      
+      if (res.ok && d.handle) {
+        setData({ ...d, seals: d.seals || [] }); // Sécurité si seals est null
+      } else {
+        setError("Profil introuvable. Déconnecte-toi et reconnecte-toi.");
+      }
+    } catch (e) {
+      setError("Erreur de connexion au serveur.");
+    }
   }
 
   useEffect(() => { loadProfil(); }, [router]);
@@ -20,11 +30,18 @@ export default function Profil() {
   async function deleteSeal(id: string) {
     if (!confirm("Supprimer cette œuvre ?")) return;
     const pubkey = localStorage.getItem('sceau_pubkey');
-    await fetch(`/api/seal/delete?id=${id}&pubkey=${pubkey}`, { method: 'DELETE' });
+    await fetch(`/api/seal/delete?id=${id}&pubkey=${encodeURIComponent(pubkey!)}`, { method: 'DELETE' });
     loadProfil();
   }
 
-  if (!data) return <div className="p-10 text-center font-mono">Chargement...</div>;
+  if (error) return (
+    <div className="p-10 text-center font-mono">
+      <p className="text-red-500 font-bold mb-4">{error}</p>
+      <button onClick={() => { localStorage.clear(); router.push('/login'); }} className="bg-[#E76F51] text-white px-4 py-2 rounded-xl font-bold">Se déconnecter</button>
+    </div>
+  );
+  
+  if (!data) return <div className="p-10 text-center font-mono" style={{color: 'var(--text-main)'}}>Chargement...</div>;
 
   return (
     <div className="p-6 max-w-2xl mx-auto font-serif">
@@ -61,7 +78,6 @@ export default function Profil() {
         ))}
       </div>
 
-      {/* BOUTON DECONNEXION */}
       <button onClick={() => { localStorage.clear(); router.push('/login'); }} className="w-full py-4 text-red-500 font-bold border border-red-500 rounded-xl hover:bg-red-50 transition">
         Se déconnecter
       </button>
