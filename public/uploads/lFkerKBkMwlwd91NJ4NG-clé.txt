@@ -1,0 +1,12 @@
+index.ts
+
+
+
+
+git config --global user.name "Arnaud"
+git config --global user.email "arnaud@sceau.local"
+git commit -m "MVP SCEAU : Feed, Scellement et Vérification fonctionnels"
+
+
+
+"TlE9kz8HQhSXyvTutUOxC2ml0JGUwo2w8P4v0cXPcrM="
