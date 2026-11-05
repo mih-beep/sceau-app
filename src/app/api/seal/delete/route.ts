@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/db/pool';
-import { unlink } from 'fs/promises';
-import { join } from 'path';
+import { r2Client } from '@/lib/r2';
+import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 
 export async function DELETE(req: Request) {
   try {
@@ -13,7 +13,6 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'ID ou clé manquant' }, { status: 400 });
     }
 
-    // 1. Vérifier que l'utilisateur est bien le propriétaire
     const user = await pool.query("SELECT id FROM users WHERE encode(pubkey, 'base64') = $1", [pubkey]);
     if (user.rows.length === 0) return NextResponse.json({ error: 'Inconnu' }, { status: 401 });
     
@@ -24,15 +23,17 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
     }
 
-    // 2. Supprimer le fichier physique s'il était hébergé
+    // CORRECTION : On supprime le fichier de Cloudflare R2, pas du disque local
     if (seal.rows[0].file_path) {
       try {
-        const filePath = join(process.cwd(), 'public', seal.rows[0].file_path);
-        await unlink(filePath); // Supprime le fichier du disque
-      } catch (e) { console.log("Fichier déjà supprimé ou introuvable"); }
+        const filename = seal.rows[0].file_path.split('/').pop();
+        await r2Client.send(new DeleteObjectCommand({
+          Bucket: process.env.S3_BUCKET,
+          Key: filename
+        }));
+      } catch (e) { console.log("Fichier introuvable sur R2 ou déjà supprimé"); }
     }
 
-    // 3. Supprimer la ligne de la base de données
     await pool.query("DELETE FROM seals WHERE id = $1", [sealId]);
 
     return NextResponse.json({ success: true });

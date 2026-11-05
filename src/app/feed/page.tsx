@@ -8,14 +8,30 @@ export default function Feed() {
   const [seals, setSeals] = useState<any[]>([]);
   const [selectedSeal, setSelectedSeal] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Nouveaux états pour les filtres
+  const [timeFilter, setTimeFilter] = useState('all');
+  const [locationFilter, setLocationFilter] = useState('');
+
   const qrRef = useRef<HTMLDivElement>(null);
 
+  // Fonction pour charger les données
+  const loadFeed = () => {
+    const params = new URLSearchParams({ time: timeFilter, loc: locationFilter });
+    fetch(`/api/feed?${params.toString()}`)
+      .then(res => res.json())
+      .then(data => {
+        setSeals(data.seals || []);
+        setLoading(false);
+      });
+  };
+
+  // Chargement initial + Rafraîchissement automatique toutes les 10 sec
   useEffect(() => {
-    fetch('/api/feed').then(res => res.json()).then(data => {
-      setSeals(data.seals || []);
-      setLoading(false);
-    });
-  }, []);
+    loadFeed();
+    const interval = setInterval(loadFeed, 10000);
+    return () => clearInterval(interval);
+  }, [timeFilter, locationFilter]);
 
   const downloadPdf = () => {
     if (!selectedSeal || !qrRef.current) return;
@@ -26,52 +42,67 @@ export default function Feed() {
 
   return (
     <main className="min-h-screen p-6 font-serif max-w-3xl mx-auto">
-      <h1 className="text-4xl font-black mb-8" style={{color: 'var(--text-main)'}}>SCEAU<span className="text-[#E76F51] italic">.</span></h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-4xl font-black" style={{color: 'var(--text-main)'}}>SCEAU<span className="text-[#E76F51] italic">.</span></h1>
+        <div className="flex items-center gap-2 text-xs font-mono text-[#7A9B5A]">
+          <span className="w-2 h-2 rounded-full bg-[#7A9B5A] animate-pulse"></span> En direct
+        </div>
+      </div>
+
+      {/* BARRE DE FILTRES */}
+      <div className="flex flex-wrap gap-2 mb-8 bg-[var(--bg-surface)] p-3 rounded-xl border border-[var(--border-color)]">
+        <select value={timeFilter} onChange={e => setTimeFilter(e.target.value)} className="bg-transparent text-sm font-bold outline-none cursor-pointer">
+          <option value="all">🕒 Tout le temps</option>
+          <option value="hour">⏱️ Dernière heure</option>
+          <option value="day">📅 Aujourd'hui</option>
+          <option value="week">🗓️ Cette semaine</option>
+        </select>
+        <div className="w-px h-6 bg-[var(--border-color)] mx-1"></div>
+        <input 
+          type="text" 
+          placeholder="🌍 Filtrer par pays/ville..." 
+          value={locationFilter}
+          onChange={e => setLocationFilter(e.target.value)}
+          className="bg-transparent text-sm outline-none flex-1 min-w-[150px] font-mono"
+        />
+      </div>
       
       {loading ? (
-         <p className="text-center font-mono text-[var(--text-muted)] py-10">Chargement du réseau...</p>
+         <p className="text-center font-mono text-[var(--text-muted)] py-10">Connexion au registre...</p>
       ) : seals.length === 0 ? (
-        <div className="text-center bg-[var(--bg-surface)] border border-[var(--border-color)] p-10 rounded-3xl mt-10 shadow-sm">
+        <div className="text-center bg-[var(--bg-surface)] border border-[var(--border-color)] p-10 rounded-3xl shadow-sm">
           <div className="text-5xl mb-4">🌱</div>
-          <h2 className="text-2xl font-bold mb-2" style={{color: 'var(--text-main)'}}>Le réseau attend sa première œuvre.</h2>
-          <p className="text-[var(--text-muted)] mb-6 italic">Personne n'a encore publié de création.</p>
-          <Link href="/seal" className="inline-block bg-[#E76F51] text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-[#F4A261] transition">
-            Sceller ma première œuvre
-          </Link>
+          <h2 className="text-2xl font-bold mb-2" style={{color: 'var(--text-main)'}}>Aucun sceau ne correspond à ces filtres.</h2>
+          <p className="text-[var(--text-muted)] mb-6 italic">Essaie de changer la zone ou la période.</p>
         </div>
       ) : (
-        <>
-          <div className="grid gap-6 mb-10">
-            {seals.map((seal) => (
-              <div key={seal.id} onClick={() => setSelectedSeal(seal)} className="bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm cursor-pointer hover:shadow-md transition">
-                <div className="flex justify-between items-start mb-2">
-                  <h2 className="text-2xl font-bold" style={{color: 'var(--text-main)'}}>{seal.title}</h2>
-                  {seal.is_hosted && <span className="text-xs font-mono bg-[#F5F9EE] text-[#5D7A3A] px-2 py-1 rounded">📁 Hébergé</span>}
-                </div>
-                <p className="text-sm text-[var(--text-muted)] mb-2">
-                  Par <Link href={`/u/${seal.author}`} onClick={e => e.stopPropagation()} className="font-bold text-[#E76F51] hover:underline">@{seal.author}</Link> • {new Date(seal.timestamp).toLocaleDateString('fr-FR')}
-                </p>
-                {seal.description && <p className="text-sm italic mb-4 opacity-80" style={{color: 'var(--text-main)'}}>"{seal.description}"</p>}
+        <div className="grid gap-6 mb-10">
+          {seals.map((seal) => (
+            <div key={seal.id} onClick={() => setSelectedSeal(seal)} className="bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm cursor-pointer hover:shadow-md transition relative overflow-hidden group">
+              {/* Ligne de temps visuelle */}
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#E76F51] opacity-0 group-hover:opacity-100 transition"></div>
+              
+              <div className="flex justify-between items-start mb-2">
+                <h2 className="text-2xl font-bold" style={{color: 'var(--text-main)'}}>{seal.title}</h2>
+                {seal.location && <span className="text-xs font-mono bg-[#FDF8F0] border border-[var(--border-color)] px-2 py-1 rounded">📍 {seal.location}</span>}
               </div>
-            ))}
-          </div>
-          {/* Le fameux message d'encouragement en bas */}
-          <div className="text-center p-6 border-2 border-dashed border-[var(--border-color)] rounded-2xl">
-            <p className="italic text-[var(--text-muted)] mb-4">Tu as aimé ces créations ?</p>
-            <Link href="/seal" className="inline-block bg-[#2C1810] text-white px-6 py-3 rounded-xl font-bold shadow-md hover:opacity-80 transition">
-              Sceller une œuvre à mon tour
-            </Link>
-          </div>
-        </>
+              <p className="text-sm text-[var(--text-muted)] mb-2">
+                Par <Link href={`/u/${seal.author}`} onClick={e => e.stopPropagation()} className="font-bold text-[#E76F51] hover:underline">@{seal.author}</Link> • {new Date(seal.timestamp).toLocaleString('fr-FR')}
+              </p>
+              {seal.description && <p className="text-sm italic mb-4 opacity-80" style={{color: 'var(--text-main)'}}>"{seal.description}"</p>}
+            </div>
+          ))}
+        </div>
       )}
 
+      {/* MODALE DE DÉTAIL (inchangée) */}
       {selectedSeal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedSeal(null)}>
           <div className="bg-[var(--bg-surface)] w-full max-w-lg rounded-3xl p-8 relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <button onClick={() => setSelectedSeal(null)} className="absolute top-4 right-4 text-2xl opacity-50">✕</button>
             
             <h2 className="text-3xl font-bold mb-2" style={{color: 'var(--text-main)'}}>{selectedSeal.title}</h2>
-            <p className="text-sm text-[var(--text-muted)] mb-6">Par @{selectedSeal.author}</p>
+            <p className="text-sm text-[var(--text-muted)] mb-6">Par @{selectedSeal.author} {selectedSeal.location && `à ${selectedSeal.location}`}</p>
             
             <div className="bg-[var(--bg-main)] p-4 rounded-xl border border-[var(--border-color)] mb-6">
               <p className="text-xs font-mono font-bold text-[var(--text-muted)] mb-1">Empreinte SHA-256</p>
@@ -90,7 +121,7 @@ export default function Feed() {
             </div>
 
             <div ref={qrRef} className="hidden">
-              <QRCodeCanvas value={`https://sceau-app.vercel.app/verify?hash=${encodeURIComponent(selectedSeal.hash)}`} size={256} />
+              <QRCodeCanvas value={`${window.location.origin}/verify?hash=${encodeURIComponent(selectedSeal.hash)}`} size={256} />
             </div>
           </div>
         </div>
