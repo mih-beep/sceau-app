@@ -5,3 +5,5 @@ tout_le_code.txt
 mon-code-sceau.zip
 setup_app.sh
 sauvegarde_sceau.sql
+.vercel
+.env*

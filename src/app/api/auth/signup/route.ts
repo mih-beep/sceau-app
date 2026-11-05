@@ -10,7 +10,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Tous les champs sont requis' }, { status: 400 });
     }
 
-    // On crypte le mot de passe (on ne le stocke jamais en clair)
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
 
@@ -21,9 +20,11 @@ export async function POST(req: Request) {
     
     return NextResponse.json(result.rows[0]);
   } catch (error: any) {
+    console.error("Erreur d'inscription:", error);
     if (error.code === '23505') {
       return NextResponse.json({ error: 'Ce pseudo ou cet email est déjà pris' }, { status: 409 });
     }
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    // On renvoie le VRAI message d'erreur pour le débogage
+    return NextResponse.json({ error: error.message || 'Erreur serveur' }, { status: 500 });
   }
 }
