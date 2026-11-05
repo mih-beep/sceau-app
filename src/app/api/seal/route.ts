@@ -20,7 +20,6 @@ export async function POST(req: Request) {
     if (user.rows.length === 0) return NextResponse.json({ error: 'Inconnu' }, { status: 401 });
     const authorId = user.rows[0].id;
 
-    // Vérification du quota (500 Mo)
     if (isHosted && file) {
       const quotaCheck = await pool.query("SELECT COALESCE(SUM(file_size), 0) as used FROM seals WHERE author_id = $1 AND is_hosted = true", [authorId]);
       const currentUsage = parseInt(quotaCheck.rows[0].used);
@@ -32,32 +31,29 @@ export async function POST(req: Request) {
     let filePath = null;
     let fileSize = 0;
     
-    // --- UPLOAD VERS CLOUDFLARE R2 ---
     if (isHosted && file) {
       fileSize = file.size;
       const buffer = Buffer.from(await file.arrayBuffer());
       const filename = `${hash.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)}-${file.name}`;
       
       await r2Client.send(new PutObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME,
+        Bucket: process.env.S3_BUCKET,
         Key: filename,
         Body: buffer,
         ContentType: file.type,
       }));
 
-      // Si tu as configuré un accès public sur R2, l'URL ressemblera à ça :
-      filePath = `${process.env.R2_PUBLIC_URL}/${filename}`;
+      // URL publique de Neon Storage (construite à partir de ton endpoint)
+      filePath = `${process.env.AWS_ENDPOINT_URL_S3}/${process.env.S3_BUCKET}/${filename}`;
     }
 
-    // --- ANCRAGE OPENTIMESTAMPS ---
-    let otsProofPath = null;
+    let otsProof = null;
     let timestamp = new Date().toISOString();
     try {
       const hashBuffer = Buffer.from(hash, 'base64');
       const detached = OpenTimestamps.DetachedTimestampFile.fromHash(new OpenTimestamps.Ops.OpSHA256(), hashBuffer);
       await OpenTimestamps.stamp(detached);
-      // On ne sauvegarde plus le .ots en local (éphémère), on le met dans la base de données en base64 pour plus tard
-      otsProofPath = Buffer.from(detached.serialize()).toString('base64');
+      otsProof = Buffer.from(detached.serialize()).toString('base64');
     } catch (otsError) { console.error("Erreur OTS:", otsError); }
 
     await pool.query(
