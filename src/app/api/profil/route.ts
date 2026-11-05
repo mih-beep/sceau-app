@@ -7,17 +7,15 @@ export async function GET(req: Request) {
   if (!pubkey) return NextResponse.json({ error: 'Clé manquante' }, { status: 400 });
 
   try {
-    const user = await pool.query("SELECT id, handle FROM users WHERE encode(pubkey, 'base64') = $1", [pubkey]);
+    const user = await pool.query("SELECT id, handle, recovery_email FROM users WHERE encode(pubkey, 'base64') = $1", [pubkey]);
     if (user.rows.length === 0) return NextResponse.json({ error: 'Inconnu' }, { status: 404 });
     const userId = user.rows[0].id;
 
-    // Les statistiques
     const stats = await pool.query(`
       SELECT COUNT(id) as total_sealed, SUM(CASE WHEN is_hosted = true THEN 1 ELSE 0 END) as total_hosted
       FROM seals WHERE author_id = $1
     `, [userId]);
 
-    // La liste des œuvres
     const seals = await pool.query(`
       SELECT id, title, timestamp, is_hosted, file_path 
       FROM seals WHERE author_id = $1 ORDER BY created_at DESC
@@ -25,6 +23,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       handle: user.rows[0].handle,
+      recovery_email: user.rows[0].recovery_email,
       sealed: parseInt(stats.rows[0].total_sealed || 0),
       hosted: parseInt(stats.rows[0].total_hosted || 0),
       seals: seals.rows

@@ -8,6 +8,7 @@ export default function Signup() {
   const [handle, setHandle] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState('');
 
   async function handleSignup() {
@@ -15,14 +16,12 @@ export default function Signup() {
     setStatus("Création en cours...");
     
     try {
-      // On génère la paire de clés en arrière-plan pour le protocole
       const secret = crypto.getRandomValues(new Uint8Array(32));
       const pubkey = ed25519.getPublicKey(secret);
       let pubkeyStr = ''; for (let i = 0; i < pubkey.length; i++) pubkeyStr += String.fromCharCode(pubkey[i]);
       let secretStr = ''; for (let i = 0; i < secret.length; i++) secretStr += String.fromCharCode(secret[i]);
       const pubkeyB64 = btoa(pubkeyStr);
 
-      // On stocke la clé secrète localement (pour plus tard)
       localStorage.setItem('sceau_secret', btoa(secretStr));
 
       const res = await fetch('/api/auth/signup', { 
@@ -55,7 +54,21 @@ export default function Signup() {
       <input type="email" className="w-full border-2 border-[#EFE0CA] p-3 rounded-xl mb-4" value={email} onChange={(e) => setEmail(e.target.value)} />
       
       <label className="block text-xs font-bold text-[#A89070] uppercase mb-1 font-mono">Mot de passe</label>
-      <input type="password" className="w-full border-2 border-[#EFE0CA] p-3 rounded-xl mb-6" value={password} onChange={(e) => setPassword(e.target.value)} />
+      <div className="relative mb-6">
+        <input 
+          type={showPassword ? "text" : "password"} 
+          className="w-full border-2 border-[#EFE0CA] p-3 rounded-xl pr-10" 
+          value={password} 
+          onChange={(e) => setPassword(e.target.value)} 
+        />
+        <button 
+          type="button" 
+          onClick={() => setShowPassword(!showPassword)} 
+          className="absolute right-3 top-3 text-gray-500 hover:text-black"
+        >
+          {showPassword ? "🙈" : "👁️"}
+        </button>
+      </div>
       
       <button onClick={handleSignup} className="w-full bg-gradient-to-r from-[#E76F51] to-[#F4A261] text-white p-4 rounded-xl font-bold">S'inscrire</button>
       {status && <p className="mt-4 text-center font-bold text-[#C44A2E]">{status}</p>}
