@@ -3,24 +3,55 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 export default function Friends() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<any>({ friends: [], received: [] });
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
-  const myHandle = typeof window !== 'undefined' ? localStorage.getItem('sceau_handle') : null;
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
+  
+  const [myHandle, setMyHandle] = useState<string | null>(null);
+
+  useEffect(() => {
+    // On récupère le pseudo seulement côté client pour éviter les erreurs d'hydratation
+    const h = localStorage.getItem('sceau_handle');
+    setMyHandle(h);
+    if (!h) {
+      setLoading(false);
+    }
+  }, []);
 
   const load = () => {
-    if (myHandle) fetch(`/api/friends?me=${myHandle}`).then(r => r.json()).then(d => setData(d));
+    if (!myHandle) return;
+    setLoading(true);
+    setErrorMsg('');
+    
+    fetch(`/api/friends?me=${myHandle}`)
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Erreur de chargement');
+        return d;
+      })
+      .then(d => { 
+        setData({ friends: d.friends || [], received: d.received || [] }); 
+        setLoading(false);
+      })
+      .catch((err) => { 
+        setErrorMsg(err.message); 
+        setLoading(false); 
+      });
   };
 
-  useEffect(() => { load(); }, [myHandle]);
+  useEffect(() => { 
+    if (myHandle) load(); 
+  }, [myHandle]);
 
-  // Recherche d'utilisateurs (avec un petit délai pour ne pas spammer l'API)
   useEffect(() => {
     if (!searchQuery.trim() || !myHandle) { setSearchResults([]); return; }
     const delay = setTimeout(() => {
       fetch(`/api/friends?me=${myHandle}&search=${searchQuery}`)
         .then(r => r.json())
-        .then(d => setSearchResults(d.searchResults || []));
+        .then(d => setSearchResults(d.searchResults || []))
+        .catch(() => {});
     }, 500);
     return () => clearTimeout(delay);
   }, [searchQuery, myHandle]);
@@ -36,14 +67,20 @@ export default function Friends() {
     setSearchQuery('');
   }
 
-  if (!data) return <div className="p-10 text-center font-mono">Chargement...</div>;
+  if (loading) return <div className="p-10 text-center font-mono">Chargement du cercle...</div>;
+
+  if (errorMsg) return (
+    <div className="p-10 text-center font-mono">
+      <p className="text-red-500 font-bold mb-4">❌ {errorMsg}</p>
+      <button onClick={load} className="bg-[#E76F51] text-white px-4 py-2 rounded-xl">Réessayer</button>
+    </div>
+  );
 
   return (
     <div className="p-6 max-w-2xl mx-auto font-serif">
       <h1 className="text-3xl font-bold mb-6" style={{color: 'var(--text-main)'}}>Mon Cercle.</h1>
       
-      {/* BARRE DE RECHERCHE */}
-      <div className="mb-8">
+      <div className="mb-8 relative">
         <input 
           type="text" 
           placeholder="🔍 Chercher un créateur par pseudo..." 
@@ -53,7 +90,7 @@ export default function Friends() {
           onChange={e => setSearchQuery(e.target.value)}
         />
         {searchResults.length > 0 && (
-          <div className="mt-2 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-lg absolute w-[calc(100%-3rem)] max-w-[calc(42rem-3rem)] z-10">
+          <div className="mt-2 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-lg absolute w-full z-10">
             {searchResults.map(u => (
               <div key={u.handle} className="flex justify-between items-center p-3 border-b border-[var(--border-color)] hover:bg-[var(--bg-main)]">
                 <div>
@@ -67,7 +104,6 @@ export default function Friends() {
         )}
       </div>
 
-      {/* DEMANDES REÇUES */}
       {data.received.length > 0 && (
         <div className="mb-8">
           <h2 className="text-lg font-bold text-[#E76F51] mb-3">Demandes en attente ({data.received.length})</h2>
@@ -85,7 +121,6 @@ export default function Friends() {
         </div>
       )}
 
-      {/* MES AMIS (Avec leur dernière œuvre) */}
       <h2 className="text-lg font-bold mb-3">Mes Amis ({data.friends.length})</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {data.friends.map((f: any) => (
