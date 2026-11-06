@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useEffect, Suspense } from 'react';
+import { useState, useRef, Suspense } from 'react';
 import { sha256 } from '@noble/hashes/sha256';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -19,7 +19,7 @@ function SealContent() {
   const [file, setFile] = useState<File | null>(null);
   
   const [isHosted, setIsHosted] = useState(true);
-  const [requiredSignatures, setRequiredSignatures] = useState(2); // Pour les pactes
+  const [requiredSignatures, setRequiredSignatures] = useState(2);
   
   const [status, setStatus] = useState('');
   const [sealedResult, setSealedResult] = useState<any>(null);
@@ -76,7 +76,8 @@ function SealContent() {
       }
       if (!fileToSeal) return;
 
-      const buffer = await fileToSeal.arrayBuffer();
+      // CORRECTION TYPESCRIPT ICI : (fileToSeal as File)
+      const buffer = await (fileToSeal as File).arrayBuffer();
       const hash = sha256(new Uint8Array(buffer));
       let hashStr = ''; for (let i = 0; i < hash.length; i++) hashStr += String.fromCharCode(hash[i]);
       
@@ -100,7 +101,7 @@ function SealContent() {
 
     if (isPactMode) {
       endpoint = '/api/pacts/create';
-      formData.append('group_id', chatType === 'group' ? chatId! : '');
+      formData.append('group_id', chatType === 'group' ? (chatId as string) : '');
       formData.append('required_signatures', requiredSignatures.toString());
     } else {
       formData.append('isFlash', isFlashMode.toString());
@@ -115,14 +116,13 @@ function SealContent() {
     
     if (res.ok) {
       if (isPactMode) {
-        // Envoi du message dans le chat
         const msg = `[PACTE]${data.id}|${data.title}`;
         if (chatType === 'dm') {
           await fetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sender_handle: localStorage.getItem('sceau_handle'), receiver_handle: chatId, content: msg }) });
         } else {
           await fetch('/api/groups/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ group_id: chatId, sender_handle: localStorage.getItem('sceau_handle'), content: msg }) });
         }
-        window.location.href = '/messages'; // Retour au chat
+        window.location.href = '/messages';
       } else {
         setStatus("✅ Scellé avec succès !");
         setSealedResult({ title, hash: hashB64, date: new Date().toLocaleDateString('fr-FR'), isFlash: isFlashMode, otsSecured: data.ots_secured });
