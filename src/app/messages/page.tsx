@@ -8,7 +8,6 @@ export default function Messages() {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   
-  // États pour les pactes
   const [showPactModal, setShowPactModal] = useState(false);
   const [pactTitle, setPactTitle] = useState('');
   const [pactDesc, setPactDesc] = useState('');
@@ -17,53 +16,46 @@ export default function Messages() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Charger les contacts au démarrage
   useEffect(() => {
     setMyHandle(localStorage.getItem('sceau_handle') || '');
     fetch('/api/messages').then(r => r.json()).then(d => setContacts(d.contacts || []));
   }, []);
 
-  // Rafraîchissement automatique (toutes les 2 secondes)
   useEffect(() => {
     if (!activeContact || !myHandle) return;
-    
     const load = () => {
       fetch(`/api/messages/${activeContact.handle}?me=${myHandle}`)
         .then(r => r.json())
-        .then(data => {
-          setMessages(data.messages || []);
-        });
+        .then(data => setMessages(data.messages || []));
     };
-    
-    load(); // Premier chargement immédiat
-    const interval = setInterval(load, 2000);
+    load();
+    const interval = setInterval(load, 3000); // 3 secondes pour laisser le temps au POST
     return () => clearInterval(interval);
   }, [activeContact, myHandle]);
 
-  // Scroll automatique vers le bas quand un nouveau message arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   async function sendMessage() {
     if (!newMessage.trim() || !activeContact) return;
     
     const msgToSend = newMessage;
-    setNewMessage(''); // On vide le champ tout de suite
+    setNewMessage(''); 
     
-    // MISE À JOUR OPTIMISTE : On l'affiche direct chez soi
-    const optimisticMsg = { 
-      content: msgToSend, 
-      sender: myHandle, 
-      created_at: new Date().toISOString() 
-    };
+    const optimisticMsg = { content: msgToSend, sender: myHandle, created_at: new Date().toISOString() };
     setMessages(prev => [...prev, optimisticMsg]);
 
-    // On envoie au serveur en arrière-plan
-    await fetch('/api/messages', { 
-      method: 'POST', 
-      body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeContact.handle, content: msgToSend }) 
-    });
+    try {
+      const res = await fetch('/api/messages', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, // LE FIX EST ICI
+        body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeContact.handle, content: msgToSend }) 
+      });
+      if (!res.ok) throw new Error("Erreur d'envoi");
+    } catch (e) {
+      alert("Le message n'a pas pu être envoyé.");
+      // On retire le message optimiste en cas d'échec
+      setMessages(prev => prev.filter(m => m !== optimisticMsg));
+    }
   }
 
   async function createPact() {
@@ -79,15 +71,22 @@ export default function Messages() {
     const res = await fetch('/api/pacts/create', { method: 'POST', body: formData });
     const data = await res.json();
     
-    await fetch('/api/messages', { method: 'POST', body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeContact.handle, content: `[PACTE]${data.id}|${pactTitle}` }) });
-    
-    setShowPactModal(false);
-    setPactTitle(''); setPactDesc(''); setPactFile(null);
+    if (res.ok) {
+      // Envoi du message de notification
+      await fetch('/api/messages', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, // LE FIX EST ICI AUSSI
+        body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeContact.handle, content: `[PACTE]${data.id}|${pactTitle}` }) 
+      });
+      setShowPactModal(false);
+      setPactTitle(''); setPactDesc(''); setPactFile(null);
+    } else {
+      alert("Erreur lors de la création du pacte.");
+    }
   }
 
   return (
     <div className="p-4 md:p-6 h-[calc(100vh-140px)] flex gap-4 font-serif max-w-5xl mx-auto">
-      {/* LISTE CONTACTS */}
       <div className={`bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-4 overflow-y-auto ${activeContact ? 'hidden md:block md:w-1/3' : 'w-full md:w-1/3'}`}>
         <h1 className="text-2xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Messages</h1>
         <div className="space-y-2">
@@ -100,7 +99,6 @@ export default function Messages() {
         </div>
       </div>
 
-      {/* CHAT */}
       {activeContact ? (
         <div className={`bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl flex flex-col overflow-hidden ${activeContact ? 'w-full md:w-2/3' : 'hidden md:flex'}`}>
           <div className="p-4 border-b border-[var(--border-color)] flex justify-between items-center">
@@ -128,7 +126,7 @@ export default function Messages() {
                 </div>
               );
             })}
-            <div ref={messagesEndRef} /> {/* Ancre pour le scroll */}
+            <div ref={messagesEndRef} />
           </div>
 
           <div className="p-4 border-t border-[var(--border-color)] flex gap-2">
@@ -142,14 +140,12 @@ export default function Messages() {
         </div>
       )}
 
-      {/* MODALE CRÉATION PACTE */}
       {showPactModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-[var(--bg-surface)] w-full max-w-sm rounded-3xl p-6">
             <h2 className="text-2xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Créer un Pacte</h2>
             <input type="text" placeholder="Titre de l'accord" className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={pactTitle} onChange={e => setPactTitle(e.target.value)} />
             <textarea placeholder="Détails du contrat..." className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={pactDesc} onChange={e => setPactDesc(e.target.value)} />
-            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Fichier joint (optionnel)</label>
             <input type="file" className="w-full mb-4 text-sm" onChange={e => setPactFile(e.target.files?.[0] || null)} />
             <div className="flex gap-2">
               <button onClick={() => setShowPactModal(false)} className="flex-1 py-2 font-bold opacity-50">Annuler</button>
@@ -159,7 +155,6 @@ export default function Messages() {
         </div>
       )}
 
-      {/* MODALE SIGNATURE PACTE */}
       {activePact && <PactModal pactId={activePact} receiverHandle={activeContact.handle} onClose={() => setActivePact(null)} />}
     </div>
   );
@@ -167,13 +162,12 @@ export default function Messages() {
 
 function PactModal({ pactId, receiverHandle, onClose }: { pactId: string, receiverHandle: string, onClose: () => void }) {
   const [pact, setPact] = useState<any>(null);
-  
   const loadPact = () => fetch(`/api/pacts/${pactId}`).then(r => r.json()).then(d => setPact(d));
   useEffect(() => { loadPact(); }, [pactId]);
 
   async function signPact() {
     const pubkey = localStorage.getItem('sceau_pubkey');
-    await fetch('/api/pacts/sign', { method: 'POST', body: JSON.stringify({ pact_id: pactId, pubkey, receiver_handle: receiverHandle }) });
+    await fetch('/api/pacts/sign', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pact_id: pactId, pubkey, receiver_handle: receiverHandle }) });
     loadPact();
   }
 
@@ -192,21 +186,14 @@ function PactModal({ pactId, receiverHandle, onClose }: { pactId: string, receiv
         <p className="text-sm mb-4 text-[var(--text-muted)]">Créé par @{pact.creator}</p>
         <p className="italic mb-4 p-4 bg-[var(--bg-main)] rounded-xl" style={{color: 'var(--text-main)'}}>{pact.description}</p>
         
-        {pact.file_path && (
-          <a href={pact.file_path} target="_blank" className="block text-center bg-[#2C1810] text-white py-2 rounded-xl mb-6 font-bold text-sm">
-            📂 Télécharger le document
-          </a>
-        )}
+        {pact.file_path && <a href={pact.file_path} target="_blank" className="block text-center bg-[#2C1810] text-white py-2 rounded-xl mb-6 font-bold text-sm">📂 Télécharger le document</a>}
         
         <div className="mb-6">
           <h3 className="font-bold mb-2" style={{color: 'var(--text-main)'}}>Signatures :</h3>
           <div className="flex flex-wrap gap-2">
-            {pact.signataires.map((s: string) => (
-              <span key={s} className="bg-[#F5F9EE] text-[#5D7A3A] border border-[#A8C77E] px-3 py-1 rounded-lg text-sm font-bold">✅ @{s}</span>
-            ))}
+            {pact.signataires.map((s: string) => <span key={s} className="bg-[#F5F9EE] text-[#5D7A3A] border border-[#A8C77E] px-3 py-1 rounded-lg text-sm font-bold">✅ @{s}</span>)}
           </div>
         </div>
-
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-3 font-bold opacity-50" style={{color: 'var(--text-main)'}}>Fermer</button>
           {!hasSigned && !isSealed && <button onClick={signPact} className="flex-1 bg-[#E76F51] text-white py-3 rounded-xl font-bold">✍️ Contresigner</button>}

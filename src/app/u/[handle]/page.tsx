@@ -5,41 +5,53 @@ import { useParams } from 'next/navigation';
 export default function PublicProfile() {
   const params = useParams();
   const [data, setData] = useState<any>(null);
+  const [myHandle, setMyHandle] = useState<string | null>(null);
 
   useEffect(() => {
+    setMyHandle(localStorage.getItem('sceau_handle'));
     if (params.handle) {
-      fetch(`/api/user-profile/${params.handle}`).then(r => r.json()).then(d => setData(d));
+      fetch(`/api/user-profile/${params.handle}?viewer=${myHandle || ''}`)
+        .then(r => r.json())
+        .then(d => setData(d));
     }
-  }, [params.handle]);
+  }, [params.handle, myHandle]);
+
+  async function addFriend() {
+    await fetch('/api/friends', { method: 'POST', body: JSON.stringify({ me: myHandle, target: data.handle }) });
+    window.location.reload();
+  }
 
   if (!data) return <div className="p-10 text-center font-mono">Chargement...</div>;
-  if (data.error) return <div className="p-10 text-center font-mono">{data.error}</div>;
 
   return (
-    <div className="p-6">
+    <div className="p-6 max-w-2xl mx-auto">
       <div className="text-center mb-10">
         <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#E76F51] to-[#F4A261] text-white flex items-center justify-center font-bold text-3xl mx-auto mb-4">
           {data.handle[0].toUpperCase()}
         </div>
         <h1 className="text-3xl font-bold font-serif">@{data.handle}</h1>
-        <p className="text-sm font-mono text-[var(--text-muted)]">Profil Public</p>
+        
+        {myHandle !== data.handle && (
+          <div className="mt-4">
+            {data.relationship === 'friend' && <span className="bg-green-100 text-green-800 px-4 py-2 rounded-full font-bold text-sm">✅ Amis</span>}
+            {data.relationship === 'pending' && <span className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-full font-bold text-sm">⏳ En attente</span>}
+            {data.relationship === 'none' && <button onClick={addFriend} className="bg-[#E76F51] text-white px-6 py-2 rounded-xl font-bold shadow-md hover:bg-[#F4A261]">Ajouter en ami</button>}
+          </div>
+        )}
       </div>
 
       <h2 className="text-xl font-bold font-serif mb-6 border-b border-[var(--border-color)] pb-2">Timeline</h2>
-      
-      <div className="border-l-2 border-[var(--border-color)] pl-6 space-y-8 ml-4">
+      <div className="space-y-4">
         {data.seals.map((seal: any) => (
-          <div key={seal.id} className="relative">
-            <div className="absolute -left-[31px] top-2 w-3 h-3 rounded-full bg-[#E76F51]"></div>
-            <div className="text-sm font-mono text-[var(--text-muted)] mb-1">{new Date(seal.timestamp).toLocaleDateString('fr-FR')}</div>
-            <div className="bg-[var(--bg-surface)] p-4 rounded-xl border border-[var(--border-color)] shadow-sm">
+          <div key={seal.id} className="bg-[var(--bg-surface)] p-4 rounded-xl border border-[var(--border-color)] shadow-sm flex items-center gap-3">
+            {seal.visibility === 'friends' && <span title="Amis uniquement">👥</span>}
+            {seal.visibility === 'private' && <span title="Privé">🔒</span>}
+            <div>
               <h3 className="text-lg font-bold">{seal.title}</h3>
-              {seal.description && <p className="text-sm italic opacity-80 mt-1">{seal.description}</p>}
-              {seal.is_hosted && <span className="inline-block mt-2 text-xs bg-[#F5F9EE] text-[#5D7A3A] px-2 py-1 rounded">📁 Fichier hébergé</span>}
+              <div className="text-xs font-mono text-[var(--text-muted)] mt-1">{new Date(seal.timestamp).toLocaleDateString('fr-FR')}</div>
             </div>
           </div>
         ))}
-        {data.seals.length === 0 && <p className="text-[var(--text-muted)] italic">Aucune œuvre publique.</p>}
       </div>
     </div>
   );

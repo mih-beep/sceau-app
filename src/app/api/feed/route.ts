@@ -3,49 +3,47 @@ import { pool } from '@/db/pool';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const query = searchParams.get('q') || '';
+  const myHandle = searchParams.get('me');
   const category = searchParams.get('cat') || '';
-  const timeFilter = searchParams.get('time') || 'all'; // 'hour', 'day', 'week', 'all'
-  const locationFilter = searchParams.get('loc') || '';
 
   try {
-    let sql = `
-      SELECT s.id, s.title, s.description, s.category, s.is_hosted, s.file_path, s.timestamp, s.location, encode(s.hash, 'base64') as hash, u.handle as author,
-      (SELECT COUNT(*) FROM likes WHERE seal_id = s.id) as likes_count,
-      (SELECT COUNT(*) FROM comments WHERE seal_id = s.id) as comments_count
-      FROM seals s JOIN users u ON s.author_id = u.id
-      WHERE s.is_public = TRUE
-    `;
-    const params: any[] = [];
-    
-    if (query) {
-      sql += ` AND (s.title ILIKE $${params.length + 1} OR s.description ILIKE $${params.length + 1} OR u.handle ILIKE $${params.length + 1})`;
-      params.push(`%${query}%`);
+    let params: any[] = [];
+    let whereClause = "s.visibility = 'public'";
+
+    if (myHandle) {
+      const me = await pool.query("SELECT id FROM users WHERE handle = $1", [myHandle]);
+      if (me.rows.length > 0) {
+        const myId = me.rows[0].id;
+        const friendsRes = await pool.query(`
+          SELECT requester_id as id FROM friendships WHERE addressee_id = $1 AND status = 'accepted'
+          UNION
+          SELECT addressee_id as id FROM friendships WHERE requester_id = $1 AND status = 'accepted'
+        `, [myId]);
+        const friendIds = friendsRes.rows.map(r => r.id);
+        
+        if (friendIds.length > 0) {
+          params.push(friendIds);
+          whereClause = `(s.visibility = 'public' OR (s.visibility = 'friends' AND s.author_id = ANY($${params.length})))`;
+        }
+      }
     }
+
+    let sql = `
+      SELECT s.id, s.title, s.description, s.category, s.is_hosted, s.file_path, s.timestamp, s.visibility, u.handle as author,
+      (SELECT COUNT(*) FROM likes WHERE seal_id = s.id) as likes_count
+      FROM seals s JOIN users u ON s.author_id = u.id
+      WHERE ${whereClause}
+    `;
+    
     if (category && category !== 'Tout') {
       sql += ` AND s.category = $${params.length + 1}`;
       params.push(category);
     }
-    if (locationFilter) {
-      sql += ` AND s.location ILIKE $${params.length + 1}`;
-      params.push(`%${locationFilter}%`);
-    }
 
-    // Filtre temporel
-    if (timeFilter === 'hour') {
-      sql += ` AND s.timestamp >= NOW() - INTERVAL '1 hour'`;
-    } else if (timeFilter === 'day') {
-      sql += ` AND s.timestamp >= NOW() - INTERVAL '1 day'`;
-    } else if (timeFilter === 'week') {
-      sql += ` AND s.timestamp >= NOW() - INTERVAL '7 days'`;
-    }
-
-    sql += ` ORDER BY s.timestamp DESC LIMIT 50`;
+    sql += ` ORDER BY s.timestamp DESC LIMIT 30`;
     const result = await pool.query(sql, params);
-    
     return NextResponse.json({ seals: result.rows });
   } catch (error) { 
-    console.error(error);
     return NextResponse.json({ error: 'Erreur' }, { status: 500 }); 
   }
 }

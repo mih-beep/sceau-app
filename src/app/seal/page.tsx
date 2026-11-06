@@ -11,7 +11,7 @@ export default function Seal() {
   const [cat, setCat] = useState('Art');
   const [workType, setWorkType] = useState('fichier'); // NOUVEAU
   const [isHosted, setIsHosted] = useState(true);
-  const [isPublic, setIsPublic] = useState(true);
+  const [visibility, setVisibility] = useState('public');
   const [status, setStatus] = useState('');
 
   const [isRecording, setIsRecording] = useState(false);
@@ -77,7 +77,7 @@ export default function Seal() {
       formData.append('category', cat);
       formData.append('workType', workType); // NOUVEAU
       formData.append('isHosted', isHosted.toString());
-      formData.append('isPublic', isPublic.toString());
+      formData.append('visibility', visibility);
       formData.append('pubkey', pubkey);
       formData.append('file', fileToSeal);
 
@@ -166,10 +166,14 @@ export default function Seal() {
             <input type="checkbox" checked={isHosted} onChange={e=>setIsHosted(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
             <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>Héberger le fichier</span>
           </label>
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input type="checkbox" checked={isPublic} onChange={e=>setIsPublic(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
-            <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>Rendre public (Feed)</span>
-          </label>
+          <div className="space-y-2">
+            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Visibilité de l'œuvre</label>
+            <div className="flex bg-white rounded-xl border border-[var(--border-color)] p-1">
+              <button onClick={() => setVisibility('public')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${visibility === 'public' ? 'bg-[#F5F9EE] text-[#5D7A3A] shadow' : 'opacity-50'}`}>🌍 Public</button>
+              <button onClick={() => setVisibility('friends')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${visibility === 'friends' ? 'bg-[#F0F6FC] text-[#2D6A9E] shadow' : 'opacity-50'}`}>👥 Amis</button>
+              <button onClick={() => setVisibility('private')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${visibility === 'private' ? 'bg-[#FDF4F0] text-[#C44A2E] shadow' : 'opacity-50'}`}>🔒 Privé</button>
+            </div>
+          </div>
         </div>
         
         <button onClick={handleSeal} className="w-full bg-gradient-to-r from-[#E76F51] to-[#F4A261] text-white p-4 rounded-xl font-bold shadow-lg mt-4">SCELLER MON ŒUVRE</button>

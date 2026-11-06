@@ -11,15 +11,24 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const { sender_handle, receiver_handle, content } = await req.json();
+    if (!sender_handle || !receiver_handle || !content) {
+      return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
+    }
+
     const sender = await pool.query("SELECT id FROM users WHERE handle = $1", [sender_handle]);
     const receiver = await pool.query("SELECT id FROM users WHERE handle = $1", [receiver_handle]);
     
-    if (sender.rows.length === 0 || receiver.rows.length === 0) return NextResponse.json({ error: 'Utilisateur inconnu' }, { status: 404 });
+    if (sender.rows.length === 0 || receiver.rows.length === 0) {
+      return NextResponse.json({ error: 'Utilisateur inconnu' }, { status: 404 });
+    }
 
     await pool.query(
       "INSERT INTO messages (sender_id, receiver_id, content) VALUES ($1, $2, $3)",
       [sender.rows[0].id, receiver.rows[0].id, content]
     );
     return NextResponse.json({ success: true });
-  } catch (error) { return NextResponse.json({ error: 'Erreur' }, { status: 500 }); }
+  } catch (error: any) { 
+    console.error("Erreur DB message:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 }); 
+  }
 }
