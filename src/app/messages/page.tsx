@@ -26,15 +26,39 @@ export default function Messages() {
     fetch(`/api/groups/list?me=${localStorage.getItem('sceau_handle')}`).then(r => r.json()).then(d => setGroups(d.groups || []));
   }, []);
 
+  // Charger les messages avec FUSION intelligente
   useEffect(() => {
     if (!activeChat || !myHandle) return;
     const load = () => {
-      if (activeChat.type === 'dm') {
-        fetch(`/api/messages/${activeChat.id}?me=${myHandle}`).then(r => r.json()).then(data => setMessages(data.messages || []));
-      } else {
-        fetch(`/api/groups/messages?id=${activeChat.id}`).then(r => r.json()).then(data => setMessages(data.messages || []));
-      }
+      const endpoint = activeChat.type === 'dm' 
+        ? `/api/messages/${activeChat.id}?me=${myHandle}` 
+        : `/api/groups/messages?id=${activeChat.id}`;
+
+      fetch(endpoint).then(r => r.json()).then(data => {
+        const serverMessages = data.messages || [];
+        
+        setMessages(prev => {
+          // On garde les messages temporaires qui ne sont pas encore arrivés du serveur
+          const tempMessages = prev.filter(m => m.isTemp);
+          
+          // On fusionne : les messages du serveur + les messages temporaires qui n'ont pas encore de correspondance
+          const merged = [...serverMessages];
+          
+          tempMessages.forEach(temp => {
+            // Si le message temporaire n'existe pas déjà dans la réponse serveur (comparaison de contenu et auteur)
+            const isAlreadySaved = serverMessages.some(
+              (sm: any) => sm.content === temp.content && sm.sender === temp.sender
+            );
+            if (!isAlreadySaved) {
+              merged.push(temp);
+            }
+          });
+
+          return merged;
+        });
+      });
     };
+    
     load();
     const interval = setInterval(load, 3000);
     return () => clearInterval(interval);
@@ -54,8 +78,9 @@ export default function Messages() {
     const msg = newMessage;
     setNewMessage('');
     
-    // Optimistic UI (on l'affiche tout de suite)
-    setMessages(prev => [...prev, { content: msg, sender: myHandle, created_at: new Date().toISOString(), isTemp: true }]);
+    // On ajoute un ID temporaire unique pour le suivi
+    const tempId = `temp-${Date.now()}`;
+    setMessages(prev => [...prev, { content: msg, sender: myHandle, created_at: new Date().toISOString(), isTemp: true, id: tempId }]);
 
     try {
       if (activeChat.type === 'dm') {
@@ -63,9 +88,13 @@ export default function Messages() {
       } else {
         await fetch('/api/groups/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ group_id: activeChat.id, sender_handle: myHandle, content: msg }) });
       }
+      // Une fois le message envoyé avec succès, on force un rechargement immédiat
+      // pour remplacer le message temporaire par le vrai message du serveur
+      setTimeout(() => {
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+      }, 500);
     } catch (e) {
       console.error("Erreur d'envoi", e);
-      // Si erreur, on pourrait retirer le message temporaire
     }
   }
 
@@ -75,7 +104,6 @@ export default function Messages() {
     if (res.ok) { alert("Groupe créé !"); setShowGroupModal(false); window.location.reload(); }
   }
 
-  // Redirection vers l'Atelier pour créer le pacte
   function startPact() {
     router.push(`/seal?pact=true&chat_id=${activeChat.id}&chat_type=${activeChat.type}`);
   }
@@ -131,7 +159,7 @@ export default function Messages() {
                 );
               }
               return (
-                <div key={i} className={`max-w-[80%] p-3 rounded-xl text-sm ${m.sender === myHandle ? 'bg-[#E76F51] text-white ml-auto rounded-br-none' : 'bg-[var(--bg-main)] border border-[var(--border-color)] rounded-bl-none'} ${m.isTemp ? 'opacity-50' : ''}`} style={{color: m.sender === myHandle ? '#FFF' : 'var(--text-main)'}}>
+                <div key={i} className={`max-w-[80%] p-3 rounded-xl text-sm ${m.sender === myHandle ? 'bg-[#E76F51] text-white ml-auto rounded-br-none' : 'bg-[var(--bg-main)] border border-[var(--border-color)] rounded-bl-none'} ${m.isTemp ? 'opacity-60' : ''}`} style={{color: m.sender === myHandle ? '#FFF' : 'var(--text-main)'}}>
                   {activeChat.type === 'group' && m.sender !== myHandle && <div className="text-[0.6rem] font-bold opacity-70 mb-1">@{m.sender}</div>}
                   {m.content}
                 </div>
