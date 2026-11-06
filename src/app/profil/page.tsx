@@ -34,9 +34,9 @@ export default function Profil() {
   }
 
   function exportPortfolio() {
-    const pubkey = localStorage.getItem('sceau_pubkey');
-    if (!pubkey) return;
-    generateCertificate(`Portfolio de @${data.handle}`, data.handle, new Date().toISOString(), "Lien vers toutes les œuvres", "");
+    import('@/lib/pdf').then(({ generatePortfolioPDF }) => {
+      generatePortfolioPDF(data.handle, data.seals);
+    });
   }
 
   if (error) return <div className="p-10 text-center font-mono text-red-500">{error}</div>;
