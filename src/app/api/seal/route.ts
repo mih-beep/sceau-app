@@ -11,6 +11,7 @@ export async function POST(req: Request) {
     const description = data.get('description') as string;
     const isFlash = data.get('isFlash') === 'true';
     const isMystery = data.get('isMystery') === 'true';
+    const isEphemeral = data.get('isEphemeral') === 'true';
     const unlockLikes = parseInt(data.get('unlockLikes') as string || '0');
     const pubkey = data.get('pubkey') as string;
     const file = data.get('file') as File;
@@ -22,7 +23,6 @@ export async function POST(req: Request) {
     let filePath = null;
     let fileSize = 0;
     
-    // Si ce n'est pas un flash et qu'il y a un fichier, on l'héberge
     if (!isFlash && file) {
       fileSize = file.size;
       const buffer = Buffer.from(await file.arrayBuffer());
@@ -33,9 +33,9 @@ export async function POST(req: Request) {
     }
 
     const result = await pool.query(
-      `INSERT INTO seals (hash, timestamp, author_id, title, description, is_public, visibility, is_hosted, file_path, file_size, is_flash, is_mystery, unlock_likes) 
-       VALUES (decode($1, 'base64'), NOW(), $2, $3, $4, true, 'public', $5, $6, $7, $8, $9, $10) RETURNING id`,
-      [hash, authorId, title, description, !isFlash && filePath ? true : false, filePath, fileSize, isFlash, isMystery, unlockLikes]
+      `INSERT INTO seals (hash, timestamp, author_id, title, description, is_public, visibility, is_hosted, file_path, file_size, is_flash, is_mystery, unlock_likes, is_ephemeral) 
+       VALUES (decode($1, 'base64'), NOW(), $2, $3, $4, true, 'public', $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+      [hash, authorId, title, description, !isFlash && filePath ? true : false, filePath, fileSize, isFlash, isMystery, unlockLikes, isEphemeral]
     );
 
     return NextResponse.json({ seal_id: result.rows[0].id });
