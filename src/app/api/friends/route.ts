@@ -1,31 +1,33 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/db/pool';
 
-// On force le serveur à ne pas mettre en cache cette route
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const me = searchParams.get('me');
+    let me = searchParams.get('me');
     const search = searchParams.get('search');
     
     if (!me) return NextResponse.json({ error: 'Non connecté' }, { status: 401 });
+    // NOUVEAU : On nettoie le pseudo au cas où il y aurait un @
+    me = me.replace('@', '');
 
     const myIdRes = await pool.query("SELECT id FROM users WHERE handle = $1", [me]);
-    if (myIdRes.rows.length === 0) return NextResponse.json({ error: 'Inconnu' }, { status: 404 });
+    if (myIdRes.rows.length === 0) {
+      // Message plus clair pour le débogage
+      return NextResponse.json({ error: "Ton compte n'existe pas dans la base de données. Déconnecte-toi et reconnecte-toi." }, { status: 404 });
+    }
     const myId = myIdRes.rows[0].id;
 
-    // 1. Si on fait une recherche
     if (search) {
       const users = await pool.query(`
         SELECT handle, role FROM users 
         WHERE handle ILIKE $1 AND id != $2 LIMIT 10
-      `, [`%${search}%`, myId]);
+      `, [`%${search.replace('@', '')}%`, myId]);
       return NextResponse.json({ searchResults: users.rows });
     }
 
-    // 2. Récupérer les amis (Requête optimisée)
     const friendsQuery = await pool.query(`
       SELECT 
         u.id, 
@@ -37,7 +39,6 @@ export async function GET(req: Request) {
       WHERE (f.requester_id = $1 OR f.addressee_id = $1) AND f.status = 'accepted'
     `, [myId]);
 
-    // 3. Récupérer les demandes en attente
     const receivedQuery = await pool.query(`
       SELECT u.handle FROM friendships f 
       JOIN users u ON u.id = f.requester_id
@@ -51,23 +52,24 @@ export async function GET(req: Request) {
 
   } catch (error: any) {
     console.error("Erreur API Friends:", error);
-    // On renvoie l'erreur exacte pour le débogage, avec un statut 500
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Erreur base de données : " + error.message }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
   try {
     const { me, target } = await req.json();
-    const meId = (await pool.query("SELECT id FROM users WHERE handle = $1", [me])).rows[0]?.id;
-    const targetId = (await pool.query("SELECT id FROM users WHERE handle = $1", [target])).rows[0]?.id;
     
-    if (!meId || !targetId) return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
+    // Nettoyage des pseudos
+    const myId = (await pool.query("SELECT id FROM users WHERE handle = $1", [me.replace('@', '')])).rows[0]?.id;
+    const targetId = (await pool.query("SELECT id FROM users WHERE handle = $1", [target.replace('@', '')])).rows[0]?.id;
+    
+    if (!myId || !targetId) return NextResponse.json({ error: 'Utilisateur introuvable dans la base' }, { status: 404 });
 
     await pool.query(`
       INSERT INTO friendships (requester_id, addressee_id, status) 
       VALUES ($1, $2, 'pending') ON CONFLICT DO NOTHING
-    `, [meId, targetId]);
+    `, [myId, targetId]);
     
     return NextResponse.json({ success: true });
   } catch (error: any) { 

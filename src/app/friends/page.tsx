@@ -12,12 +12,9 @@ export default function Friends() {
   const [myHandle, setMyHandle] = useState<string | null>(null);
 
   useEffect(() => {
-    // On récupère le pseudo seulement côté client pour éviter les erreurs d'hydratation
     const h = localStorage.getItem('sceau_handle');
-    setMyHandle(h);
-    if (!h) {
-      setLoading(false);
-    }
+    // On s'assure qu'on n'a pas de @ dans le handle stocké
+    setMyHandle(h ? h.replace('@', '') : null);
   }, []);
 
   const load = () => {
@@ -70,9 +67,9 @@ export default function Friends() {
   if (loading) return <div className="p-10 text-center font-mono">Chargement du cercle...</div>;
 
   if (errorMsg) return (
-    <div className="p-10 text-center font-mono">
-      <p className="text-red-500 font-bold mb-4">❌ {errorMsg}</p>
-      <button onClick={load} className="bg-[#E76F51] text-white px-4 py-2 rounded-xl">Réessayer</button>
+    <div className="p-10 text-center font-mono flex flex-col items-center">
+      <p className="text-red-500 font-bold mb-4 text-sm max-w-sm">❌ {errorMsg}</p>
+      <button onClick={() => { localStorage.clear(); window.location.href = '/login'; }} className="bg-[#2C1810] text-white px-6 py-2 rounded-xl font-bold text-sm">Se reconnecter</button>
     </div>
   );
 
