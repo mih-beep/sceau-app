@@ -1,13 +1,13 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { generateCertificate } from '@/lib/pdf';
 
 export default function Profil() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
-  const [githubUser, setGithubUser] = useState('');
 
   async function loadProfil() {
     const pubkey = localStorage.getItem('sceau_pubkey');
@@ -22,18 +22,9 @@ export default function Profil() {
 
   useEffect(() => { loadProfil(); }, [router]);
 
-  async function syncGithub() {
-    if (!githubUser) return;
-    const pubkey = localStorage.getItem('sceau_pubkey');
-    const res = await fetch('/api/github/sync', { method: 'POST', body: JSON.stringify({ pubkey, github_username: githubUser }) });
-    const d = await res.json();
-    if (res.ok) { alert(`${d.commitsScelles} commits scellés !`); loadProfil(); }
-  }
-
   function exportPortfolio() {
     const pubkey = localStorage.getItem('sceau_pubkey');
     if (!pubkey) return;
-    // On utilise la même fonction PDF, on pourrait l'adapter pour un portfolio complet
     generateCertificate(`Portfolio de @${data.handle}`, data.handle, new Date().toISOString(), "Lien vers toutes les œuvres", "");
   }
 
@@ -44,7 +35,11 @@ export default function Profil() {
 
   return (
     <div className="p-6 max-w-2xl mx-auto font-serif">
-      <div className="text-center mb-8">
+      
+      {/* En-tête du profil */}
+      <div className="text-center mb-6 relative">
+        <Link href="/settings" className="absolute top-0 right-0 text-2xl opacity-50 hover:opacity-100 transition" title="Paramètres">⚙️</Link>
+        
         <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#E76F51] to-[#F4A261] text-white flex items-center justify-center font-bold text-3xl mx-auto mb-4 shadow-lg">
           {data.handle[0].toUpperCase()}
         </div>
@@ -52,9 +47,11 @@ export default function Profil() {
           @{data.handle}
           {isActiveCreator && <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full border border-green-300" title="Créateur Actif">✔️ Actif</span>}
         </h1>
-        <p className="text-sm font-mono text-[var(--text-muted)]">Identité souveraine</p>
+        <p className="text-sm font-mono text-[var(--text-muted)]">{data.role || 'Identité souveraine'}</p>
+        {data.bio && <p className="mt-3 text-sm italic opacity-80 max-w-md mx-auto" style={{color: 'var(--text-main)'}}>"{data.bio}"</p>}
       </div>
 
+      {/* Statistiques */}
       <div className="flex bg-[var(--bg-surface)] border border-[var(--border-color)] p-6 rounded-2xl justify-around mb-8 shadow-sm">
         <div className="text-center">
           <div className="text-3xl font-mono font-bold text-[#E76F51]">{data.sealed}</div>
@@ -67,32 +64,28 @@ export default function Profil() {
       </div>
 
       <div className="flex gap-4 mb-8">
-        <button onClick={exportPortfolio} className="flex-1 bg-[var(--text-main)] text-[var(--bg-surface)] p-3 rounded-xl font-bold text-sm">📄 Export Portfolio PDF</button>
-      </div>
-
-      <div className="bg-[var(--bg-surface)] border border-[var(--border-color)] p-6 rounded-2xl mb-8">
-        <h3 className="font-bold mb-2">Lier mon GitHub (Commit Proof)</h3>
-        <div className="flex gap-2">
-          <input type="text" placeholder="Ton pseudo GitHub" className="flex-1 border-2 border-[var(--border-color)] p-2 rounded-xl bg-transparent text-sm" value={githubUser} onChange={e => setGithubUser(e.target.value)} />
-          <button onClick={syncGithub} className="bg-[#2C1810] text-white px-4 py-2 rounded-xl text-sm font-bold">Synchroniser</button>
-        </div>
-        <p className="text-xs text-[var(--text-muted)] mt-2">Scelle automatiquement tes derniers commits publics.</p>
+        <button onClick={exportPortfolio} className="flex-1 bg-[var(--text-main)] text-[var(--bg-surface)] p-3 rounded-xl font-bold text-sm shadow-md hover:opacity-80 transition">📄 Export Portfolio PDF</button>
       </div>
 
       <h2 className="text-2xl font-bold mb-4" style={{color: 'var(--text-main)'}}>📚 Mon Coffre</h2>
       <div className="space-y-3 mb-10">
+        {data.seals.length === 0 && <p className="text-[var(--text-muted)] italic text-sm p-4 bg-[var(--bg-surface)] rounded-xl text-center">Ton coffre est vide.</p>}
         {data.seals.map((seal: any) => (
           <div key={seal.id} className="bg-[var(--bg-surface)] p-4 rounded-xl border border-[var(--border-color)] flex justify-between items-center shadow-sm">
             <div>
               <div className="font-bold text-lg" style={{color: 'var(--text-main)'}}>{seal.title}</div>
               <div className="text-xs text-[var(--text-muted)] font-mono mt-1">{new Date(seal.timestamp).toLocaleDateString('fr-FR')} • {seal.work_type || 'fichier'}</div>
             </div>
-            <button onClick={() => {/* fonction delete */}} className="text-red-400 hover:text-red-600 p-2 text-xl">🗑️</button>
+            <button onClick={async () => {
+              if (!confirm("Supprimer cette œuvre ?")) return;
+              const p = localStorage.getItem('sceau_pubkey');
+              await fetch(`/api/seal/delete?id=${seal.id}&pubkey=${encodeURIComponent(p!)}`, { method: 'DELETE' });
+              loadProfil();
+            }} className="text-red-400 hover:text-red-600 p-2 text-xl">🗑️</button>
           </div>
         ))}
       </div>
 
-      <button onClick={() => { localStorage.clear(); router.push('/login'); }} className="w-full py-4 text-red-500 font-bold border border-red-500 rounded-xl hover:bg-red-50 transition">Se déconnecter</button>
     </div>
   );
 }

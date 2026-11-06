@@ -9,10 +9,15 @@ export default function Seal() {
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
   const [cat, setCat] = useState('Art');
-  const [workType, setWorkType] = useState('fichier'); // NOUVEAU
-  const [isHosted, setIsHosted] = useState(true);
+  const [workType, setWorkType] = useState('fichier');
   const [visibility, setVisibility] = useState('public');
+  const [isHosted, setIsHosted] = useState(true);
   const [status, setStatus] = useState('');
+
+  // Nouveaux états pour le versioning
+  const [isNewVersion, setIsNewVersion] = useState(false);
+  const [projectId, setProjectId] = useState('');
+  const [versionNumber, setVersionNumber] = useState(2); // Par défaut V2
 
   const [isRecording, setIsRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -31,8 +36,7 @@ export default function Seal() {
         setFile(new File([audioBlob], `audio-${Date.now()}.webm`, { type: 'audio/webm' }));
         setAudioUrl(URL.createObjectURL(audioBlob));
       };
-      mediaRecorder.start();
-      setIsRecording(true);
+      mediaRecorder.start(); setIsRecording(true);
     } catch (err) { alert("Impossible d'accéder au micro."); }
   }
 
@@ -50,6 +54,7 @@ export default function Seal() {
     if (mode === 'text' && !textContent) return setStatus("Écris quelque chose");
     if (mode === 'media' && !file) return setStatus("Prends une photo ou vidéo");
     if (mode === 'audio' && !file) return setStatus("Enregistre un audio");
+    if (isNewVersion && !projectId) return setStatus("L'ID du projet est requis pour une nouvelle version");
 
     setStatus("Calcul de l'empreinte...");
     try {
@@ -75,18 +80,26 @@ export default function Seal() {
       formData.append('title', title);
       formData.append('description', desc);
       formData.append('category', cat);
-      formData.append('workType', workType); // NOUVEAU
-      formData.append('isHosted', isHosted.toString());
+      formData.append('workType', workType);
       formData.append('visibility', visibility);
+      formData.append('isHosted', isHosted.toString());
       formData.append('pubkey', pubkey);
       formData.append('file', fileToSeal);
+      
+      if (isNewVersion) {
+        formData.append('project_id', projectId);
+        formData.append('version_number', versionNumber.toString());
+      }
 
       const res = await fetch('/api/seal', { method: 'POST', body: formData });
       const data = await res.json();
       
       if (res.ok) {
-        setStatus("✅ Scellé avec succès !");
+        setStatus(`✅ Scellé avec succès ! (${isNewVersion ? 'Version ' + versionNumber : 'Nouveau projet'})`);
         setTitle(''); setDesc(''); setFile(null); setTextContent(''); setAudioUrl(null);
+        if (!isNewVersion) {
+          alert(`Nouveau projet créé !\n\nVoici l'ID de ton projet (garde-le précieusement pour les futures versions) :\n${data.project_id}`);
+        }
       } else {
         setStatus("❌ Erreur : " + data.error);
       }
@@ -101,6 +114,24 @@ export default function Seal() {
       </div>
 
       <div className="space-y-4 max-w-md mx-auto bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm">
+        
+        {/* Versioning Toggle */}
+        <div className="bg-[#FDF8F0] p-3 rounded-xl border border-[#EFE0CA] mb-4">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" checked={isNewVersion} onChange={e=>setIsNewVersion(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
+            <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>C'est une nouvelle version d'un projet existant</span>
+          </label>
+          {isNewVersion && (
+            <div className="mt-3 space-y-2">
+              <input type="text" placeholder="ID du projet (copié lors de la V1)" className="w-full border-2 border-[#EFE0CA] p-2 rounded-lg text-xs font-mono bg-white" value={projectId} onChange={e=>setProjectId(e.target.value)} />
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-[#A89070]">Numéro de version :</span>
+                <input type="number" min="2" className="w-16 border-2 border-[#EFE0CA] p-1 rounded-lg text-xs text-center bg-white" value={versionNumber} onChange={e=>setVersionNumber(parseInt(e.target.value))} />
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="flex bg-[var(--bg-main)] p-1 rounded-xl mb-4 text-xs font-mono">
           <button onClick={() => setMode('file')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'file' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{color: 'var(--text-main)'}}>📁 Fichier</button>
           <button onClick={() => setMode('text')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'text' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{color: 'var(--text-main)'}}>✍️ Texte</button>
@@ -121,7 +152,6 @@ export default function Seal() {
               <option value="chapitre">Chapitre de livre</option>
               <option value="demo">Démo musicale</option>
               <option value="portfolio">Pièce de portfolio</option>
-              <option value="memoire">Mémoire / Thèse</option>
             </select>
           </div>
           <div>
@@ -164,10 +194,10 @@ export default function Seal() {
         <div className="bg-[var(--bg-main)] p-4 rounded-xl border border-[var(--border-color)] space-y-2 mt-4">
           <label className="flex items-center gap-3 cursor-pointer">
             <input type="checkbox" checked={isHosted} onChange={e=>setIsHosted(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
-            <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>Héberger le fichier</span>
+            <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>Héberger le fichier (Cloud)</span>
           </label>
-          <div className="space-y-2">
-            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Visibilité de l'œuvre</label>
+          <div className="space-y-2 mt-2">
+            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Visibilité</label>
             <div className="flex bg-white rounded-xl border border-[var(--border-color)] p-1">
               <button onClick={() => setVisibility('public')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${visibility === 'public' ? 'bg-[#F5F9EE] text-[#5D7A3A] shadow' : 'opacity-50'}`}>🌍 Public</button>
               <button onClick={() => setVisibility('friends')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${visibility === 'friends' ? 'bg-[#F0F6FC] text-[#2D6A9E] shadow' : 'opacity-50'}`}>👥 Amis</button>

@@ -4,7 +4,6 @@ import { pool } from '@/db/pool';
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const myHandle = searchParams.get('me');
-  const category = searchParams.get('cat') || '';
 
   try {
     let params: any[] = [];
@@ -20,7 +19,6 @@ export async function GET(req: Request) {
           SELECT addressee_id as id FROM friendships WHERE requester_id = $1 AND status = 'accepted'
         `, [myId]);
         const friendIds = friendsRes.rows.map(r => r.id);
-        
         if (friendIds.length > 0) {
           params.push(friendIds);
           whereClause = `(s.visibility = 'public' OR (s.visibility = 'friends' AND s.author_id = ANY($${params.length})))`;
@@ -28,22 +26,15 @@ export async function GET(req: Request) {
       }
     }
 
-    let sql = `
-      SELECT s.id, s.title, s.description, s.category, s.is_hosted, s.file_path, s.timestamp, s.visibility, u.handle as author,
+    const sql = `
+      SELECT s.id, s.title, s.description, s.category, s.is_hosted, s.file_path, s.timestamp, s.visibility, encode(s.hash, 'base64') as hash, u.handle as author,
+      s.project_id, s.version_number,
       (SELECT COUNT(*) FROM likes WHERE seal_id = s.id) as likes_count
       FROM seals s JOIN users u ON s.author_id = u.id
-      WHERE ${whereClause}
+      WHERE ${whereClause} ORDER BY s.timestamp DESC LIMIT 30
     `;
     
-    if (category && category !== 'Tout') {
-      sql += ` AND s.category = $${params.length + 1}`;
-      params.push(category);
-    }
-
-    sql += ` ORDER BY s.timestamp DESC LIMIT 30`;
     const result = await pool.query(sql, params);
     return NextResponse.json({ seals: result.rows });
-  } catch (error) { 
-    return NextResponse.json({ error: 'Erreur' }, { status: 500 }); 
-  }
+  } catch (error) { return NextResponse.json({ error: 'Erreur' }, { status: 500 }); }
 }
