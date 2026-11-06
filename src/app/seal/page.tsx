@@ -66,7 +66,7 @@ export default function Seal() {
           id: data.seal_id, 
           date: new Date().toLocaleDateString('fr-FR'), 
           isFlash: isFlashMode,
-          otsSecured: data.ots_secured // On récupère l'info
+          otsSecured: data.ots_secured
         });
       } else {
         setStatus("❌ " + data.error);
@@ -117,6 +117,15 @@ export default function Seal() {
 
   return (
     <div className="p-6 font-serif max-w-md mx-auto">
+      
+      {/* LES SOUS-RUBRIQUES SCELLER / VÉRIFIER */}
+      <div className="flex justify-center mb-6">
+        <div className="flex bg-[var(--bg-main)] p-1 rounded-xl border border-[var(--border-color)]">
+          <Link href="/seal" className="px-6 py-2 rounded-lg font-bold text-sm bg-[var(--bg-surface)] shadow text-[#E76F51]">✍️ Sceller</Link>
+          <Link href="/verify" className="px-6 py-2 rounded-lg font-bold text-sm opacity-50 hover:opacity-100 transition">🔍 Vérifier</Link>
+        </div>
+      </div>
+
       <div className="text-center mb-6">
         <h1 className="text-4xl font-bold mb-2" style={{color: 'var(--text-main)'}}>
           {isFlashMode ? "Flash." : "L'Atelier."}

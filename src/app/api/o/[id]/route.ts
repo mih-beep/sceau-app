@@ -5,7 +5,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const { id } = await params;
   try {
     const result = await pool.query(`
-      SELECT s.id, s.title, s.description, s.category, s.timestamp, s.is_hosted, s.file_path, encode(s.hash, 'base64') as hash, u.handle as author
+      SELECT s.id, s.title, s.description, s.category, s.timestamp, s.is_hosted, s.file_path, s.ots_proof, encode(s.hash, 'base64') as hash, u.handle as author
       FROM seals s JOIN users u ON s.author_id = u.id
       WHERE s.id = $1 AND s.visibility = 'public'
     `, [id]);

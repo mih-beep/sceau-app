@@ -1,31 +1,29 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { QRCodeCanvas } from 'qrcode.react';
-import { generateCertificate } from '@/lib/pdf';
 
 export default function Feed() {
   const [seals, setSeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSeal, setSelectedSeal] = useState<any>(null);
+  const [activeCategory, setActiveCategory] = useState('all');
   
-  // États pour les créations rattachées
   const [attachments, setAttachments] = useState<any[]>([]);
   const [newAttachment, setNewAttachment] = useState('');
-  const [attachmentType, setAttachmentType] = useState('text'); // text | link
+  const [attachmentType, setAttachmentType] = useState('text'); 
   
   const myHandle = typeof window !== 'undefined' ? localStorage.getItem('sceau_handle') : null;
   const myPubkey = typeof window !== 'undefined' ? localStorage.getItem('sceau_pubkey') : null;
 
   const loadFeed = () => {
-    fetch(`/api/feed?me=${myHandle || ''}`)
+    setLoading(true);
+    fetch(`/api/feed?me=${myHandle || ''}&category=${activeCategory}`)
       .then(res => res.json())
       .then(data => { setSeals(data.seals || []); setLoading(false); });
   };
 
-  useEffect(() => { loadFeed(); }, [myHandle]);
+  useEffect(() => { loadFeed(); }, [myHandle, activeCategory]);
 
-  // Charger les créations rattachées quand on ouvre une œuvre
   useEffect(() => {
     if (selectedSeal) {
       fetch(`/api/attachments?seal_id=${selectedSeal.id}`)
@@ -52,17 +50,28 @@ export default function Feed() {
     });
     
     setNewAttachment('');
-    // Recharger les créations
     fetch(`/api/attachments?seal_id=${selectedSeal.id}`).then(r => r.json()).then(d => setAttachments(d.attachments || []));
   }
 
   return (
     <main className="min-h-screen p-6 font-serif max-w-3xl mx-auto relative">
-      {/* Bouton Retour en haut */}
       <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-24 right-6 bg-[#2C1810] text-white w-10 h-10 rounded-full shadow-lg flex items-center justify-center z-40 hover:bg-black transition" title="Retour en haut">↑</button>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-4xl font-black" style={{color: 'var(--text-main)'}}>SCEAU<span className="text-[#E76F51] italic">.</span></h1>
         <Link href="/seal" className="bg-[#E76F51] text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md">+ Sceller</Link>
+      </div>
+
+      {/* FILTRES DE CATÉGORIES */}
+      <div className="flex gap-2 overflow-x-auto pb-4 mb-2 snap-x">
+        {['all', 'Art', 'Musique', 'Code', 'Écrit'].map(cat => (
+          <button 
+            key={cat} 
+            onClick={() => setActiveCategory(cat)}
+            className={`snap-start shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition border ${activeCategory === cat ? 'bg-[#E76F51] text-white border-[#E76F51] shadow-md' : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border-color)] hover:border-[#E76F51]'}`}
+          >
+            {cat === 'all' ? '🌍 Tout' : cat}
+          </button>
+        ))}
       </div>
 
       {loading ? (
@@ -71,10 +80,14 @@ export default function Feed() {
         <div className="grid gap-6 mb-10">
           {seals.map((seal) => (
             <div key={seal.id} onClick={() => setSelectedSeal(seal)} className="bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm cursor-pointer hover:shadow-md transition">
-              <h2 className="text-2xl font-bold mb-2" style={{color: 'var(--text-main)'}}>{seal.title}</h2>
-              <p className="text-sm text-[var(--text-muted)] mb-2">Par @{seal.author}</p>
+              <div className="flex justify-between items-start mb-2">
+                <h2 className="text-2xl font-bold" style={{color: 'var(--text-main)'}}>{seal.title}</h2>
+                {seal.ots_proof && <span title="Ancré sur Bitcoin" className="text-lg">⛓️</span>}
+              </div>
+              <p className="text-sm text-[var(--text-muted)] mb-2">Par @{seal.author} • {seal.category}</p>
             </div>
           ))}
+          {seals.length === 0 && <p className="text-center italic text-[var(--text-muted)] py-10">Aucune œuvre dans cette catégorie pour le moment.</p>}
         </div>
       )}
 
@@ -91,12 +104,16 @@ export default function Feed() {
             </div>
 
             <div className="p-6 overflow-y-auto flex-1">
-              <div className="bg-[var(--bg-main)] p-4 rounded-xl border border-[var(--border-color)] mb-6 text-center">
+              <div className="bg-[var(--bg-main)] p-4 rounded-xl border border-[var(--border-color)] mb-6 text-center relative">
                 <p className="text-xs font-mono font-bold text-[var(--text-muted)] mb-1">SHA-256</p>
                 <p className="text-xs font-mono break-all" style={{color: 'var(--text-main)'}}>{selectedSeal.hash}</p>
+                {selectedSeal.ots_proof && (
+                  <div className="mt-2 inline-flex items-center gap-1 bg-[#F5F9EE] border border-[#A8C77E] text-[#5D7A3A] px-2 py-1 rounded text-[0.6rem] font-bold">
+                    ⛓️ Preuve Bitcoin (Ancrée)
+                  </div>
+                )}
               </div>
 
-              {/* SECTION CRÉATIONS RATTACHÉES */}
               <h3 className="font-bold text-lg mb-4" style={{color: 'var(--text-main)'}}>🎬 Créations rattachées ({attachments.length})</h3>
               
               <div className="space-y-3 mb-6">
@@ -107,7 +124,7 @@ export default function Feed() {
                     </div>
                     {a.type === 'link' ? (
                       <a href={a.media_url} target="_blank" className="block bg-white border border-[var(--border-color)] p-3 rounded-lg text-sm text-[#4A90C2] hover:underline overflow-hidden text-ellipsis whitespace-nowrap">
-                        🔗 Voir le lien (Insta/Twitter/etc.)
+                        🔗 Voir le lien
                       </a>
                     ) : (
                       <p className="text-sm" style={{color: 'var(--text-main)'}}>{a.content}</p>
@@ -118,12 +135,11 @@ export default function Feed() {
               </div>
             </div>
 
-            {/* INPUT POUR AJOUTER UNE CRÉATION */}
             {myHandle && (
               <div className="p-4 border-t border-[var(--border-color)] bg-[var(--bg-surface)]">
                 <div className="flex bg-[var(--bg-main)] p-1 rounded-lg mb-2">
                   <button onClick={() => setAttachmentType('text')} className={`flex-1 py-1 text-xs font-bold rounded ${attachmentType === 'text' ? 'bg-white shadow' : 'opacity-50'}`}>💬 Texte</button>
-                  <button onClick={() => setAttachmentType('link')} className={`flex-1 py-1 text-xs font-bold rounded ${attachmentType === 'link' ? 'bg-white shadow' : 'opacity-50'}`}>🔗 Lien (Insta, X, etc.)</button>
+                  <button onClick={() => setAttachmentType('link')} className={`flex-1 py-1 text-xs font-bold rounded ${attachmentType === 'link' ? 'bg-white shadow' : 'opacity-50'}`}>🔗 Lien</button>
                 </div>
                 <div className="flex gap-2">
                   <input type="text" value={newAttachment} onChange={e => setNewAttachment(e.target.value)} placeholder={attachmentType === 'text' ? "Ajouter un commentaire..." : "Coller un lien (https://...)"} className="flex-1 bg-[var(--bg-main)] border border-[var(--border-color)] rounded-xl px-4 py-2 text-sm outline-none" style={{color: 'var(--text-main)'}} onKeyDown={e => e.key === 'Enter' && submitAttachment()} />

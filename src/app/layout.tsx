@@ -46,8 +46,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     }
   };
 
-  // Fonction pour vérifier si un onglet est actif
   const isActive = (path: string) => pathname === path;
+  // On regroupe Sceller et Vérifier sous "Outils"
   const isToolsActive = pathname === '/seal' || pathname === '/verify';
 
   return (
@@ -97,7 +97,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main className="max-w-2xl mx-auto">{children}</main>
         <Manifeste />
 
-        {/* NOUVELLE BARRE DE NAVIGATION À 5 ONGLETS */}
+        {/* BARRE DE NAVIGATION DU BAS MISE À JOUR */}
         <div className="fixed bottom-0 left-0 right-0 bg-[var(--bg-surface)] border-t border-[var(--border-color)] flex justify-around py-3 z-50">
           <Link href="/feed" className={`flex flex-col items-center transition ${isActive('/feed') ? 'text-[#E76F51]' : 'text-[var(--text-muted)] hover:text-[#E76F51]'}`}>
             <span className="text-xl">🌐</span><span className="text-[0.6rem] font-bold font-mono mt-1">Feed</span>
@@ -107,8 +107,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <span className="text-xl">👥</span><span className="text-[0.6rem] font-bold font-mono mt-1">Communauté</span>
           </Link>
           
+          {/* L'ONGLET DU MILIEU DEVIENT "OUTILS" */}
           <Link href="/seal" className={`flex flex-col items-center transition ${isToolsActive ? 'text-[#E76F51]' : 'text-[var(--text-muted)] hover:text-[#E76F51]'}`}>
-            <span className="text-xl">✍️</span><span className="text-[0.6rem] font-bold font-mono mt-1">Sceller</span>
+            <span className="text-xl">🛠️</span><span className="text-[0.6rem] font-bold font-mono mt-1">Outils</span>
           </Link>
           
           <Link href="/messages" className={`flex flex-col items-center transition ${isActive('/messages') ? 'text-[#E76F51]' : 'text-[var(--text-muted)] hover:text-[#E76F51]'}`}>

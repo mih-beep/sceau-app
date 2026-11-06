@@ -6,12 +6,10 @@ export default function Messages() {
   const [contacts, setContacts] = useState<any[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
   
-  // État du chat actif : { type: 'dm' | 'group', id: string, name: string }
   const [activeChat, setActiveChat] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   
-  // États pour les modales
   const [showPactModal, setShowPactModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [pactTitle, setPactTitle] = useState('');
@@ -21,6 +19,7 @@ export default function Messages() {
   const [activePact, setActivePact] = useState<any>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevMessagesLength = useRef(0); // LA CORRECTION EST ICI
   const myPubkey = typeof window !== 'undefined' ? localStorage.getItem('sceau_pubkey') : null;
 
   useEffect(() => {
@@ -44,7 +43,18 @@ export default function Messages() {
     return () => clearInterval(interval);
   }, [activeChat, myHandle]);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  // Reset la mémoire quand on change de conversation
+  useEffect(() => {
+    prevMessagesLength.current = 0;
+  }, [activeChat]);
+
+  // Scroll SEULEMENT si un nouveau message a été ajouté
+  useEffect(() => { 
+    if (messages.length > prevMessagesLength.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); 
+      prevMessagesLength.current = messages.length;
+    }
+  }, [messages]);
 
   async function sendMessage() {
     if (!newMessage.trim() || !activeChat) return;
@@ -62,7 +72,6 @@ export default function Messages() {
   async function createGroup() {
     if (!groupName) return;
     const res = await fetch('/api/groups/create', { method: 'POST', body: JSON.stringify({ name: groupName, creator_pubkey: myPubkey }) });
-    const data = await res.json();
     if (res.ok) { alert("Groupe créé !"); setShowGroupModal(false); window.location.reload(); }
   }
 
@@ -73,10 +82,7 @@ export default function Messages() {
     formData.append('description', pactDesc);
     formData.append('pubkey', myPubkey!);
     formData.append('required_signatures', pactSignatures.toString());
-    
-    if (activeChat.type === 'group') {
-      formData.append('group_id', activeChat.id);
-    }
+    if (activeChat.type === 'group') formData.append('group_id', activeChat.id);
 
     const res = await fetch('/api/pacts/create', { method: 'POST', body: formData });
     const data = await res.json();
@@ -93,15 +99,11 @@ export default function Messages() {
 
   return (
     <div className="p-4 md:p-6 h-[calc(100vh-140px)] flex gap-4 font-serif max-w-5xl mx-auto">
-      
-      {/* COLONNE DE GAUCHE (Contacts & Groupes) */}
       <div className={`bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-4 overflow-y-auto ${activeChat ? 'hidden md:block md:w-1/3' : 'w-full md:w-1/3'}`}>
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-xl font-bold" style={{color: 'var(--text-main)'}}>Messages</h1>
           <button onClick={() => setShowGroupModal(true)} className="bg-[#E76F51] text-white text-xs font-bold px-2 py-1 rounded-lg">+ Groupe</button>
         </div>
-        
-        {/* GROUPES */}
         {groups.length > 0 && (
           <div className="mb-4">
             <h2 className="text-xs font-mono font-bold text-[#A89070] uppercase mb-2">Groupes</h2>
@@ -109,13 +111,10 @@ export default function Messages() {
               <div key={g.id} onClick={() => setActiveChat({ type: 'group', id: g.id, name: g.name })} className="p-2 rounded-xl cursor-pointer hover:bg-[var(--bg-main)] transition flex items-center gap-2 mb-1">
                 <div className="w-8 h-8 rounded-lg bg-[#4A90C2] text-white flex items-center justify-center font-bold text-sm">G</div>
                 <div className="font-bold text-sm truncate" style={{color: 'var(--text-main)'}}>{g.name}</div>
-                <span className="text-[0.6rem] text-[var(--text-muted)] ml-auto">{g.members_count} mbrs</span>
               </div>
             ))}
           </div>
         )}
-
-        {/* CONTACTS (DM) */}
         <h2 className="text-xs font-mono font-bold text-[#A89070] uppercase mb-2">Messages Privés</h2>
         {contacts.filter(c => c.handle !== myHandle).map(c => (
           <div key={c.id} onClick={() => setActiveChat({ type: 'dm', id: c.handle, name: c.handle })} className="p-2 rounded-xl cursor-pointer hover:bg-[var(--bg-main)] transition flex items-center gap-2 mb-1">
@@ -125,7 +124,6 @@ export default function Messages() {
         ))}
       </div>
 
-      {/* COLONNE DE DROITE (Chat) */}
       {activeChat ? (
         <div className={`bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl flex flex-col overflow-hidden w-full md:w-2/3`}>
           <div className="p-4 border-b border-[var(--border-color)] flex justify-between items-center">
@@ -170,12 +168,11 @@ export default function Messages() {
         </div>
       )}
 
-      {/* MODALE CRÉATION GROUPE */}
       {showGroupModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-[var(--bg-surface)] w-full max-w-sm rounded-3xl p-6">
             <h2 className="text-2xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Créer un Groupe</h2>
-            <input type="text" placeholder="Nom du groupe (ex: Projet d'école)" className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={groupName} onChange={e => setGroupName(e.target.value)} />
+            <input type="text" placeholder="Nom du groupe" className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={groupName} onChange={e => setGroupName(e.target.value)} />
             <div className="flex gap-2">
               <button onClick={() => setShowGroupModal(false)} className="flex-1 py-2 font-bold opacity-50">Annuler</button>
               <button onClick={createGroup} className="flex-1 bg-[#4A90C2] text-white py-2 rounded-xl font-bold">Créer</button>
@@ -184,21 +181,18 @@ export default function Messages() {
         </div>
       )}
 
-      {/* MODALE CRÉATION PACTE (avec option multi-signatures) */}
       {showPactModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-[var(--bg-surface)] w-full max-w-sm rounded-3xl p-6">
             <h2 className="text-2xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Nouveau Pacte</h2>
             <input type="text" placeholder="Titre de l'accord" className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={pactTitle} onChange={e => setPactTitle(e.target.value)} />
             <textarea placeholder="Détails..." className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={pactDesc} onChange={e => setPactDesc(e.target.value)} />
-            
             {activeChat.type === 'group' && (
               <div className="mb-4">
-                <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Signatures requises pour valider</label>
+                <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Signatures requises</label>
                 <input type="number" min="2" className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl bg-transparent text-center font-bold text-lg" value={pactSignatures} onChange={e => setPactSignatures(parseInt(e.target.value))} />
               </div>
             )}
-
             <div className="flex gap-2">
               <button onClick={() => setShowPactModal(false)} className="flex-1 py-2 font-bold opacity-50">Annuler</button>
               <button onClick={createPact} className="flex-1 bg-[#E76F51] text-white py-2 rounded-xl font-bold">Envoyer</button>
@@ -207,7 +201,6 @@ export default function Messages() {
         </div>
       )}
 
-      {/* MODALE SIGNATURE PACTE */}
       {activePact && <PactModal pactId={activePact} onClose={() => setActivePact(null)} />}
     </div>
   );
