@@ -1,7 +1,9 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Messages() {
+  const router = useRouter();
   const [myHandle, setMyHandle] = useState('');
   const [contacts, setContacts] = useState<any[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
@@ -10,16 +12,12 @@ export default function Messages() {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   
-  const [showPactModal, setShowPactModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
-  const [pactTitle, setPactTitle] = useState('');
-  const [pactDesc, setPactDesc] = useState('');
-  const [pactSignatures, setPactSignatures] = useState(2);
   const [groupName, setGroupName] = useState('');
   const [activePact, setActivePact] = useState<any>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const prevMessagesLength = useRef(0); // LA CORRECTION EST ICI
+  const prevMessagesLength = useRef(0);
   const myPubkey = typeof window !== 'undefined' ? localStorage.getItem('sceau_pubkey') : null;
 
   useEffect(() => {
@@ -28,7 +26,6 @@ export default function Messages() {
     fetch(`/api/groups/list?me=${localStorage.getItem('sceau_handle')}`).then(r => r.json()).then(d => setGroups(d.groups || []));
   }, []);
 
-  // Charger les messages (toutes les 3 secondes)
   useEffect(() => {
     if (!activeChat || !myHandle) return;
     const load = () => {
@@ -43,12 +40,8 @@ export default function Messages() {
     return () => clearInterval(interval);
   }, [activeChat, myHandle]);
 
-  // Reset la mémoire quand on change de conversation
-  useEffect(() => {
-    prevMessagesLength.current = 0;
-  }, [activeChat]);
+  useEffect(() => { prevMessagesLength.current = 0; }, [activeChat]);
 
-  // Scroll SEULEMENT si un nouveau message a été ajouté
   useEffect(() => { 
     if (messages.length > prevMessagesLength.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); 
@@ -60,12 +53,19 @@ export default function Messages() {
     if (!newMessage.trim() || !activeChat) return;
     const msg = newMessage;
     setNewMessage('');
-    setMessages(prev => [...prev, { content: msg, sender: myHandle, created_at: new Date().toISOString() }]);
+    
+    // Optimistic UI (on l'affiche tout de suite)
+    setMessages(prev => [...prev, { content: msg, sender: myHandle, created_at: new Date().toISOString(), isTemp: true }]);
 
-    if (activeChat.type === 'dm') {
-      await fetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeChat.id, content: msg }) });
-    } else {
-      await fetch('/api/groups/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ group_id: activeChat.id, sender_handle: myHandle, content: msg }) });
+    try {
+      if (activeChat.type === 'dm') {
+        await fetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeChat.id, content: msg }) });
+      } else {
+        await fetch('/api/groups/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ group_id: activeChat.id, sender_handle: myHandle, content: msg }) });
+      }
+    } catch (e) {
+      console.error("Erreur d'envoi", e);
+      // Si erreur, on pourrait retirer le message temporaire
     }
   }
 
@@ -75,26 +75,9 @@ export default function Messages() {
     if (res.ok) { alert("Groupe créé !"); setShowGroupModal(false); window.location.reload(); }
   }
 
-  async function createPact() {
-    if (!pactTitle || !activeChat) return;
-    const formData = new FormData();
-    formData.append('title', pactTitle);
-    formData.append('description', pactDesc);
-    formData.append('pubkey', myPubkey!);
-    formData.append('required_signatures', pactSignatures.toString());
-    if (activeChat.type === 'group') formData.append('group_id', activeChat.id);
-
-    const res = await fetch('/api/pacts/create', { method: 'POST', body: formData });
-    const data = await res.json();
-    
-    if (res.ok) {
-      if (activeChat.type === 'dm') {
-        await fetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeChat.id, content: `[PACTE]${data.id}|${pactTitle}` }) });
-      } else {
-        await fetch('/api/groups/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ group_id: activeChat.id, sender_handle: myHandle, content: `[PACTE]${data.id}|${pactTitle}` }) });
-      }
-      setShowPactModal(false); setPactTitle(''); setPactDesc('');
-    }
+  // Redirection vers l'Atelier pour créer le pacte
+  function startPact() {
+    router.push(`/seal?pact=true&chat_id=${activeChat.id}&chat_type=${activeChat.type}`);
   }
 
   return (
@@ -133,7 +116,7 @@ export default function Messages() {
                 {activeChat.type === 'group' ? `👥 ${activeChat.name}` : `@${activeChat.name}`}
               </h2>
             </div>
-            <button onClick={() => setShowPactModal(true)} className="bg-[#E76F51] text-white text-xs font-bold px-3 py-1 rounded-lg">+ Pacte</button>
+            <button onClick={startPact} className="bg-[#4A90C2] text-white text-xs font-bold px-3 py-1 rounded-lg">+ Pacte</button>
           </div>
           
           <div className="flex-1 p-4 overflow-y-auto space-y-3">
@@ -141,14 +124,14 @@ export default function Messages() {
               if (m.content.startsWith('[PACTE]')) {
                 const [id, title] = m.content.replace('[PACTE]', '').split('|');
                 return (
-                  <div key={i} className="bg-[var(--bg-main)] border-2 border-[#E76F51] p-4 rounded-xl text-center my-4">
+                  <div key={i} className="bg-[var(--bg-main)] border-2 border-[#4A90C2] p-4 rounded-xl text-center my-4">
                     <div className="font-bold text-lg mb-2" style={{color: 'var(--text-main)'}}>🤝 {title}</div>
-                    <button onClick={() => setActivePact(id)} className="bg-[#E76F51] text-white px-4 py-2 rounded-lg text-xs font-bold">Voir / Signer le Pacte</button>
+                    <button onClick={() => setActivePact(id)} className="bg-[#4A90C2] text-white px-4 py-2 rounded-lg text-xs font-bold">Voir / Signer le Pacte</button>
                   </div>
                 );
               }
               return (
-                <div key={i} className={`max-w-[80%] p-3 rounded-xl text-sm ${m.sender === myHandle ? 'bg-[#E76F51] text-white ml-auto rounded-br-none' : 'bg-[var(--bg-main)] border border-[var(--border-color)] rounded-bl-none'}`} style={{color: m.sender === myHandle ? '#FFF' : 'var(--text-main)'}}>
+                <div key={i} className={`max-w-[80%] p-3 rounded-xl text-sm ${m.sender === myHandle ? 'bg-[#E76F51] text-white ml-auto rounded-br-none' : 'bg-[var(--bg-main)] border border-[var(--border-color)] rounded-bl-none'} ${m.isTemp ? 'opacity-50' : ''}`} style={{color: m.sender === myHandle ? '#FFF' : 'var(--text-main)'}}>
                   {activeChat.type === 'group' && m.sender !== myHandle && <div className="text-[0.6rem] font-bold opacity-70 mb-1">@{m.sender}</div>}
                   {m.content}
                 </div>
@@ -181,26 +164,6 @@ export default function Messages() {
         </div>
       )}
 
-      {showPactModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-[var(--bg-surface)] w-full max-w-sm rounded-3xl p-6">
-            <h2 className="text-2xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Nouveau Pacte</h2>
-            <input type="text" placeholder="Titre de l'accord" className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={pactTitle} onChange={e => setPactTitle(e.target.value)} />
-            <textarea placeholder="Détails..." className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={pactDesc} onChange={e => setPactDesc(e.target.value)} />
-            {activeChat.type === 'group' && (
-              <div className="mb-4">
-                <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Signatures requises</label>
-                <input type="number" min="2" className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl bg-transparent text-center font-bold text-lg" value={pactSignatures} onChange={e => setPactSignatures(parseInt(e.target.value))} />
-              </div>
-            )}
-            <div className="flex gap-2">
-              <button onClick={() => setShowPactModal(false)} className="flex-1 py-2 font-bold opacity-50">Annuler</button>
-              <button onClick={createPact} className="flex-1 bg-[#E76F51] text-white py-2 rounded-xl font-bold">Envoyer</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {activePact && <PactModal pactId={activePact} onClose={() => setActivePact(null)} />}
     </div>
   );
@@ -213,7 +176,9 @@ function PactModal({ pactId, onClose }: { pactId: string, onClose: () => void })
 
   async function signPact() {
     const pubkey = localStorage.getItem('sceau_pubkey');
-    await fetch('/api/pacts/sign', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pact_id: pactId, pubkey }) });
+    const res = await fetch('/api/pacts/sign', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pact_id: pactId, pubkey }) });
+    const data = await res.json();
+    if (data.isNowSealed) alert("🎉 Le pacte est complet ! Il a été gravé sur la blockchain pour tous les signataires.");
     loadPact();
   }
 
@@ -224,14 +189,20 @@ function PactModal({ pactId, onClose }: { pactId: string, onClose: () => void })
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-      <div className={`bg-[var(--bg-surface)] w-full max-w-md rounded-3xl p-8 border-2 ${isSealed ? 'border-[#7A9B5A]' : 'border-[#E76F51]'}`}>
+      <div className={`bg-[var(--bg-surface)] w-full max-w-md rounded-3xl p-8 border-2 ${isSealed ? 'border-[#7A9B5A]' : 'border-[#4A90C2]'}`}>
         <div className="flex justify-between items-start mb-4">
           <h2 className="text-3xl font-bold" style={{color: 'var(--text-main)'}}>{pact.title}</h2>
           {isSealed && <span className="bg-[#F5F9EE] text-[#5D7A3A] px-2 py-1 rounded text-xs font-bold">🔒 SCELLÉ</span>}
         </div>
-        <p className="text-sm mb-4 text-[var(--text-muted)]">Créé par @{pact.creator}</p>
-        <p className="italic mb-4 p-4 bg-[var(--bg-main)] rounded-xl" style={{color: 'var(--text-main)'}}>{pact.description}</p>
+        <p className="text-sm mb-4 text-[var(--text-muted)]">Proposé par @{pact.creator}</p>
+        <p className="italic mb-4 p-3 bg-[var(--bg-main)] rounded-xl text-sm" style={{color: 'var(--text-main)'}}>{pact.description}</p>
         
+        {pact.file_path && (
+          <a href={pact.file_path} target="_blank" className="block bg-[#F0F6FC] text-[#2D6A9E] border border-[#C9D8E8] p-3 rounded-xl mb-4 text-center font-bold text-sm hover:underline">
+            📁 Voir le fichier joint au pacte
+          </a>
+        )}
+
         <div className="mb-6">
           <h3 className="font-bold mb-2 flex justify-between" style={{color: 'var(--text-main)'}}>
             Signatures : <span>{pact.signataires.length} / {pact.required_signatures}</span>
@@ -242,7 +213,7 @@ function PactModal({ pactId, onClose }: { pactId: string, onClose: () => void })
         </div>
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-3 font-bold opacity-50" style={{color: 'var(--text-main)'}}>Fermer</button>
-          {!hasSigned && !isSealed && <button onClick={signPact} className="flex-1 bg-[#E76F51] text-white py-3 rounded-xl font-bold">✍️ Contresigner</button>}
+          {!hasSigned && !isSealed && <button onClick={signPact} className="flex-1 bg-[#4A90C2] text-white py-3 rounded-xl font-bold">✍️ Contresigner</button>}
         </div>
       </div>
     </div>

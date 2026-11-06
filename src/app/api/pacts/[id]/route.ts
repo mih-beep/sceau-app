@@ -4,7 +4,7 @@ import { pool } from '@/db/pool';
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const pact = await pool.query(`
-    SELECT p.*, u.handle as creator 
+    SELECT p.*, u.handle as creator, encode(p.hash, 'base64') as hash_str
     FROM pacts p JOIN users u ON p.creator_id = u.id 
     WHERE p.id = $1
   `, [id]);

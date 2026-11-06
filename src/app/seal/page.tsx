@@ -1,9 +1,15 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
 import { sha256 } from '@noble/hashes/sha256';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
-export default function Seal() {
+function SealContent() {
+  const searchParams = useSearchParams();
+  const isPactMode = searchParams.get('pact') === 'true';
+  const chatId = searchParams.get('chat_id');
+  const chatType = searchParams.get('chat_type');
+
   const [isFlashMode, setIsFlashMode] = useState(false);
   const [mode, setMode] = useState<'file' | 'text' | 'media' | 'audio'>('file');
   
@@ -12,15 +18,12 @@ export default function Seal() {
   const [textContent, setTextContent] = useState('');
   const [file, setFile] = useState<File | null>(null);
   
-  const [isHosted, setIsHosted] = useState(true); // Restauré
-  const [isMystery, setIsMystery] = useState(false);
-  const [isEphemeral, setIsEphemeral] = useState(false);
-  const [unlockLikes, setUnlockLikes] = useState(10);
+  const [isHosted, setIsHosted] = useState(true);
+  const [requiredSignatures, setRequiredSignatures] = useState(2); // Pour les pactes
   
   const [status, setStatus] = useState('');
   const [sealedResult, setSealedResult] = useState<any>(null);
 
-  // Audio
   const [isRecording, setIsRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -57,7 +60,7 @@ export default function Seal() {
     if (!isFlashMode && mode === 'media' && !file) return setStatus("Prends une photo ou vidéo");
     if (!isFlashMode && mode === 'audio' && !file) return setStatus("Enregistre un audio");
 
-    setStatus("Calcul de l'empreinte...");
+    setStatus(isPactMode ? "Préparation du pacte..." : "Calcul de l'empreinte...");
     try {
       let fileToSeal = file;
       
@@ -85,34 +88,45 @@ export default function Seal() {
     const pubkey = localStorage.getItem('sceau_pubkey');
     if (!pubkey) return setStatus("Connecte-toi d'abord !");
 
-    setStatus("Ancrage dans la blockchain Bitcoin... (Patientez)");
-
     const formData = new FormData();
     formData.append('hash', hashB64);
     formData.append('title', title);
     formData.append('description', mode === 'text' ? textContent : desc);
-    formData.append('isFlash', isFlashMode.toString());
-    formData.append('isMystery', isMystery.toString());
-    formData.append('isEphemeral', isEphemeral.toString());
-    formData.append('unlockLikes', unlockLikes.toString());
     formData.append('pubkey', pubkey);
-    
-    if (isHosted && fileToUpload && !isFlashMode) {
-      formData.append('isHosted', 'true');
-      formData.append('file', fileToUpload);
+    formData.append('isHosted', (isHosted && fileToUpload).toString());
+    if (fileToUpload) formData.append('file', fileToUpload);
+
+    let endpoint = '/api/seal';
+
+    if (isPactMode) {
+      endpoint = '/api/pacts/create';
+      formData.append('group_id', chatType === 'group' ? chatId! : '');
+      formData.append('required_signatures', requiredSignatures.toString());
     } else {
-      formData.append('isHosted', 'false');
+      formData.append('isFlash', isFlashMode.toString());
+      formData.append('isMystery', 'false');
+      formData.append('isEphemeral', 'false');
+      formData.append('unlockLikes', '0');
     }
 
-    const res = await fetch('/api/seal', { method: 'POST', body: formData });
+    setStatus(isPactMode ? "Envoi du pacte..." : "Ancrage dans la blockchain...");
+    const res = await fetch(endpoint, { method: 'POST', body: formData });
     const data = await res.json();
     
     if (res.ok) {
-      setStatus("✅ Scellé avec succès !");
-      setSealedResult({ 
-        title, hash: hashB64, id: data.seal_id, date: new Date().toLocaleDateString('fr-FR'), 
-        isFlash: isFlashMode, otsSecured: data.ots_secured
-      });
+      if (isPactMode) {
+        // Envoi du message dans le chat
+        const msg = `[PACTE]${data.id}|${data.title}`;
+        if (chatType === 'dm') {
+          await fetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sender_handle: localStorage.getItem('sceau_handle'), receiver_handle: chatId, content: msg }) });
+        } else {
+          await fetch('/api/groups/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ group_id: chatId, sender_handle: localStorage.getItem('sceau_handle'), content: msg }) });
+        }
+        window.location.href = '/messages'; // Retour au chat
+      } else {
+        setStatus("✅ Scellé avec succès !");
+        setSealedResult({ title, hash: hashB64, date: new Date().toLocaleDateString('fr-FR'), isFlash: isFlashMode, otsSecured: data.ots_secured });
+      }
     } else {
       setStatus("❌ " + data.error);
     }
@@ -122,34 +136,13 @@ export default function Seal() {
     return (
       <div className="p-6 font-serif text-center flex flex-col items-center">
         <div className="text-6xl mb-4">{sealedResult.isFlash ? '⚡' : '✅'}</div>
-        <h1 className="text-3xl font-bold mb-2" style={{color: 'var(--text-main)'}}>
-          {sealedResult.isFlash ? "Idée gravée." : "C'est dans le marbre."}
-        </h1>
-        
+        <h1 className="text-3xl font-bold mb-2" style={{color: 'var(--text-main)'}}>C'est dans le marbre.</h1>
         <div className="bg-[var(--bg-surface)] p-6 rounded-3xl border border-[var(--border-color)] w-full max-w-sm text-left shadow-lg mt-6">
           <h3 className="font-bold mb-2" style={{color: '#2C1810'}}>{sealedResult.title}</h3>
           <p className="text-[0.6rem] font-mono text-[#A89070] break-all bg-[var(--bg-main)] p-2 rounded border border-[var(--border-color)]">{sealedResult.hash}</p>
-          
-          {sealedResult.otsSecured ? (
-            <div className="mt-3 bg-[#F5F9EE] border border-[#A8C77E] p-2 rounded-lg flex items-center gap-2">
-              <span className="text-xl">⛓️</span>
-              <div>
-                <p className="text-[0.65rem] font-bold text-[#5D7A3A]">Preuve Bitcoin (OpenTimestamps)</p>
-                <p className="text-[0.55rem] text-[#7A9B5A]">Ancré avec succès</p>
-              </div>
-            </div>
-          ) : (
-            <div className="mt-3 bg-[#FCEAD6] border border-[#F4D0A8] p-2 rounded-lg flex items-center gap-2">
-              <span className="text-xl">⏱️</span>
-              <div>
-                <p className="text-[0.65rem] font-bold text-[#C44A2E]">Preuve serveur</p>
-                <p className="text-[0.55rem] text-[#C44A2E]">L'ancrage Bitcoin a échoué (réseau)</p>
-              </div>
-            </div>
-          )}
+          {sealedResult.otsSecured && <div className="mt-3 bg-[#F5F9EE] border border-[#A8C77E] p-2 rounded-lg text-[#5D7A3A] text-xs font-bold">⛓️ Preuve Bitcoin ancrée</div>}
           <p className="text-xs text-right mt-3 text-[#7A5A3A]">Scellé le {sealedResult.date}</p>
         </div>
-        
         <div className="flex gap-2 mt-8 w-full max-w-sm">
           <button onClick={() => window.location.reload()} className="flex-1 bg-[#2C1810] text-white p-3 rounded-xl font-bold text-sm">Nouveau</button>
           <Link href="/feed" className="flex-1 border-2 border-[#EFE0CA] text-[#2C1810] p-3 rounded-xl font-bold text-sm text-center">Voir le Feed</Link>
@@ -161,23 +154,28 @@ export default function Seal() {
   return (
     <div className="p-6 font-serif max-w-md mx-auto">
       
-      <div className="flex justify-center mb-6">
-        <div className="flex bg-[var(--bg-main)] p-1 rounded-xl border border-[var(--border-color)]">
-          <Link href="/seal" className="px-6 py-2 rounded-lg font-bold text-sm bg-[var(--bg-surface)] shadow text-[#E76F51]">✍️ Sceller</Link>
-          <Link href="/verify" className="px-6 py-2 rounded-lg font-bold text-sm opacity-50 hover:opacity-100 transition">🔍 Vérifier</Link>
+      {!isPactMode && (
+        <div className="flex justify-center mb-6">
+          <div className="flex bg-[var(--bg-main)] p-1 rounded-xl border border-[var(--border-color)]">
+            <Link href="/seal" className="px-6 py-2 rounded-lg font-bold text-sm bg-[var(--bg-surface)] shadow text-[#E76F51]">✍️ Sceller</Link>
+            <Link href="/verify" className="px-6 py-2 rounded-lg font-bold text-sm opacity-50 hover:opacity-100 transition">🔍 Vérifier</Link>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="text-center mb-6">
         <h1 className="text-4xl font-bold mb-2" style={{color: 'var(--text-main)'}}>
-          {isFlashMode ? "Flash." : "L'Atelier."}
+          {isPactMode ? "Nouveau Pacte." : (isFlashMode ? "Flash." : "L'Atelier.")}
         </h1>
+        {isPactMode && <p className="text-sm text-[var(--text-muted)] italic">Scellement collectif différé</p>}
       </div>
 
-      <div className="flex bg-[var(--bg-main)] p-1 rounded-xl mb-6">
-        <button onClick={() => setIsFlashMode(false)} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${!isFlashMode ? 'bg-[var(--bg-surface)] shadow text-[#E76F51]' : 'opacity-50'}`}>📁 Normal</button>
-        <button onClick={() => setIsFlashMode(true)} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${isFlashMode ? 'bg-[var(--text-main)] shadow text-white' : 'opacity-50'}`}>⚡ Flash</button>
-      </div>
+      {!isPactMode && (
+        <div className="flex bg-[var(--bg-main)] p-1 rounded-xl mb-6">
+          <button onClick={() => setIsFlashMode(false)} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${!isFlashMode ? 'bg-[var(--bg-surface)] shadow text-[#E76F51]' : 'opacity-50'}`}>📁 Normal</button>
+          <button onClick={() => setIsFlashMode(true)} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${isFlashMode ? 'bg-[var(--text-main)] shadow text-white' : 'opacity-50'}`}>⚡ Flash</button>
+        </div>
+      )}
 
       <div className="space-y-4 bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm">
         
@@ -191,8 +189,8 @@ export default function Seal() {
         )}
 
         <div>
-          <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">{isFlashMode ? "Ton idée en 1 phrase" : "Titre de l'œuvre"}</label>
-          <input type="text" className="w-full border-2 border-[var(--border-color)] focus:border-[#E76F51] rounded-xl p-3 outline-none bg-transparent" placeholder={isFlashMode ? "Ex: Je vais créer une app..." : "Titre..."} value={title} onChange={e=>setTitle(e.target.value)} autoFocus={isFlashMode} />
+          <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">{isFlashMode ? "Ton idée" : "Titre de l'œuvre"}</label>
+          <input type="text" className="w-full border-2 border-[var(--border-color)] focus:border-[#E76F51] rounded-xl p-3 outline-none bg-transparent" placeholder="Titre..." value={title} onChange={e=>setTitle(e.target.value)} autoFocus={isFlashMode} />
         </div>
 
         {!isFlashMode && mode !== 'text' && (
@@ -203,22 +201,16 @@ export default function Seal() {
         )}
 
         {!isFlashMode && mode === 'file' && (
-          <div>
-            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Fichier</label>
-            <input type="file" className="w-full text-sm mt-2" onChange={e=>setFile(e.target.files?.[0]||null)} />
-          </div>
+          <div><label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Fichier</label><input type="file" className="w-full text-sm mt-2" onChange={e=>setFile(e.target.files?.[0]||null)} /></div>
         )}
 
         {!isFlashMode && mode === 'media' && (
-          <div>
-            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Capture Photo/Vidéo</label>
-            <input type="file" accept="image/*,video/*" capture="environment" className="w-full text-sm mt-2" onChange={e=>setFile(e.target.files?.[0]||null)} />
-          </div>
+          <div><label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Capture</label><input type="file" accept="image/*,video/*" capture="environment" className="w-full text-sm mt-2" onChange={e=>setFile(e.target.files?.[0]||null)} /></div>
         )}
 
         {!isFlashMode && mode === 'audio' && (
           <div>
-            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Enregistreur Audio</label>
+            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Audio</label>
             <div className="mt-2">
               {!isRecording && !audioUrl && <button onClick={startRecording} className="w-full bg-red-500 text-white py-2 rounded-lg font-bold text-xs">🔴 Enregistrer</button>}
               {isRecording && <button onClick={stopRecording} className="w-full bg-black text-white py-2 rounded-lg font-bold text-xs animate-pulse">⏹ Arrêter</button>}
@@ -228,34 +220,33 @@ export default function Seal() {
         )}
 
         {!isFlashMode && mode === 'text' && (
-          <div>
-            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Contenu du texte</label>
-            <textarea className="w-full border-2 border-[var(--border-color)] focus:border-[#E76F51] rounded-xl p-4 outline-none bg-transparent min-h-[100px] font-mono text-sm" placeholder="Écrivez votre chef-d'œuvre ici..." value={textContent} onChange={e=>setTextContent(e.target.value)} />
-          </div>
+          <div><label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Texte</label><textarea className="w-full border-2 border-[var(--border-color)] focus:border-[#E76F51] rounded-xl p-4 outline-none bg-transparent min-h-[100px] font-mono text-sm" value={textContent} onChange={e=>setTextContent(e.target.value)} /></div>
         )}
 
         {!isFlashMode && (
           <div className="bg-[var(--bg-main)] p-4 rounded-xl border border-[var(--border-color)] space-y-3 mt-4">
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={isHosted} onChange={e=>setIsHosted(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
-              <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>☁️ Héberger le fichier (Cloud SCEAU)</span>
+              <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>☁️ Héberger le fichier</span>
             </label>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={isMystery} onChange={e=>setIsMystery(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
-              <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>🎭 Sceau Mystère</span>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={isEphemeral} onChange={e=>setIsEphemeral(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
-              <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>⏳ Éphémère (24h)</span>
-            </label>
+            {isPactMode && (
+              <div className="border-t border-[var(--border-color)] pt-3 mt-3">
+                <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Signatures requises pour sceller</label>
+                <input type="number" min="2" className="w-full border-2 border-[var(--border-color)] p-2 rounded-lg text-center font-bold text-lg bg-transparent mt-1" value={requiredSignatures} onChange={e=>setRequiredSignatures(parseInt(e.target.value))} />
+              </div>
+            )}
           </div>
         )}
 
-        <button onClick={handleSeal} className={`w-full p-4 rounded-xl font-bold shadow-lg mt-6 text-white ${isFlashMode ? 'bg-[#2C1810]' : 'bg-gradient-to-r from-[#E76F51] to-[#F4A261]'}`}>
-          {isFlashMode ? 'GRAVER EN 1 CLIC' : 'SCELLER MON ŒUVRE'}
+        <button onClick={handleSeal} className={`w-full p-4 rounded-xl font-bold shadow-lg mt-6 text-white ${isPactMode ? 'bg-[#4A90C2]' : (isFlashMode ? 'bg-[#2C1810]' : 'bg-gradient-to-r from-[#E76F51] to-[#F4A261]')}`}>
+          {isPactMode ? 'CRÉER LE PACTE' : (isFlashMode ? 'GRAVER EN 1 CLIC' : 'SCELLER MON ŒUVRE')}
         </button>
         {status && <p className="text-center font-bold mt-2 text-[#E76F51]">{status}</p>}
       </div>
     </div>
   );
+}
+
+export default function Seal() {
+  return <Suspense fallback={<div className="p-10 text-center font-mono">Chargement...</div>}><SealContent /></Suspense>;
 }
