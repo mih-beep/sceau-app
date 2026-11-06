@@ -2,12 +2,11 @@
 import './globals.css'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import Manifeste from '@/components/Manifeste'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [handle, setHandle] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(false);
   
@@ -25,12 +24,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     if (!handle) return;
     const fetchNotifs = () => {
       fetch(`/api/notifications?me=${handle}`).then(r => r.json()).then(d => {
-        setNotifications(d.notifications);
-        setUnread(d.unread);
+        setNotifications(d.notifications || []);
+        setUnread(d.unread || 0);
       });
     };
     fetchNotifs();
-    const interval = setInterval(fetchNotifs, 10000); // Toutes les 10 sec
+    const interval = setInterval(fetchNotifs, 10000);
     return () => clearInterval(interval);
   }, [handle]);
 
@@ -46,6 +45,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       setUnread(0);
     }
   };
+
+  // Fonction pour vérifier si un onglet est actif
+  const isActive = (path: string) => pathname === path;
+  const isToolsActive = pathname === '/seal' || pathname === '/verify';
 
   return (
     <html lang="fr">
@@ -81,21 +84,40 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             )}
 
             {!handle ? (
-              <Link href="/signup" className="text-sm font-bold bg-[#E76F51] text-white px-4 py-2 rounded-lg">Créer un compte</Link>
+              <div className="flex items-center gap-3">
+                <Link href="/pricing" className="text-sm font-bold text-[var(--text-muted)] hover:text-[var(--text-main)] transition hidden sm:block">Tarifs</Link>
+                <Link href="/signup" className="text-sm font-bold bg-[#E76F51] text-white px-4 py-2 rounded-lg">Créer un compte</Link>
+              </div>
             ) : (
               <Link href="/profil" className="text-sm font-bold" style={{color: 'var(--text-main)'}}>@{handle}</Link>
             )}
           </div>
         </nav>
+        
         <main className="max-w-2xl mx-auto">{children}</main>
         <Manifeste />
+
+        {/* NOUVELLE BARRE DE NAVIGATION À 5 ONGLETS */}
         <div className="fixed bottom-0 left-0 right-0 bg-[var(--bg-surface)] border-t border-[var(--border-color)] flex justify-around py-3 z-50">
-          <Link href="/feed" className="flex flex-col items-center text-[var(--text-muted)] hover:text-[#E76F51]"><span className="text-xl">🌐</span><span className="text-[0.6rem] font-bold font-mono">Réseau</span></Link>
-          <Link href="/seal" className="flex flex-col items-center text-[var(--text-muted)] hover:text-[#E76F51]"><span className="text-xl">✍️</span><span className="text-[0.6rem] font-bold font-mono">Sceller</span></Link>
-          <Link href="/verify" className="flex flex-col items-center text-[var(--text-muted)] hover:text-[#E76F51]"><span className="text-xl">🔍</span><span className="text-[0.6rem] font-bold font-mono">Vérifier</span></Link>
-          <Link href="/friends" className="flex flex-col items-center text-[var(--text-muted)] hover:text-[#E76F51]"><span className="text-xl">👥</span><span className="text-[0.6rem] font-bold font-mono">Cercle</span></Link>
-          <Link href="/messages" className="flex flex-col items-center text-[var(--text-muted)] hover:text-[#E76F51]"><span className="text-xl">💬</span><span className="text-[0.6rem] font-bold font-mono">Messages</span></Link>
-          <Link href="/profil" className="flex flex-col items-center text-[var(--text-muted)] hover:text-[#E76F51]"><span className="text-xl">👤</span><span className="text-[0.6rem] font-bold font-mono">Profil</span></Link>
+          <Link href="/feed" className={`flex flex-col items-center transition ${isActive('/feed') ? 'text-[#E76F51]' : 'text-[var(--text-muted)] hover:text-[#E76F51]'}`}>
+            <span className="text-xl">🌐</span><span className="text-[0.6rem] font-bold font-mono mt-1">Feed</span>
+          </Link>
+          
+          <Link href="/friends" className={`flex flex-col items-center transition ${isActive('/friends') ? 'text-[#E76F51]' : 'text-[var(--text-muted)] hover:text-[#E76F51]'}`}>
+            <span className="text-xl">👥</span><span className="text-[0.6rem] font-bold font-mono mt-1">Communauté</span>
+          </Link>
+          
+          <Link href="/seal" className={`flex flex-col items-center transition ${isToolsActive ? 'text-[#E76F51]' : 'text-[var(--text-muted)] hover:text-[#E76F51]'}`}>
+            <span className="text-xl">✍️</span><span className="text-[0.6rem] font-bold font-mono mt-1">Sceller</span>
+          </Link>
+          
+          <Link href="/messages" className={`flex flex-col items-center transition ${isActive('/messages') ? 'text-[#E76F51]' : 'text-[var(--text-muted)] hover:text-[#E76F51]'}`}>
+            <span className="text-xl">💬</span><span className="text-[0.6rem] font-bold font-mono mt-1">Messages</span>
+          </Link>
+          
+          <Link href="/profil" className={`flex flex-col items-center transition ${isActive('/profil') ? 'text-[#E76F51]' : 'text-[var(--text-muted)] hover:text-[#E76F51]'}`}>
+            <span className="text-xl">👤</span><span className="text-[0.6rem] font-bold font-mono mt-1">Profil</span>
+          </Link>
         </div>
       </body>
     </html>

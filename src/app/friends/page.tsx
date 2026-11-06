@@ -113,7 +113,7 @@ export default function Friends() {
       
       {/* EN-TÊTE ET BOUTONS DE NAVIGATION */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Mon Cercle.</h1>
+        <h1 className="text-3xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Communauté.</h1>
         
         <div className="flex bg-[var(--bg-surface)] border border-[var(--border-color)] p-1 rounded-xl">
           <button 
@@ -201,7 +201,7 @@ export default function Friends() {
                     )}
                   </div>
                 ))}
-                {friendsData.friends.length === 0 && <p className="text-sm text-[var(--text-muted)] italic col-span-2 text-center py-4">Ton cercle est vide. Cherche des créateurs ci-dessus !</p>}
+                {friendsData.friends.length === 0 && <p className="text-sm text-[var(--text-muted)] italic col-span-2 text-center py-4">Ta communauté est vide. Cherche des créateurs ci-dessus !</p>}
               </div>
             </>
           )}

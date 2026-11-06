@@ -16,10 +16,11 @@ export async function GET(req: Request) {
       FROM seals WHERE author_id = $1
     `, [userId]);
 
-    // On récupère TOUTES les infos nécessaires pour le coffre
     const seals = await pool.query(`
-      SELECT id, title, timestamp, visibility, is_flash, is_hosted, file_path, work_type 
-      FROM seals WHERE author_id = $1 ORDER BY created_at DESC
+      SELECT s.id, s.title, s.description, s.timestamp, s.visibility, s.is_flash, s.is_hosted, s.file_path, s.category, encode(s.hash, 'base64') as hash,
+      (SELECT COUNT(*) FROM likes WHERE seal_id = s.id) as likes_count,
+      (SELECT COUNT(*) FROM comments WHERE seal_id = s.id) as comments_count
+      FROM seals s WHERE s.author_id = $1 ORDER BY s.created_at DESC
     `, [userId]);
 
     const pacts = await pool.query("SELECT COUNT(*) as total_pacts FROM pact_signatures WHERE user_id = $1", [userId]);

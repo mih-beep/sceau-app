@@ -62,7 +62,13 @@ export default function Verify() {
 
   return (
     <div className="p-6 max-w-2xl mx-auto font-serif">
-      <h1 className="text-3xl font-bold mb-2 text-center" style={{color: 'var(--text-main)'}}>Vérifier & Découvrir.</h1>
+      <div className="flex justify-center mb-6">
+          <div className="flex bg-[var(--bg-main)] p-1 rounded-xl border border-[var(--border-color)]">
+            <Link href="/seal" className="px-6 py-2 rounded-lg font-bold text-sm opacity-50 hover:opacity-100 transition">✍️ Sceller</Link>
+            <Link href="/verify" className="px-6 py-2 rounded-lg font-bold text-sm bg-[var(--bg-surface)] shadow text-[#E76F51]">🔍 Vérifier</Link>
+          </div>
+        </div>
+        <h1 className="text-3xl font-bold mb-2 text-center" style={{color: 'var(--text-main)'}}>Vérifier & Découvrir.</h1>
       <p className="text-[var(--text-muted)] italic mb-6 text-center">Prouvez l'authenticité ou découvrez le monde.</p>
       
       {/* BARRE D'ONGLETS (Maintenant 4 onglets) */}
