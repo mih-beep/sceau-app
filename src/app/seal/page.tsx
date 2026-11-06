@@ -19,6 +19,9 @@ function SealContent() {
   const [file, setFile] = useState<File | null>(null);
   
   const [isHosted, setIsHosted] = useState(true);
+  const [isMystery, setIsMystery] = useState(false);     // RESTAURÉ
+  const [isEphemeral, setIsEphemeral] = useState(false); // RESTAURÉ
+  const [unlockLikes, setUnlockLikes] = useState(10);    // RESTAURÉ
   const [requiredSignatures, setRequiredSignatures] = useState(2);
   
   const [status, setStatus] = useState('');
@@ -68,17 +71,13 @@ function SealContent() {
         return sendToServer(btoa(hashStr), null);
       }
 
-      // CORRECTION STRICTE POUR TYPESCRIPT
       let fileToSeal: File;
       
       if (mode === 'text') {
         const blob = new Blob([textContent], { type: 'text/plain' });
         fileToSeal = new File([blob], `${title.replace(/\s+/g, '-').toLowerCase()}.txt`, { type: 'text/plain' });
       } else {
-        if (!file) {
-          setStatus("Fichier manquant");
-          return;
-        }
+        if (!file) return setStatus("Fichier manquant");
         fileToSeal = file;
       }
 
@@ -110,9 +109,10 @@ function SealContent() {
       formData.append('required_signatures', requiredSignatures.toString());
     } else {
       formData.append('isFlash', isFlashMode.toString());
-      formData.append('isMystery', 'false');
-      formData.append('isEphemeral', 'false');
-      formData.append('unlockLikes', '0');
+      // ON RENVOIE LES OPTIONS MYSTÈRE ET ÉPHÉMÈRE AU SERVEUR
+      formData.append('isMystery', isMystery.toString());
+      formData.append('isEphemeral', isEphemeral.toString());
+      formData.append('unlockLikes', unlockLikes.toString());
     }
 
     setStatus(isPactMode ? "Envoi du pacte..." : "Ancrage dans la blockchain...");
@@ -232,8 +232,23 @@ function SealContent() {
           <div className="bg-[var(--bg-main)] p-4 rounded-xl border border-[var(--border-color)] space-y-3 mt-4">
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={isHosted} onChange={e=>setIsHosted(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
-              <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>☁️ Héberger le fichier</span>
+              <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>☁️ Héberger le fichier (Cloud)</span>
             </label>
+
+            {/* OPTIONS RESTAURÉES */}
+            {!isPactMode && (
+              <>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={isMystery} onChange={e=>setIsMystery(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
+                  <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>🎭 Sceau Mystère</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={isEphemeral} onChange={e=>setIsEphemeral(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
+                  <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>⏳ Éphémère (24h)</span>
+                </label>
+              </>
+            )}
+
             {isPactMode && (
               <div className="border-t border-[var(--border-color)] pt-3 mt-3">
                 <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Signatures requises pour sceller</label>
