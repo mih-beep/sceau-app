@@ -4,6 +4,7 @@ import { pool } from '@/db/pool';
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const me = searchParams.get('me');
+  const search = searchParams.get('search');
   if (!me) return NextResponse.json({ error: 'Non connecté' }, { status: 401 });
 
   try {
@@ -11,28 +12,31 @@ export async function GET(req: Request) {
     if (myIdRes.rows.length === 0) return NextResponse.json({ error: 'Inconnu' }, { status: 404 });
     const myId = myIdRes.rows[0].id;
 
-    // 1. Mes amis acceptés
+    // Si on fait une recherche d'utilisateurs
+    if (search) {
+      const users = await pool.query(`
+        SELECT handle, role FROM users 
+        WHERE handle ILIKE $1 AND id != $2 LIMIT 10
+      `, [`%${search}%`, myId]);
+      return NextResponse.json({ searchResults: users.rows });
+    }
+
+    // Sinon, on récupère les amis ET leur dernière œuvre
     const friends = await pool.query(`
-      SELECT u.id, u.handle FROM friendships f
+      SELECT u.id, u.handle, 
+      (SELECT title FROM seals WHERE author_id = u.id AND visibility = 'public' ORDER BY created_at DESC LIMIT 1) as last_seal,
+      (SELECT id FROM seals WHERE author_id = u.id AND visibility = 'public' ORDER BY created_at DESC LIMIT 1) as last_seal_id
+      FROM friendships f
       JOIN users u ON (u.id = f.requester_id OR u.id = f.addressee_id)
       WHERE (f.requester_id = $1 OR f.addressee_id = $1) AND f.status = 'accepted' AND u.id != $1
     `, [myId]);
 
-    // 2. Demandes reçues en attente
     const received = await pool.query(`
-      SELECT u.handle FROM friendships f
-      JOIN users u ON u.id = f.requester_id
+      SELECT u.handle FROM friendships f JOIN users u ON u.id = f.requester_id
       WHERE f.addressee_id = $1 AND f.status = 'pending'
     `, [myId]);
 
-    // 3. Demandes envoyées
-    const sent = await pool.query(`
-      SELECT u.handle FROM friendships f
-      JOIN users u ON u.id = f.addressee_id
-      WHERE f.requester_id = $1 AND f.status = 'pending'
-    `, [myId]);
-
-    return NextResponse.json({ friends: friends.rows, received: received.rows, sent: sent.rows });
+    return NextResponse.json({ friends: friends.rows, received: received.rows });
   } catch (error) { return NextResponse.json({ error: 'Erreur' }, { status: 500 }); }
 }
 

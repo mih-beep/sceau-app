@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef } from 'react';
 import { sha256 } from '@noble/hashes/sha256';
+import { toPng } from 'html-to-image';
 
 export default function Seal() {
   const [mode, setMode] = useState<'file' | 'text' | 'media' | 'audio'>('file');
@@ -13,50 +14,24 @@ export default function Seal() {
   const [visibility, setVisibility] = useState('public');
   const [isHosted, setIsHosted] = useState(true);
   const [status, setStatus] = useState('');
+  
+  // Nouvelles options fun
+  const [isMystery, setIsMystery] = useState(false);
+  const [unlockLikes, setUnlockLikes] = useState(10);
+  const [isFlash, setIsFlash] = useState(false);
+  const [sealedResult, setSealedResult] = useState<any>(null);
 
-  // Nouveaux états pour le versioning
   const [isNewVersion, setIsNewVersion] = useState(false);
   const [projectId, setProjectId] = useState('');
-  const [versionNumber, setVersionNumber] = useState(2); // Par défaut V2
+  const [versionNumber, setVersionNumber] = useState(2);
 
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-
-  async function startRecording() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-      mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunksRef.current.push(event.data); };
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        setFile(new File([audioBlob], `audio-${Date.now()}.webm`, { type: 'audio/webm' }));
-        setAudioUrl(URL.createObjectURL(audioBlob));
-      };
-      mediaRecorder.start(); setIsRecording(true);
-    } catch (err) { alert("Impossible d'accéder au micro."); }
-  }
-
-  function stopRecording() {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-      setIsRecording(false);
-    }
-  }
+  const cardRef = useRef<HTMLDivElement>(null);
 
   async function handleSeal() {
-    if (!title) return setStatus("Le titre est requis");
+    if (!title && !isFlash) return setStatus("Le titre est requis");
     if (mode === 'file' && !file) return setStatus("Choisis un fichier");
-    if (mode === 'text' && !textContent) return setStatus("Écris quelque chose");
-    if (mode === 'media' && !file) return setStatus("Prends une photo ou vidéo");
-    if (mode === 'audio' && !file) return setStatus("Enregistre un audio");
-    if (isNewVersion && !projectId) return setStatus("L'ID du projet est requis pour une nouvelle version");
 
-    setStatus("Calcul de l'empreinte...");
+    setStatus("Calcul...");
     try {
       let fileToSeal = file;
       if (mode === 'text') {
@@ -73,18 +48,20 @@ export default function Seal() {
       const pubkey = localStorage.getItem('sceau_pubkey');
       if (!pubkey) return setStatus("Créez un compte d'abord !");
 
-      setStatus("Ancrage dans le registre...");
-
+      setStatus("Ancrage...");
       const formData = new FormData();
       formData.append('hash', hashB64);
-      formData.append('title', title);
+      formData.append('title', title || "Idée Flash");
       formData.append('description', desc);
       formData.append('category', cat);
       formData.append('workType', workType);
       formData.append('visibility', visibility);
-      formData.append('isHosted', isHosted.toString());
+      formData.append('isHosted', (isHosted && !isFlash).toString());
+      formData.append('isMystery', isMystery.toString());
+      formData.append('unlockLikes', unlockLikes.toString());
+      formData.append('isFlash', isFlash.toString());
       formData.append('pubkey', pubkey);
-      formData.append('file', fileToSeal);
+      if (!isFlash) formData.append('file', fileToSeal);
       
       if (isNewVersion) {
         formData.append('project_id', projectId);
@@ -95,119 +72,87 @@ export default function Seal() {
       const data = await res.json();
       
       if (res.ok) {
-        setStatus(`✅ Scellé avec succès ! (${isNewVersion ? 'Version ' + versionNumber : 'Nouveau projet'})`);
-        setTitle(''); setDesc(''); setFile(null); setTextContent(''); setAudioUrl(null);
-        if (!isNewVersion) {
-          alert(`Nouveau projet créé !\n\nVoici l'ID de ton projet (garde-le précieusement pour les futures versions) :\n${data.project_id}`);
-        }
+        setStatus("✅ Scellé !");
+        setSealedResult({ title, hash: hashB64, id: data.seal_id, date: new Date().toLocaleDateString('fr-FR') });
       } else {
-        setStatus("❌ Erreur : " + data.error);
+        setStatus("❌ " + data.error);
       }
-    } catch (e) { setStatus("❌ Erreur système"); }
+    } catch (e) { setStatus("❌ Erreur"); }
   }
 
+  const downloadCard = async () => {
+    if (cardRef.current) {
+      const dataUrl = await toPng(cardRef.current, { cacheBust: true });
+      const link = document.createElement('a');
+      link.download = `SCEAU-${title}.png`;
+      link.href = dataUrl;
+      link.click();
+    }
+  };
+
+  // Si on a scellé, on affiche la carte de preuve téléchargeable
+  if (sealedResult) {
+    return (
+      <div className="p-6 font-serif text-center flex flex-col items-center">
+        <h1 className="text-3xl font-bold mb-6" style={{color: 'var(--text-main)'}}>C'est dans le marbre.</h1>
+        <div ref={cardRef} className="bg-gradient-to-br from-[#FFFCF7] to-[#F5E9D8] p-8 rounded-3xl border border-[#E8D5B8] shadow-xl w-full max-w-sm text-left relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#E76F51] to-[#F4A261]"></div>
+          <h2 className="text-3xl font-black mb-1" style={{color: '#2C1810'}}>SCEAU<span className="text-[#E76F51]">.</span></h2>
+          <p className="text-xs font-mono font-bold text-[#A89070] mb-6">CERTIFICAT DE PREUVE</p>
+          <h3 className="text-xl font-bold mb-4" style={{color: '#2C1810'}}>{sealedResult.title}</h3>
+          <p className="text-[0.6rem] font-mono text-[#A89070] break-all bg-white p-2 rounded border border-[#EFE0CA] mb-4">{sealedResult.hash}</p>
+          <p className="text-xs text-[#7A5A3A]">Scellé le {sealedResult.date}</p>
+          <div className="mt-4 flex justify-between items-center">
+             <span className="text-xs font-bold text-[#E76F51]">@{localStorage.getItem('sceau_handle')}</span>
+             <span className="text-2xl">⚖️</span>
+          </div>
+        </div>
+        <div className="flex gap-2 mt-8 w-full max-w-sm">
+          <button onClick={downloadCard} className="flex-1 bg-[#2C1810] text-white p-3 rounded-xl font-bold text-sm">📸 Télécharger l'image</button>
+          <button onClick={() => window.location.reload()} className="flex-1 border-2 border-[#EFE0CA] text-[#2C1810] p-3 rounded-xl font-bold text-sm">Nouveau</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Formulaire normal
   return (
     <div className="p-6 font-serif">
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold mb-2" style={{color: 'var(--text-main)'}}>L'Atelier.</h1>
-        <p className="italic text-[var(--text-muted)]">Créez et scellez en un clic.</p>
       </div>
 
       <div className="space-y-4 max-w-md mx-auto bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm">
         
-        {/* Versioning Toggle */}
-        <div className="bg-[#FDF8F0] p-3 rounded-xl border border-[#EFE0CA] mb-4">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input type="checkbox" checked={isNewVersion} onChange={e=>setIsNewVersion(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
-            <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>C'est une nouvelle version d'un projet existant</span>
+        {/* Options Fun */}
+        <div className="bg-[#FDF8F0] p-3 rounded-xl border border-[#EFE0CA] mb-2 space-y-2">
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>🎭 Sceau Mystère</span>
+            <input type="checkbox" checked={isMystery} onChange={e=>setIsMystery(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
           </label>
-          {isNewVersion && (
-            <div className="mt-3 space-y-2">
-              <input type="text" placeholder="ID du projet (copié lors de la V1)" className="w-full border-2 border-[#EFE0CA] p-2 rounded-lg text-xs font-mono bg-white" value={projectId} onChange={e=>setProjectId(e.target.value)} />
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-[#A89070]">Numéro de version :</span>
-                <input type="number" min="2" className="w-16 border-2 border-[#EFE0CA] p-1 rounded-lg text-xs text-center bg-white" value={versionNumber} onChange={e=>setVersionNumber(parseInt(e.target.value))} />
-              </div>
-            </div>
+          {isMystery && (
+             <input type="number" placeholder="Likes pour débloquer" className="w-full border border-[#EFE0CA] p-2 rounded text-xs" value={unlockLikes} onChange={e=>setUnlockLikes(parseInt(e.target.value))} />
           )}
-        </div>
-
-        <div className="flex bg-[var(--bg-main)] p-1 rounded-xl mb-4 text-xs font-mono">
-          <button onClick={() => setMode('file')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'file' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{color: 'var(--text-main)'}}>📁 Fichier</button>
-          <button onClick={() => setMode('text')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'text' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{color: 'var(--text-main)'}}>✍️ Texte</button>
-          <button onClick={() => setMode('media')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'media' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{color: 'var(--text-main)'}}>📸 Direct</button>
-          <button onClick={() => setMode('audio')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'audio' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{color: 'var(--text-main)'}}>🎙️ Audio</button>
+          <label className="flex items-center justify-between cursor-pointer border-t border-[#EFE0CA] pt-2">
+            <span className="text-sm font-bold text-[#C44A2E]">⚡ Sceau Flash (Secret total)</span>
+            <input type="checkbox" checked={isFlash} onChange={e=>setIsFlash(e.target.checked)} className="w-4 h-4 accent-[#C44A2E]" />
+          </label>
         </div>
 
         <div>
-          <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Titre de l'œuvre</label>
-          <input type="text" className="w-full border-2 border-[var(--border-color)] focus:border-[#E76F51] rounded-xl p-3 outline-none bg-transparent" style={{color: 'var(--text-main)'}} value={title} onChange={e=>setTitle(e.target.value)} />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Type d'œuvre</label>
-            <select className="w-full border-2 border-[var(--border-color)] rounded-xl p-3 outline-none bg-transparent" style={{color: 'var(--text-main)'}} value={workType} onChange={e=>setWorkType(e.target.value)}>
-              <option value="fichier">Fichier simple</option>
-              <option value="chapitre">Chapitre de livre</option>
-              <option value="demo">Démo musicale</option>
-              <option value="portfolio">Pièce de portfolio</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Catégorie</label>
-            <select className="w-full border-2 border-[var(--border-color)] rounded-xl p-3 outline-none bg-transparent" style={{color: 'var(--text-main)'}} value={cat} onChange={e=>setCat(e.target.value)}>
-              <option>Art</option><option>Musique</option><option>Code</option><option>Écrit</option>
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Description</label>
-          <textarea className="w-full border-2 border-[var(--border-color)] focus:border-[#E76F51] rounded-xl p-3 outline-none bg-transparent" rows={2} value={desc} onChange={e=>setDesc(e.target.value)} />
+          <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Titre (ou Description pour Flash)</label>
+          <input type="text" className="w-full border-2 border-[var(--border-color)] focus:border-[#E76F51] rounded-xl p-3 outline-none bg-transparent" value={title} onChange={e=>setTitle(e.target.value)} />
         </div>
         
-        <div className="grid grid-cols-2 gap-4">
+        {!isFlash && (
           <div>
-            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">
-              {mode === 'media' ? 'Capture' : mode === 'file' ? 'Fichier' : mode === 'audio' ? 'Enregistreur' : 'Texte'}
-            </label>
-            {mode === 'file' && <input type="file" className="w-full text-sm mt-2 opacity-80" onChange={e=>setFile(e.target.files?.[0]||null)} />}
-            {mode === 'media' && <input type="file" accept="image/*,video/*" capture="environment" className="w-full text-sm mt-2 opacity-80" onChange={e=>setFile(e.target.files?.[0]||null)} />}
-            {mode === 'audio' && (
-              <div className="mt-2">
-                {!isRecording && !audioUrl && <button onClick={startRecording} className="w-full bg-red-500 text-white py-2 rounded-lg font-bold text-xs">🔴 Enregistrer</button>}
-                {isRecording && <button onClick={stopRecording} className="w-full bg-black text-white py-2 rounded-lg font-bold text-xs animate-pulse">⏹ Arrêter</button>}
-                {audioUrl && !isRecording && <audio controls src={audioUrl} className="w-full h-10" />}
-              </div>
-            )}
-            {mode === 'text' && <div className="text-xs text-[var(--text-muted)] mt-2">Zone texte ↓</div>}
-          </div>
-        </div>
-
-        {mode === 'text' && (
-          <div className="mt-2">
-            <textarea className="w-full border-2 border-[var(--border-color)] focus:border-[#E76F51] rounded-xl p-4 outline-none bg-transparent min-h-[100px] font-mono text-sm" style={{color: 'var(--text-main)'}} placeholder="Écrivez votre chef-d'œuvre ici..." value={textContent} onChange={e=>setTextContent(e.target.value)} />
+            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Fichier</label>
+            <input type="file" className="w-full text-sm mt-2" onChange={e=>setFile(e.target.files?.[0]||null)} />
           </div>
         )}
 
-        <div className="bg-[var(--bg-main)] p-4 rounded-xl border border-[var(--border-color)] space-y-2 mt-4">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input type="checkbox" checked={isHosted} onChange={e=>setIsHosted(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
-            <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>Héberger le fichier (Cloud)</span>
-          </label>
-          <div className="space-y-2 mt-2">
-            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Visibilité</label>
-            <div className="flex bg-white rounded-xl border border-[var(--border-color)] p-1">
-              <button onClick={() => setVisibility('public')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${visibility === 'public' ? 'bg-[#F5F9EE] text-[#5D7A3A] shadow' : 'opacity-50'}`}>🌍 Public</button>
-              <button onClick={() => setVisibility('friends')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${visibility === 'friends' ? 'bg-[#F0F6FC] text-[#2D6A9E] shadow' : 'opacity-50'}`}>👥 Amis</button>
-              <button onClick={() => setVisibility('private')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${visibility === 'private' ? 'bg-[#FDF4F0] text-[#C44A2E] shadow' : 'opacity-50'}`}>🔒 Privé</button>
-            </div>
-          </div>
-        </div>
-        
-        <button onClick={handleSeal} className="w-full bg-gradient-to-r from-[#E76F51] to-[#F4A261] text-white p-4 rounded-xl font-bold shadow-lg mt-4">SCELLER MON ŒUVRE</button>
-        {status && <p className="text-center font-bold mt-4 text-[#E76F51]">{status}</p>}
+        <button onClick={handleSeal} className="w-full bg-gradient-to-r from-[#E76F51] to-[#F4A261] text-white p-4 rounded-xl font-bold shadow-lg mt-4">SCELLER</button>
+        {status && <p className="text-center font-bold mt-2 text-[#E76F51]">{status}</p>}
       </div>
     </div>
   );

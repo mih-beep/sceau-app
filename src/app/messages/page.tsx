@@ -2,109 +2,138 @@
 import { useEffect, useState, useRef } from 'react';
 
 export default function Messages() {
-  const [contacts, setContacts] = useState<any[]>([]);
   const [myHandle, setMyHandle] = useState('');
-  const [activeContact, setActiveContact] = useState<any>(null);
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [groups, setGroups] = useState<any[]>([]);
+  
+  // État du chat actif : { type: 'dm' | 'group', id: string, name: string }
+  const [activeChat, setActiveChat] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   
+  // États pour les modales
   const [showPactModal, setShowPactModal] = useState(false);
+  const [showGroupModal, setShowGroupModal] = useState(false);
   const [pactTitle, setPactTitle] = useState('');
   const [pactDesc, setPactDesc] = useState('');
-  const [pactFile, setPactFile] = useState<File | null>(null);
+  const [pactSignatures, setPactSignatures] = useState(2);
+  const [groupName, setGroupName] = useState('');
   const [activePact, setActivePact] = useState<any>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const myPubkey = typeof window !== 'undefined' ? localStorage.getItem('sceau_pubkey') : null;
 
   useEffect(() => {
     setMyHandle(localStorage.getItem('sceau_handle') || '');
     fetch('/api/messages').then(r => r.json()).then(d => setContacts(d.contacts || []));
+    fetch(`/api/groups/list?me=${localStorage.getItem('sceau_handle')}`).then(r => r.json()).then(d => setGroups(d.groups || []));
   }, []);
 
+  // Charger les messages (toutes les 3 secondes)
   useEffect(() => {
-    if (!activeContact || !myHandle) return;
+    if (!activeChat || !myHandle) return;
     const load = () => {
-      fetch(`/api/messages/${activeContact.handle}?me=${myHandle}`)
-        .then(r => r.json())
-        .then(data => setMessages(data.messages || []));
+      if (activeChat.type === 'dm') {
+        fetch(`/api/messages/${activeChat.id}?me=${myHandle}`).then(r => r.json()).then(data => setMessages(data.messages || []));
+      } else {
+        fetch(`/api/groups/messages?id=${activeChat.id}`).then(r => r.json()).then(data => setMessages(data.messages || []));
+      }
     };
     load();
-    const interval = setInterval(load, 3000); // 3 secondes pour laisser le temps au POST
+    const interval = setInterval(load, 3000);
     return () => clearInterval(interval);
-  }, [activeContact, myHandle]);
+  }, [activeChat, myHandle]);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   async function sendMessage() {
-    if (!newMessage.trim() || !activeContact) return;
-    
-    const msgToSend = newMessage;
-    setNewMessage(''); 
-    
-    const optimisticMsg = { content: msgToSend, sender: myHandle, created_at: new Date().toISOString() };
-    setMessages(prev => [...prev, optimisticMsg]);
+    if (!newMessage.trim() || !activeChat) return;
+    const msg = newMessage;
+    setNewMessage('');
+    setMessages(prev => [...prev, { content: msg, sender: myHandle, created_at: new Date().toISOString() }]);
 
-    try {
-      const res = await fetch('/api/messages', { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, // LE FIX EST ICI
-        body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeContact.handle, content: msgToSend }) 
-      });
-      if (!res.ok) throw new Error("Erreur d'envoi");
-    } catch (e) {
-      alert("Le message n'a pas pu être envoyé.");
-      // On retire le message optimiste en cas d'échec
-      setMessages(prev => prev.filter(m => m !== optimisticMsg));
+    if (activeChat.type === 'dm') {
+      await fetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeChat.id, content: msg }) });
+    } else {
+      await fetch('/api/groups/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ group_id: activeChat.id, sender_handle: myHandle, content: msg }) });
     }
   }
 
+  async function createGroup() {
+    if (!groupName) return;
+    const res = await fetch('/api/groups/create', { method: 'POST', body: JSON.stringify({ name: groupName, creator_pubkey: myPubkey }) });
+    const data = await res.json();
+    if (res.ok) { alert("Groupe créé !"); setShowGroupModal(false); window.location.reload(); }
+  }
+
   async function createPact() {
-    if (!pactTitle) return;
-    const pubkey = localStorage.getItem('sceau_pubkey');
-    
+    if (!pactTitle || !activeChat) return;
     const formData = new FormData();
     formData.append('title', pactTitle);
     formData.append('description', pactDesc);
-    formData.append('pubkey', pubkey!);
-    if (pactFile) formData.append('file', pactFile);
+    formData.append('pubkey', myPubkey!);
+    formData.append('required_signatures', pactSignatures.toString());
+    
+    if (activeChat.type === 'group') {
+      formData.append('group_id', activeChat.id);
+    }
 
     const res = await fetch('/api/pacts/create', { method: 'POST', body: formData });
     const data = await res.json();
     
     if (res.ok) {
-      // Envoi du message de notification
-      await fetch('/api/messages', { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, // LE FIX EST ICI AUSSI
-        body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeContact.handle, content: `[PACTE]${data.id}|${pactTitle}` }) 
-      });
-      setShowPactModal(false);
-      setPactTitle(''); setPactDesc(''); setPactFile(null);
-    } else {
-      alert("Erreur lors de la création du pacte.");
+      if (activeChat.type === 'dm') {
+        await fetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeChat.id, content: `[PACTE]${data.id}|${pactTitle}` }) });
+      } else {
+        await fetch('/api/groups/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ group_id: activeChat.id, sender_handle: myHandle, content: `[PACTE]${data.id}|${pactTitle}` }) });
+      }
+      setShowPactModal(false); setPactTitle(''); setPactDesc('');
     }
   }
 
   return (
     <div className="p-4 md:p-6 h-[calc(100vh-140px)] flex gap-4 font-serif max-w-5xl mx-auto">
-      <div className={`bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-4 overflow-y-auto ${activeContact ? 'hidden md:block md:w-1/3' : 'w-full md:w-1/3'}`}>
-        <h1 className="text-2xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Messages</h1>
-        <div className="space-y-2">
-          {contacts.filter(c => c.handle !== myHandle).map(c => (
-            <div key={c.id} onClick={() => setActiveContact(c)} className="p-3 rounded-xl cursor-pointer hover:bg-[var(--bg-main)] transition flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[#E76F51] text-white flex items-center justify-center font-bold text-sm">{c.handle[0].toUpperCase()}</div>
-              <div className="font-bold text-sm" style={{color: 'var(--text-main)'}}>@{c.handle}</div>
-            </div>
-          ))}
+      
+      {/* COLONNE DE GAUCHE (Contacts & Groupes) */}
+      <div className={`bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-4 overflow-y-auto ${activeChat ? 'hidden md:block md:w-1/3' : 'w-full md:w-1/3'}`}>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-xl font-bold" style={{color: 'var(--text-main)'}}>Messages</h1>
+          <button onClick={() => setShowGroupModal(true)} className="bg-[#E76F51] text-white text-xs font-bold px-2 py-1 rounded-lg">+ Groupe</button>
         </div>
+        
+        {/* GROUPES */}
+        {groups.length > 0 && (
+          <div className="mb-4">
+            <h2 className="text-xs font-mono font-bold text-[#A89070] uppercase mb-2">Groupes</h2>
+            {groups.map(g => (
+              <div key={g.id} onClick={() => setActiveChat({ type: 'group', id: g.id, name: g.name })} className="p-2 rounded-xl cursor-pointer hover:bg-[var(--bg-main)] transition flex items-center gap-2 mb-1">
+                <div className="w-8 h-8 rounded-lg bg-[#4A90C2] text-white flex items-center justify-center font-bold text-sm">G</div>
+                <div className="font-bold text-sm truncate" style={{color: 'var(--text-main)'}}>{g.name}</div>
+                <span className="text-[0.6rem] text-[var(--text-muted)] ml-auto">{g.members_count} mbrs</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* CONTACTS (DM) */}
+        <h2 className="text-xs font-mono font-bold text-[#A89070] uppercase mb-2">Messages Privés</h2>
+        {contacts.filter(c => c.handle !== myHandle).map(c => (
+          <div key={c.id} onClick={() => setActiveChat({ type: 'dm', id: c.handle, name: c.handle })} className="p-2 rounded-xl cursor-pointer hover:bg-[var(--bg-main)] transition flex items-center gap-2 mb-1">
+            <div className="w-8 h-8 rounded-full bg-[#E76F51] text-white flex items-center justify-center font-bold text-sm">{c.handle[0].toUpperCase()}</div>
+            <div className="font-bold text-sm" style={{color: 'var(--text-main)'}}>@{c.handle}</div>
+          </div>
+        ))}
       </div>
 
-      {activeContact ? (
-        <div className={`bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl flex flex-col overflow-hidden ${activeContact ? 'w-full md:w-2/3' : 'hidden md:flex'}`}>
+      {/* COLONNE DE DROITE (Chat) */}
+      {activeChat ? (
+        <div className={`bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl flex flex-col overflow-hidden w-full md:w-2/3`}>
           <div className="p-4 border-b border-[var(--border-color)] flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <button onClick={() => setActiveContact(null)} className="md:hidden text-xl font-bold" style={{color: 'var(--text-main)'}}>←</button>
-              <h2 className="text-lg font-bold" style={{color: 'var(--text-main)'}}>@{activeContact.handle}</h2>
+              <button onClick={() => setActiveChat(null)} className="md:hidden text-xl font-bold" style={{color: 'var(--text-main)'}}>←</button>
+              <h2 className="text-lg font-bold flex items-center gap-2" style={{color: 'var(--text-main)'}}>
+                {activeChat.type === 'group' ? `👥 ${activeChat.name}` : `@${activeChat.name}`}
+              </h2>
             </div>
             <button onClick={() => setShowPactModal(true)} className="bg-[#E76F51] text-white text-xs font-bold px-3 py-1 rounded-lg">+ Pacte</button>
           </div>
@@ -122,6 +151,7 @@ export default function Messages() {
               }
               return (
                 <div key={i} className={`max-w-[80%] p-3 rounded-xl text-sm ${m.sender === myHandle ? 'bg-[#E76F51] text-white ml-auto rounded-br-none' : 'bg-[var(--bg-main)] border border-[var(--border-color)] rounded-bl-none'}`} style={{color: m.sender === myHandle ? '#FFF' : 'var(--text-main)'}}>
+                  {activeChat.type === 'group' && m.sender !== myHandle && <div className="text-[0.6rem] font-bold opacity-70 mb-1">@{m.sender}</div>}
                   {m.content}
                 </div>
               );
@@ -136,17 +166,39 @@ export default function Messages() {
         </div>
       ) : (
         <div className="hidden md:flex flex-1 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl items-center justify-center text-[var(--text-muted)]">
-          Sélectionnez un contact.
+          Sélectionnez une discussion.
         </div>
       )}
 
+      {/* MODALE CRÉATION GROUPE */}
+      {showGroupModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-[var(--bg-surface)] w-full max-w-sm rounded-3xl p-6">
+            <h2 className="text-2xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Créer un Groupe</h2>
+            <input type="text" placeholder="Nom du groupe (ex: Projet d'école)" className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={groupName} onChange={e => setGroupName(e.target.value)} />
+            <div className="flex gap-2">
+              <button onClick={() => setShowGroupModal(false)} className="flex-1 py-2 font-bold opacity-50">Annuler</button>
+              <button onClick={createGroup} className="flex-1 bg-[#4A90C2] text-white py-2 rounded-xl font-bold">Créer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODALE CRÉATION PACTE (avec option multi-signatures) */}
       {showPactModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-[var(--bg-surface)] w-full max-w-sm rounded-3xl p-6">
-            <h2 className="text-2xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Créer un Pacte</h2>
+            <h2 className="text-2xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Nouveau Pacte</h2>
             <input type="text" placeholder="Titre de l'accord" className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={pactTitle} onChange={e => setPactTitle(e.target.value)} />
-            <textarea placeholder="Détails du contrat..." className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={pactDesc} onChange={e => setPactDesc(e.target.value)} />
-            <input type="file" className="w-full mb-4 text-sm" onChange={e => setPactFile(e.target.files?.[0] || null)} />
+            <textarea placeholder="Détails..." className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={pactDesc} onChange={e => setPactDesc(e.target.value)} />
+            
+            {activeChat.type === 'group' && (
+              <div className="mb-4">
+                <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1">Signatures requises pour valider</label>
+                <input type="number" min="2" className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl bg-transparent text-center font-bold text-lg" value={pactSignatures} onChange={e => setPactSignatures(parseInt(e.target.value))} />
+              </div>
+            )}
+
             <div className="flex gap-2">
               <button onClick={() => setShowPactModal(false)} className="flex-1 py-2 font-bold opacity-50">Annuler</button>
               <button onClick={createPact} className="flex-1 bg-[#E76F51] text-white py-2 rounded-xl font-bold">Envoyer</button>
@@ -155,19 +207,20 @@ export default function Messages() {
         </div>
       )}
 
-      {activePact && <PactModal pactId={activePact} receiverHandle={activeContact.handle} onClose={() => setActivePact(null)} />}
+      {/* MODALE SIGNATURE PACTE */}
+      {activePact && <PactModal pactId={activePact} onClose={() => setActivePact(null)} />}
     </div>
   );
 }
 
-function PactModal({ pactId, receiverHandle, onClose }: { pactId: string, receiverHandle: string, onClose: () => void }) {
+function PactModal({ pactId, onClose }: { pactId: string, onClose: () => void }) {
   const [pact, setPact] = useState<any>(null);
   const loadPact = () => fetch(`/api/pacts/${pactId}`).then(r => r.json()).then(d => setPact(d));
   useEffect(() => { loadPact(); }, [pactId]);
 
   async function signPact() {
     const pubkey = localStorage.getItem('sceau_pubkey');
-    await fetch('/api/pacts/sign', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pact_id: pactId, pubkey, receiver_handle: receiverHandle }) });
+    await fetch('/api/pacts/sign', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pact_id: pactId, pubkey }) });
     loadPact();
   }
 
@@ -186,10 +239,10 @@ function PactModal({ pactId, receiverHandle, onClose }: { pactId: string, receiv
         <p className="text-sm mb-4 text-[var(--text-muted)]">Créé par @{pact.creator}</p>
         <p className="italic mb-4 p-4 bg-[var(--bg-main)] rounded-xl" style={{color: 'var(--text-main)'}}>{pact.description}</p>
         
-        {pact.file_path && <a href={pact.file_path} target="_blank" className="block text-center bg-[#2C1810] text-white py-2 rounded-xl mb-6 font-bold text-sm">📂 Télécharger le document</a>}
-        
         <div className="mb-6">
-          <h3 className="font-bold mb-2" style={{color: 'var(--text-main)'}}>Signatures :</h3>
+          <h3 className="font-bold mb-2 flex justify-between" style={{color: 'var(--text-main)'}}>
+            Signatures : <span>{pact.signataires.length} / {pact.required_signatures}</span>
+          </h3>
           <div className="flex flex-wrap gap-2">
             {pact.signataires.map((s: string) => <span key={s} className="bg-[#F5F9EE] text-[#5D7A3A] border border-[#A8C77E] px-3 py-1 rounded-lg text-sm font-bold">✅ @{s}</span>)}
           </div>
