@@ -1,32 +1,27 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Link from 'next/link'; // L'IMPORT MANQUANT EST ICI
 import { sha256 } from '@noble/hashes/sha256';
 
 export default function Verify() {
-  const [tab, setTab] = useState('file'); // 'file' | 'hash' | 'title' | 'pulse'
+  const [tab, setTab] = useState('file');
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [titleQuery, setTitleQuery] = useState('');
   
-  // États pour le Pouls Direct
   const [pulseData, setPulseData] = useState<any[]>([]);
   const [pulseLoading, setPulseLoading] = useState(true);
 
-  // Effet pour rafraîchir le Pouls toutes les 5 secondes
   useEffect(() => {
     if (tab !== 'pulse') return;
-    
     const fetchPulse = () => {
-      fetch('/api/verify/pulse')
-        .then(res => res.json())
-        .then(data => {
-          setPulseData(data.pulse || []);
-          setPulseLoading(false);
-        });
+      fetch('/api/verify/pulse').then(res => res.json()).then(data => {
+        setPulseData(data.pulse || []);
+        setPulseLoading(false);
+      });
     };
-    
-    fetchPulse(); // Premier chargement
-    const interval = setInterval(fetchPulse, 5000); // Rafraîchissement
+    fetchPulse();
+    const interval = setInterval(fetchPulse, 5000);
     return () => clearInterval(interval);
   }, [tab]);
 
@@ -51,7 +46,6 @@ export default function Verify() {
     const data = await res.json(); setResult(data); setLoading(false);
   }
 
-  // Fonction pour formater le temps écoulé (ex: "Il y a 2 min")
   const timeAgo = (dateStr: string) => {
     const diff = Math.floor((new Date().getTime() - new Date(dateStr).getTime()) / 60000);
     if (diff < 1) return "À l'instant";
@@ -63,15 +57,15 @@ export default function Verify() {
   return (
     <div className="p-6 max-w-2xl mx-auto font-serif">
       <div className="flex justify-center mb-6">
-          <div className="flex bg-[var(--bg-main)] p-1 rounded-xl border border-[var(--border-color)]">
-            <Link href="/seal" className="px-6 py-2 rounded-lg font-bold text-sm opacity-50 hover:opacity-100 transition">✍️ Sceller</Link>
-            <Link href="/verify" className="px-6 py-2 rounded-lg font-bold text-sm bg-[var(--bg-surface)] shadow text-[#E76F51]">🔍 Vérifier</Link>
-          </div>
+        <div className="flex bg-[var(--bg-main)] p-1 rounded-xl border border-[var(--border-color)]">
+          <Link href="/seal" className="px-6 py-2 rounded-lg font-bold text-sm opacity-50 hover:opacity-100 transition">✍️ Sceller</Link>
+          <Link href="/verify" className="px-6 py-2 rounded-lg font-bold text-sm bg-[var(--bg-surface)] shadow text-[#E76F51]">🔍 Vérifier</Link>
         </div>
-        <h1 className="text-3xl font-bold mb-2 text-center" style={{color: 'var(--text-main)'}}>Vérifier & Découvrir.</h1>
+      </div>
+
+      <h1 className="text-3xl font-bold mb-2 text-center" style={{color: 'var(--text-main)'}}>Vérifier & Découvrir.</h1>
       <p className="text-[var(--text-muted)] italic mb-6 text-center">Prouvez l'authenticité ou découvrez le monde.</p>
       
-      {/* BARRE D'ONGLETS (Maintenant 4 onglets) */}
       <div className="flex bg-[var(--bg-surface)] border border-[var(--border-color)] p-1 rounded-xl mb-6">
         <button onClick={()=>{setTab('file');setResult(null)}} className={`flex-1 py-2 text-xs font-mono font-bold rounded-lg ${tab==='file'?'bg-[var(--bg-main)] shadow':'opacity-50'}`} style={{color: 'var(--text-main)'}}>Fichier</button>
         <button onClick={()=>{setTab('hash');setResult(null)}} className={`flex-1 py-2 text-xs font-mono font-bold rounded-lg ${tab==='hash'?'bg-[var(--bg-main)] shadow':'opacity-50'}`} style={{color: 'var(--text-main)'}}>Hash</button>
@@ -79,7 +73,6 @@ export default function Verify() {
         <button onClick={()=>{setTab('pulse');setResult(null)}} className={`flex-1 py-2 text-xs font-mono font-bold rounded-lg ${tab==='pulse'?'bg-[#E76F51] text-white shadow':'opacity-50'}`} style={{color: tab==='pulse' ? '#FFF' : 'var(--text-main)'}}>🌍 Pouls</button>
       </div>
 
-      {/* CONTENU DES ONGLETS */}
       {tab === 'file' && (
         <div className="border-2 border-dashed border-[#4A90C2] bg-[var(--bg-surface)] p-8 rounded-xl text-center">
           <input type="file" onChange={e=>e.target.files?.[0] && verifyFile(e.target.files[0])} className="w-full text-sm" style={{color: 'var(--text-main)'}} />
@@ -99,7 +92,6 @@ export default function Verify() {
         </div>
       )}
 
-      {/* LE POULS EN DIRECT */}
       {tab === 'pulse' && (
         <div className="space-y-3">
           <div className="flex items-center gap-2 mb-4 text-xs font-mono text-[#7A9B5A] justify-end">
@@ -129,16 +121,13 @@ export default function Verify() {
         </div>
       )}
 
-      {/* RÉSULTATS DE VÉRIFICATION (uniquement pour file/hash/title) */}
       {tab !== 'pulse' && result && (
         <div className={`mt-8 p-6 rounded-2xl border-2 ${result.found ? 'bg-[var(--bg-surface)] border-[#7A9B5A]' : 'bg-[#FDF4F0] border-[#D64545]'}`}>
           {result.found ? (
             <div>
               <div className="text-center mb-6">
                 <div className="text-3xl mb-2">✅</div>
-                <h2 className="font-bold text-xl" style={{color: 'var(--text-main)'}}>
-                  {tab === 'title' ? 'ŒUVRES TROUVÉES' : 'FICHIER AUTHENTIQUE'}
-                </h2>
+                <h2 className="font-bold text-xl" style={{color: 'var(--text-main)'}}>{tab === 'title' ? 'ŒUVRES TROUVÉES' : 'FICHIER AUTHENTIQUE'}</h2>
                 <p className="text-sm text-[var(--text-muted)]">{result.seals.length} preuve(s)</p>
               </div>
               <div className="space-y-4">

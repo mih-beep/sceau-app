@@ -24,12 +24,28 @@ export async function POST(req: Request) {
     let fileSize = 0;
     
     if (!isFlash && file) {
+      // VÉRIFICATION DU QUOTA (50 Mo)
+      const quotaCheck = await pool.query("SELECT COALESCE(SUM(file_size), 0) as used FROM seals WHERE author_id = $1 AND is_hosted = true", [authorId]);
+      const currentUsage = parseInt(quotaCheck.rows[0].used);
+      const maxQuota = 50 * 1024 * 1024; // 50 Mo
+      
+      if (currentUsage + file.size > maxQuota) {
+        return NextResponse.json({ error: 'Quota de 50 Mo dépassé. Passez à PRO ou stockez en local.' }, { status: 403 });
+      }
+
       fileSize = file.size;
       const buffer = Buffer.from(await file.arrayBuffer());
       const filename = `${hash.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)}-${file.name}`;
-      await r2Client.send(new PutObjectCommand({ Bucket: process.env.S3_BUCKET, Key: filename, Body: buffer, ContentType: file.type }));
-      const baseUrl = process.env.AWS_ENDPOINT_URL_S3?.replace('https://', `https://${process.env.S3_BUCKET}.`);
-      filePath = `${baseUrl}/${filename}`;
+      
+      await r2Client.send(new PutObjectCommand({ 
+        Bucket: process.env.S3_BUCKET, 
+        Key: filename, 
+        Body: buffer, 
+        ContentType: file.type 
+      }));
+      
+      const baseUrl = process.env.AWS_ENDPOINT_URL_S3;
+      filePath = `${baseUrl}/${process.env.S3_BUCKET}/${filename}`;
     }
 
     const result = await pool.query(
@@ -39,8 +55,8 @@ export async function POST(req: Request) {
     );
 
     return NextResponse.json({ seal_id: result.rows[0].id });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+  } catch (error: any) {
+    console.error("Erreur Seal:", error);
+    return NextResponse.json({ error: error.message || 'Erreur serveur' }, { status: 500 });
   }
 }
