@@ -62,22 +62,27 @@ function SealContent() {
 
     setStatus(isPactMode ? "Préparation du pacte..." : "Calcul de l'empreinte...");
     try {
-      let fileToSeal = file;
-      
       if (isFlashMode && !file) {
         const hash = sha256(new TextEncoder().encode(desc || title));
         let hashStr = ''; for (let i = 0; i < hash.length; i++) hashStr += String.fromCharCode(hash[i]);
         return sendToServer(btoa(hashStr), null);
       }
 
+      // CORRECTION STRICTE POUR TYPESCRIPT
+      let fileToSeal: File;
+      
       if (mode === 'text') {
         const blob = new Blob([textContent], { type: 'text/plain' });
         fileToSeal = new File([blob], `${title.replace(/\s+/g, '-').toLowerCase()}.txt`, { type: 'text/plain' });
+      } else {
+        if (!file) {
+          setStatus("Fichier manquant");
+          return;
+        }
+        fileToSeal = file;
       }
-      if (!fileToSeal) return;
 
-      // CORRECTION TYPESCRIPT ICI : (fileToSeal as File)
-      const buffer = await (fileToSeal as File).arrayBuffer();
+      const buffer = await fileToSeal.arrayBuffer();
       const hash = sha256(new Uint8Array(buffer));
       let hashStr = ''; for (let i = 0; i < hash.length; i++) hashStr += String.fromCharCode(hash[i]);
       
@@ -94,7 +99,7 @@ function SealContent() {
     formData.append('title', title);
     formData.append('description', mode === 'text' ? textContent : desc);
     formData.append('pubkey', pubkey);
-    formData.append('isHosted', (isHosted && fileToUpload).toString());
+    formData.append('isHosted', (isHosted && fileToUpload !== null).toString());
     if (fileToUpload) formData.append('file', fileToUpload);
 
     let endpoint = '/api/seal';
