@@ -7,3 +7,8 @@ setup_app.sh
 sauvegarde_sceau.sql
 .vercel
 .env*
+tsconfig.tsbuildinfo
+.next/
+node_modules/
+.env.local
+.env

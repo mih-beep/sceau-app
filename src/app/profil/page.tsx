@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { generatePortfolioPDF } from '@/lib/pdf';
+import AccessLogModal from './AccessLogModal';
 
 export default function Profil() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function Profil() {
   const [filterType, setFilterType] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [accessLogSealId, setAccessLogSealId] = useState<string | null>(null);
 
   async function loadProfil() {
     const pubkey = localStorage.getItem('sceau_pubkey');
@@ -194,6 +196,7 @@ export default function Profil() {
             </div>
             
             <div className="flex items-center gap-2">
+              <button onClick={() => setAccessLogSealId(seal.id)} className="text-xs font-bold text-[#4A90C2] hover:underline px-2" title="Voir le journal des accès">📖</button>
               <select value={seal.is_flash ? 'flash' : seal.visibility} onChange={(e) => changeVisibility(seal.id, e.target.value)} className="text-xs border border-[var(--border-color)] rounded-lg p-2 bg-[var(--bg-main)] font-bold outline-none cursor-pointer" style={{color: 'var(--text-main)'}} disabled={seal.is_flash}>
                 <option value="public">🌍 Public</option>
                 <option value="friends">👥 Amis</option>
@@ -249,6 +252,7 @@ export default function Profil() {
           </div>
         </div>
       )}
+      {accessLogSealId && <AccessLogModal sealId={accessLogSealId} onClose={() => setAccessLogSealId(null)} />}
     </div>
   );
 }

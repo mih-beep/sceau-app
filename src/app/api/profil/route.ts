@@ -29,26 +29,19 @@ export async function GET(req: Request) {
     const totalSealed = parseInt(stats.rows[0].total_sealed || 0);
     const totalPacts = parseInt(pacts.rows[0].total_pacts || 0);
 
-    // --- CALCUL DU STREAK ---
-    const dates = seals.rows.map((s: any) => new Date(s.timestamp).toISOString().split('T')[0]);
-    const uniqueDates = [...new Set(dates)].sort().reverse();
+    // --- CALCUL DU STREAK (version propre) ---
+    const uniqueDatesSet = new Set(
+      seals.rows.map((s: any) => new Date(s.timestamp).toISOString().split('T')[0])
+    );
     let streak = 0;
-    let currentDate = new Date();
-    
-    for (let i = 0; i < uniqueDates.length; i++) {
-      const expectedDate = new Date();
-      expectedDate.setDate(currentDate.getDate() - i);
-      const expectedStr = expectedDate.toISOString().split('T')[0];
-      
-      if (uniqueDates.includes(expectedStr)) {
-        streak++;
-      } else if (i === 0) {
-        const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-        if (uniqueDates.includes(yesterdayStr)) continue;
-        else break;
-      } else {
-        break;
-      }
+    let cursor = new Date();
+    cursor.setUTCHours(0, 0, 0, 0);
+    if (!uniqueDatesSet.has(cursor.toISOString().split('T')[0])) {
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    while (uniqueDatesSet.has(cursor.toISOString().split('T')[0])) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
     }
 
     // --- FAVORIS ---
