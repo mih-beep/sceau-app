@@ -3,6 +3,7 @@ import './globals.css'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import Manifeste from '@/components/Manifeste'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -87,6 +88,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </nav>
         <main className="max-w-2xl mx-auto">{children}</main>
+        <Manifeste />
         <div className="fixed bottom-0 left-0 right-0 bg-[var(--bg-surface)] border-t border-[var(--border-color)] flex justify-around py-3 z-50">
           <Link href="/feed" className="flex flex-col items-center text-[var(--text-muted)] hover:text-[#E76F51]"><span className="text-xl">🌐</span><span className="text-[0.6rem] font-bold font-mono">Réseau</span></Link>
           <Link href="/seal" className="flex flex-col items-center text-[var(--text-muted)] hover:text-[#E76F51]"><span className="text-xl">✍️</span><span className="text-[0.6rem] font-bold font-mono">Sceller</span></Link>
