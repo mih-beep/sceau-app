@@ -220,7 +220,7 @@ function MessagesInner() {
 
         {groups.length > 0 && (
           <div className="mb-4">
-            <h2 className="text-xs font-mono font-bold text-[#A89070] uppercase mb-2">Groupes</h2>
+            <h2 className="text-xs font-mono font-bold text-[#A89070] mb-2">Groupes</h2>
             {groups.map(g => (
               <div key={g.id} onClick={() => setActiveChat({ type: 'group', id: g.id, name: g.name })} className="p-2 rounded-xl cursor-pointer hover:bg-[var(--bg-main)] transition flex items-center gap-2 mb-1">
                 <div className="w-8 h-8 rounded-lg bg-[#2C1810] text-white flex items-center justify-center font-bold text-sm">G</div>
@@ -230,7 +230,7 @@ function MessagesInner() {
           </div>
         )}
 
-        <h2 className="text-xs font-mono font-bold text-[#A89070] uppercase mb-2">Discussions</h2>
+        <h2 className="text-xs font-mono font-bold text-[#A89070] mb-2">Discussions</h2>
         <div className="text-[0.55rem] text-[var(--text-muted)] italic mb-2">🔵 Amis · 🟠 Inconnus</div>
         {activeContacts.map(c => {
           const isFriend = friendHandles.has(c.handle);
@@ -247,7 +247,7 @@ function MessagesInner() {
 
         {suggestions.length > 0 && (
           <div className="mt-6 border-t border-[var(--border-color)] pt-4">
-            <h2 className="text-xs font-mono font-bold text-[#A89070] uppercase mb-2">Suggestions</h2>
+            <h2 className="text-xs font-mono font-bold text-[#A89070] mb-2">Suggestions</h2>
             {suggestions.map(c => (
               <div key={c.id} onClick={() => setActiveChat({ type: 'dm', id: c.handle, name: c.handle })} className="p-2 rounded-xl cursor-pointer hover:bg-[var(--bg-main)] transition flex items-center gap-2 mb-1 opacity-70 hover:opacity-100">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-[#A89070] bg-[var(--bg-main)] border border-[var(--border-color)]">
@@ -404,15 +404,15 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
       <div className={`bg-[#FDF8F0] w-full max-w-md rounded-3xl p-8 border-4 shadow-2xl relative max-h-[90vh] overflow-y-auto ${isSealed ? 'border-[#E9C46A]' : 'border-[#4A90C2]'}`}>
         
         {isSealed && (
-          <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[#E9C46A] text-[#2C1810] px-6 py-1 rounded-full text-xs font-black tracking-widest uppercase shadow-md border-2 border-white">
+          <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[#E9C46A] text-[#2C1810] px-6 py-1 rounded-full text-xs font-bold tracking-widest shadow-md border-2 border-white">
             Certificat Scellé
           </div>
         )}
 
         <div className="text-center mb-6">
           <div className="text-5xl mb-3">{isSealed ? '🏆' : '🤝'}</div>
-          <h2 className="text-3xl font-serif font-black" style={{color: '#2C1810'}}>{pact.title}</h2>
-          <p className="text-xs font-mono text-[#A88620] uppercase tracking-widest mt-2">Proposé par @{pact.creator}</p>
+          <h2 className="text-3xl font-serif font-bold" style={{color: '#2C1810'}}>{pact.title}</h2>
+          <p className="text-xs font-mono text-[#A88620] italic mt-2">Proposé par @{pact.creator}</p>
         </div>
 
         <p className="italic mb-6 p-4 bg-white/50 border border-[#EFE0CA] rounded-xl text-sm text-center" style={{color: 'var(--text-main)'}}>
@@ -422,7 +422,7 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
         {/* LA GALERIE DE MÉDIAS */}
         {mediaUrls.length > 0 && (
           <div className="mb-6">
-            <p className="text-xs font-bold text-[#A89070] uppercase font-mono mb-2">Médias joints ({mediaUrls.length})</p>
+            <p className="text-xs font-bold text-[#A89070] font-mono mb-2">Médias joints ({mediaUrls.length})</p>
             <div className="flex gap-2 overflow-x-auto snap-x hide-scrollbar pb-2">
               {mediaUrls.map((url: string, i: number) => {
                 const isImage = url.match(/\.(jpeg|jpg|gif|png|webp)/i);
@@ -445,7 +445,7 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
         )}
 
         <div className="mb-6">
-          <h3 className="text-xs font-mono font-bold text-[#A88620] uppercase mb-3 text-center">
+          <h3 className="text-xs font-mono font-bold text-[#A88620] mb-3 text-center">
             Signatures officielles ({pact.signataires?.length || 0} / {pact.required_signatures})
           </h3>
           <div className="flex flex-wrap justify-center gap-2">
@@ -457,7 +457,7 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
 
         <div className="flex flex-col gap-2 mt-8">
           {isSealed ? (
-            <button onClick={downloadCertificate} disabled={isDownloading} className="w-full bg-gradient-to-r from-[#E9C46A] to-[#F4A261] text-[#2C1810] py-4 rounded-xl font-black text-lg shadow-lg hover:shadow-xl transition flex justify-center items-center gap-2">
+            <button onClick={downloadCertificate} disabled={isDownloading} className="w-full bg-gradient-to-r from-[#E9C46A] to-[#F4A261] text-[#2C1810] py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition flex justify-center items-center gap-2">
               {isDownloading ? 'Génération...' : '📜 Télécharger le Certificat PDF'}
             </button>
           ) : (

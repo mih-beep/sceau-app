@@ -38,7 +38,7 @@ export default function ChallengeDetail() {
   if (!data) return <div className="p-10 text-center font-mono">Chargement du défi...</div>;
 
   return (
-    <div className="p-6 max-w-2xl mx-auto font-serif">
+    <div className="p-6 max-w-2xl mx-auto font-sans">
       <Link href="/friends" className="text-sm font-bold text-[#A89070] mb-4 inline-block hover:underline">
         ← Retour aux défis
       </Link>

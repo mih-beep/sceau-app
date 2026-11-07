@@ -72,7 +72,7 @@ export default function Settings() {
   if (loading) return <div className="p-10 text-center font-mono">Chargement...</div>;
 
   return (
-    <div className="p-6 max-w-2xl mx-auto font-serif">
+    <div className="p-6 max-w-2xl mx-auto font-sans">
       <div className="flex items-center gap-4 mb-8">
         <Link href="/profil" className="text-2xl opacity-50 hover:opacity-100 transition">←</Link>
         <h1 className="text-3xl font-bold" style={{color: 'var(--text-main)'}}>Paramètres.</h1>
@@ -82,13 +82,13 @@ export default function Settings() {
         <div className="bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm">
           <h2 className="text-lg font-bold mb-4" style={{color: 'var(--text-main)'}}>👤 Identité publique</h2>
 
-          <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1 font-mono">Pseudo</label>
+          <label className="block text-xs font-bold text-[var(--text-muted)] mb-1 font-mono">Pseudo</label>
           <input type="text" value={newHandle} onChange={e => setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))} className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} />
 
-          <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1 font-mono">Bio / Description</label>
+          <label className="block text-xs font-bold text-[var(--text-muted)] mb-1 font-mono">Bio / Description</label>
           <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} placeholder="Parle de toi en quelques mots..." />
 
-          <label className="block text-xs font-bold text-[var(--text-muted)] uppercase mb-1 font-mono">Ton rôle</label>
+          <label className="block text-xs font-bold text-[var(--text-muted)] mb-1 font-mono">Ton rôle</label>
           <select value={role} onChange={e => setRole(e.target.value)} className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl bg-transparent mb-4" style={{color: 'var(--text-main)'}}>
             <option value="createur">Créateur / Artiste</option>
             <option value="freelance">Freelance</option>

@@ -23,7 +23,7 @@ export default function Home() {
       <div className="relative z-10 flex flex-col items-center justify-center pt-20 pb-12 px-6 text-center">
         
         {/* --- BADGE HAUT --- */}
-        <span className="inline-flex items-center gap-2 bg-[#FFFCF7] border border-[#EFE0CA] text-[#A89070] text-[10px] sm:text-xs font-mono font-bold px-4 py-2 rounded-full uppercase tracking-widest mb-8 shadow-sm animate-fade-in">
+        <span className="inline-flex items-center gap-2 bg-[#FFFCF7] border border-[#EFE0CA] text-[#A89070] text-[10px] sm:text-xs font-mono font-bold px-4 py-2 rounded-full italic mb-8 shadow-sm animate-fade-in">
           <span className="w-2 h-2 rounded-full bg-[#7A9B5A] animate-pulse"></span>
           La couche de confiance du web
         </span>
@@ -59,7 +59,7 @@ export default function Home() {
         {/* --- PREUVE SOCIALE EN DIRECT --- */}
         {latestSeals.length > 0 && (
           <div className="mb-24 w-full max-w-4xl">
-            <p className="text-xs font-mono font-bold text-[#A89070] uppercase tracking-widest mb-6">Dernières preuves gravées</p>
+            <p className="text-xs font-mono font-bold text-[#A89070] italic mb-6">Dernières preuves gravées</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {latestSeals.map((seal, i) => (
                 <Link href={`/o/${seal.id}`} key={i} className="bg-[var(--bg-surface)] p-5 rounded-2xl border border-[var(--border-color)] shadow-sm hover:shadow-md transition text-left block">

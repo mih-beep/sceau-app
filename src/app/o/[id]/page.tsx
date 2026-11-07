@@ -74,10 +74,10 @@ export default function PublicSealPage() {
         <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#E76F51] to-[#F4A261]"></div>
 
         <div className="text-center mb-6">
-          <span className="inline-block bg-[#FDF8F0] border border-[#EFE0CA] text-[#A89070] text-xs font-mono font-bold px-3 py-1 rounded-full uppercase tracking-widest mb-4">
+          <span className="inline-block bg-[#FDF8F0] border border-[#EFE0CA] text-[#A89070] text-xs font-mono font-bold px-3 py-1 rounded-full italic mb-4">
             Preuve d'antériorité
           </span>
-          <h1 className="text-4xl font-black mb-2" style={{ color: 'var(--text-main)' }}>{seal.title}</h1>
+          <h1 className="text-4xl font-bold mb-2" style={{ color: 'var(--text-main)' }}>{seal.title}</h1>
           <p className="text-[var(--text-muted)]">
             Créé par{' '}
             <Link href={`/u/${seal.author}`} className="font-bold text-[#E76F51] hover:underline">

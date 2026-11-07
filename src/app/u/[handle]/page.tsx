@@ -81,7 +81,7 @@ export default function PublicProfile() {
             <Link href={`/o/${seal.id}`} key={seal.id} className={`block p-5 rounded-2xl border-2 shadow-sm hover:shadow-md hover:-translate-y-1 transition duration-200 ${getCategoryStyle(seal.category)}`}>
               
               <div className="flex justify-between items-start mb-3">
-                <span className="text-xs font-mono font-bold uppercase tracking-wider opacity-60" style={{color: 'var(--text-main)'}}>
+                <span className="text-xs font-mono font-bold italic opacity-60" style={{color: 'var(--text-main)'}}>
                   {seal.category}
                 </span>
                 {seal.is_hosted ? <span title="Fichier hébergé">📁</span> : <span title="Preuve seule">🔒</span>}

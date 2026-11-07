@@ -89,7 +89,7 @@ export default function Profil() {
   // ONGLET FAVORIS
   if (activeTab === 'favorites') {
     return (
-      <div className="p-6 max-w-2xl mx-auto font-serif">
+      <div className="p-6 max-w-2xl mx-auto font-sans">
         <button onClick={() => setActiveTab('public')} className="text-sm font-bold text-[#A89070] mb-4 hover:underline">← Retour au coffre</button>
         <h2 className="text-2xl font-bold mb-4" style={{color: 'var(--text-main)'}}>📌 Mes Favoris</h2>
         <div className="grid gap-3">
@@ -129,13 +129,13 @@ export default function Profil() {
           {data.is_pro && <span className="text-sm bg-[#2C1810] text-[#E9C46A] px-2 py-1 rounded-lg border border-[#E9C46A] tracking-widest">👑 PRO</span>}
           {data.streak > 0 && <span className="text-sm bg-[#FDF4F0] text-[#C44A2E] px-2 py-1 rounded-lg border border-[#FCE0D6]">🔥 {data.streak} jours</span>}
         </h1>
-        <p className="text-sm font-mono text-[var(--text-muted)] uppercase tracking-wider">{data.role || 'Identité souveraine'}</p>
+        <p className="text-sm font-mono text-[var(--text-muted)] italic">{data.role || 'Identité souveraine'}</p>
         {data.bio && <p className="mt-3 text-sm italic opacity-80 max-w-md mx-auto" style={{color: 'var(--text-main)'}}>"{data.bio}"</p>}
       </div>
 
       {data.badges.length > 0 && (
         <div className="mb-8 bg-[#FDF8F0] border border-[#EFE0CA] p-4 rounded-2xl">
-          <h2 className="text-xs font-mono font-bold text-[#A89070] uppercase tracking-widest mb-3 text-center">Badges</h2>
+          <h2 className="text-xs font-mono font-bold text-[#A89070] italic mb-3 text-center">Badges</h2>
           <div className="flex flex-wrap justify-center gap-2">
             {data.badges.map((badge: any, i: number) => (
               <div key={i} className="flex flex-col items-center justify-center bg-white border border-[#EFE0CA] w-16 h-16 rounded-2xl shadow-sm cursor-help" title={badge.desc}>
@@ -150,15 +150,15 @@ export default function Profil() {
       <div className="flex bg-[var(--bg-surface)] border border-[var(--border-color)] p-6 rounded-2xl justify-around mb-8 shadow-sm">
         <div className="text-center">
           <div className="text-3xl font-mono font-bold text-[#E76F51]">{data.sealed}</div>
-          <div className="text-[0.65rem] font-mono uppercase text-[var(--text-muted)] mt-1">Scellés</div>
+          <div className="text-[0.65rem] font-mono text-[var(--text-muted)] mt-1">Scellés</div>
         </div>
         <div className="text-center">
           <div className="text-3xl font-mono font-bold text-[#E76F51]">{data.hosted}</div>
-          <div className="text-[0.65rem] font-mono uppercase text-[var(--text-muted)] mt-1">Hébergés</div>
+          <div className="text-[0.65rem] font-mono text-[var(--text-muted)] mt-1">Hébergés</div>
         </div>
         <div className="text-center">
           <div className="text-3xl font-mono font-bold text-[#E76F51]">{data.pacts}</div>
-          <div className="text-[0.65rem] font-mono uppercase text-[var(--text-muted)] mt-1">Pactes</div>
+          <div className="text-[0.65rem] font-mono text-[var(--text-muted)] mt-1">Pactes</div>
         </div>
       </div>
 
@@ -226,11 +226,11 @@ export default function Profil() {
             </div>
             <div className="flex gap-2 mb-4">
               <div className="flex-1">
-                <label className="text-[0.6rem] font-bold text-[var(--text-muted)] uppercase mb-1 block">Du</label>
+                <label className="text-[0.6rem] font-bold text-[var(--text-muted)] mb-1 block">Du</label>
                 <input type="date" value={startDate} onChange={e => handleStartDate(e.target.value)} className="w-full border border-[var(--border-color)] p-2 rounded-lg text-xs bg-transparent" style={{color: 'var(--text-main)'}} />
               </div>
               <div className="flex-1">
-                <label className="text-[0.6rem] font-bold text-[var(--text-muted)] uppercase mb-1 block">Au</label>
+                <label className="text-[0.6rem] font-bold text-[var(--text-muted)] mb-1 block">Au</label>
                 <input type="date" value={endDate} onChange={e => handleEndDate(e.target.value)} className="w-full border border-[var(--border-color)] p-2 rounded-lg text-xs bg-transparent" style={{color: 'var(--text-main)'}} />
               </div>
             </div>

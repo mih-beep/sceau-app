@@ -1,11 +1,17 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: 'Outfit', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
 @layer base {
   :root {
-    --bg-main: #F5E9D8;
-    --bg-surface: #FFFCF7;
+    --bg-main: #F9F6F0; /* Crème plus doux, moins jaune */
+    --bg-surface: #FFFFFF;
     --text-main: #2C1810;
-    --text-muted: #A89070;
+    --text-muted: #8A7A72;
     --border-color: #EFE0CA;
   }
   
@@ -21,6 +27,21 @@
     background-color: var(--bg-main);
     color: var(--text-main);
     transition: background-color 0.3s, color 0.3s;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Adoucir les titres par défaut */
+  h1, h2, h3, h4 {
+    font-family: var(--font-sans);
+    letter-spacing: -0.02em;
+  }
+
+  /* Utiliser la Serif uniquement pour les moments forts */
+  .font-serif {
+    font-family: var(--font-serif) !important;
+    font-weight: 400 !important;
+    letter-spacing: 0 !important;
   }
 }
 

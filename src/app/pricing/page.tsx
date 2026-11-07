@@ -64,7 +64,7 @@ export default function Pricing() {
 
         {/* OFFRE PRO (Mise en avant) */}
         <div className="bg-[var(--text-main)] rounded-3xl p-8 border-2 border-[#E76F51] shadow-xl flex flex-col h-full relative transform md:-translate-y-4">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#E76F51] text-white px-4 py-1 rounded-full text-xs font-bold tracking-wider uppercase shadow-md">Le plus populaire</div>
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#E76F51] text-white px-4 py-1 rounded-full text-xs font-bold tracking-wider shadow-md">Le plus populaire</div>
           
           <h2 className="text-2xl font-bold mb-2 text-white">SCEAU PRO</h2>
           <p className="text-sm text-gray-400 mb-6 h-10">Pour les créateurs et freelances qui vivent de leur art.</p>

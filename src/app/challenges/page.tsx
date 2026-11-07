@@ -35,7 +35,7 @@ export default function Challenges() {
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto font-serif">
+    <div className="p-6 max-w-2xl mx-auto font-sans">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold" style={{color: 'var(--text-main)'}}>🏆 Défis de Preuve.</h1>
         <button onClick={() => setShowModal(true)} className="bg-[#E76F51] text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md">+ Créer un défi</button>

@@ -228,7 +228,7 @@ function SealContent() {
 
         {isPactMode && (
           <div className="bg-[#FDF8F0] p-4 rounded-xl border border-[#EFE0CA]">
-            <label className="text-xs font-mono font-bold text-[#A89070] uppercase block mb-2">📁 Dossier Média (Photos, Vidéos, Docs)</label>
+            <label className="text-xs font-mono font-bold text-[#A89070] block mb-2">📁 Dossier Média (Photos, Vidéos, Docs)</label>
             <input 
               type="file" 
               multiple 
@@ -267,7 +267,7 @@ function SealContent() {
         {!isPactMode && !isFlashMode && (
           <div className="bg-[var(--bg-main)] p-4 rounded-xl border border-[var(--border-color)] space-y-3 mt-4">
              <div className="mb-4">
-              <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase mb-2 block">Visibilité</label>
+              <label className="text-xs font-mono font-bold text-[var(--text-muted)] mb-2 block">Visibilité</label>
               <div className="flex bg-white rounded-xl border border-[var(--border-color)] p-1">
                 <button onClick={() => setVisibility('public')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${visibility === 'public' ? 'bg-[#F5F9EE] text-[#5D7A3A] shadow' : 'opacity-50'}`}>🌍 Public</button>
                 <button onClick={() => setVisibility('friends')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${visibility === 'friends' ? 'bg-[#F0F6FC] text-[#2D6A9E] shadow' : 'opacity-50'}`}>👥 Amis</button>
@@ -275,7 +275,7 @@ function SealContent() {
               </div>
             </div>
             <div className="border-b border-[var(--border-color)] pb-3 mb-3">
-              <label className="text-xs font-mono font-bold text-[#A88620] uppercase block mb-1">📅 Capsule Temporelle</label>
+              <label className="text-xs font-mono font-bold text-[#A88620] block mb-1">📅 Capsule Temporelle</label>
               <input type="date" value={revealAt} onChange={e=>setRevealAt(e.target.value)} className="w-full border-2 border-[#E9C46A] p-2 rounded-lg bg-[#FDF8F0] text-sm font-bold" style={{color: 'var(--text-main)'}} />
             </div>
             <label className="flex items-center gap-3 cursor-pointer">
@@ -303,7 +303,7 @@ function SealContent() {
         {/* DOSSIER MIROIR */}
         {!isFlashMode && !isPactMode && mySeals.length > 0 && (
           <div className="bg-[#F0F6FC] p-4 rounded-xl border border-[#C9D8E8] mt-2">
-            <label className="text-xs font-mono font-bold text-[#2D6A9E] uppercase block mb-2">📚 Nouvelle version (optionnel)</label>
+            <label className="text-xs font-mono font-bold text-[#2D6A9E] block mb-2">📚 Nouvelle version (optionnel)</label>
             <select value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)} className="w-full border-2 border-[#C9D8E8] p-2 rounded-lg bg-white text-sm" style={{color: 'var(--text-main)'}}>
               <option value="">— Œuvre nouvelle (V1) —</option>
               {mySeals.map((s: any) => (

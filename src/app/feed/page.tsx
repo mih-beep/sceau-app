@@ -100,11 +100,11 @@ export default function Feed() {
   };
 
   return (
-    <main className="min-h-screen p-6 font-serif max-w-3xl mx-auto relative">
+    <main className="min-h-screen p-6 font-sans max-w-3xl mx-auto relative">
       <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-24 right-6 bg-[#2C1810] text-white w-10 h-10 rounded-full shadow-lg flex items-center justify-center z-40 hover:bg-black transition" title="Retour en haut">↑</button>
       
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-4xl font-black" style={{color: 'var(--text-main)'}}>SCEAU<span className="text-[#E76F51] italic">.</span></h1>
+        <h1 className="text-4xl font-bold" style={{color: 'var(--text-main)'}}>SCEAU<span className="text-[#E76F51] italic">.</span></h1>
         <Link href="/seal" className="bg-[#E76F51] text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md">+ Sceller</Link>
       </div>
 

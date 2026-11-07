@@ -9,7 +9,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
   const [handle, setHandle] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(false);
-  
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unread, setUnread] = useState(0);
   const [showNotifs, setShowNotifs] = useState(false);
@@ -48,13 +47,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   const isActive = (path: string) => pathname === path;
   const isToolsActive = pathname === '/seal' || pathname === '/verify';
-
-  // NOUVEAU : On définit sur quelles pages le Manifeste doit s'afficher
   const showManifeste = ['/profil', '/seal', '/verify', '/settings'].includes(pathname);
 
   return (
     <html lang="fr">
-      <body className="min-h-screen pb-24">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+      </head>
+      <body className="min-h-screen pb-24 font-sans">
         <nav className="bg-[var(--bg-surface)] border-b border-[var(--border-color)] px-6 py-4 flex justify-between items-center sticky top-0 z-50">
           <Link href="/feed" className="text-2xl font-bold tracking-tight font-serif" style={{color: 'var(--text-main)'}}>SCEAU<span className="text-[#E76F51]">.</span></Link>
           <div className="flex items-center gap-4">
@@ -97,27 +99,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </nav>
         
         <main className="max-w-2xl mx-auto">{children}</main>
-        
-        {/* LE MANIFESTE S'AFFICHE CONDITIONNELLEMENT ICI */}
         {showManifeste && <Manifeste />}
 
         <div className="fixed bottom-0 left-0 right-0 bg-[var(--bg-surface)] border-t border-[var(--border-color)] flex justify-around py-3 z-50">
           <Link href="/feed" className={`flex flex-col items-center transition ${isActive('/feed') ? 'text-[#E76F51]' : 'text-[var(--text-muted)] hover:text-[#E76F51]'}`}>
             <span className="text-xl">🌐</span><span className="text-[0.6rem] font-bold font-mono mt-1">Feed</span>
           </Link>
-          
           <Link href="/friends" className={`flex flex-col items-center transition ${isActive('/friends') ? 'text-[#E76F51]' : 'text-[var(--text-muted)] hover:text-[#E76F51]'}`}>
             <span className="text-xl">👥</span><span className="text-[0.6rem] font-bold font-mono mt-1">Communauté</span>
           </Link>
-          
           <Link href="/seal" className={`flex flex-col items-center transition ${isToolsActive ? 'text-[#E76F51]' : 'text-[var(--text-muted)] hover:text-[#E76F51]'}`}>
             <span className="text-xl">🛠️</span><span className="text-[0.6rem] font-bold font-mono mt-1">Outils</span>
           </Link>
-          
           <Link href="/messages" className={`flex flex-col items-center transition ${isActive('/messages') ? 'text-[#E76F51]' : 'text-[var(--text-muted)] hover:text-[#E76F51]'}`}>
             <span className="text-xl">💬</span><span className="text-[0.6rem] font-bold font-mono mt-1">Messages</span>
           </Link>
-          
           <Link href="/profil" className={`flex flex-col items-center transition ${isActive('/profil') ? 'text-[#E76F51]' : 'text-[var(--text-muted)] hover:text-[#E76F51]'}`}>
             <span className="text-xl">👤</span><span className="text-[0.6rem] font-bold font-mono mt-1">Profil</span>
           </Link>
