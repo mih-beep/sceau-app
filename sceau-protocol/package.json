@@ -1,0 +1,12 @@
+{
+  "name": "@sceau/core",
+  "version": "1.0.0",
+  "description": "Le protocole de scellement cryptographique de SCEAU (SHA-256 + Bitcoin).",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.4.0"
+  }
+}

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { pool } from '@/db/pool';
 import { r2Client } from '@/lib/r2';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
-import { submitToOts } from '@/lib/ots';
+import { anchorToBitcoin } from '../../../../../sceau-protocol/src/index';
 
 export async function POST(req: Request) {
   try {
