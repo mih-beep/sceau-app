@@ -1,0 +1,21 @@
+{
+  "name": "SCEAU",
+  "short_name": "SCEAU",
+  "description": "Le Notaire de Poche du Web.",
+  "start_url": "/feed",
+  "display": "standalone",
+  "background_color": "#F9F6F0",
+  "theme_color": "#E76F51",
+  "icons": [
+    {
+      "src": "https://ui-avatars.com/api/?name=S&background=E76F51&color=fff&size=192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://ui-avatars.com/api/?name=S&background=E76F51&color=fff&size=512",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

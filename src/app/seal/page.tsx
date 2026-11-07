@@ -18,17 +18,13 @@ function SealContent() {
   const [desc, setDesc] = useState('');
   const [textContent, setTextContent] = useState('');
   const [file, setFile] = useState<File | null>(null);
-  
-  // LA GALERIE DE PACTE (Multi-fichiers)
   const [pactFiles, setPactFiles] = useState<File[]>([]);
   
-  // LA GRANULARITÉ, LA CAPSULE TEMPORELLE ET LE MIROIR SONT PRÉSERVÉS
   const [visibility, setVisibility] = useState('public');
   const [revealAt, setRevealAt] = useState('');
   const [isHosted, setIsHosted] = useState(true);
   const [isMystery, setIsMystery] = useState(false);
   const [isEphemeral, setIsEphemeral] = useState(false);
-  const [unlockLikes, setUnlockLikes] = useState(10);
   const [requiredSignatures, setRequiredSignatures] = useState(2);
   
   const [mySeals, setMySeals] = useState<any[]>([]);
@@ -84,21 +80,15 @@ function SealContent() {
     if (!isFlashMode && mode === 'media' && !file) return setStatus("Prends une photo ou vidéo");
     if (!isFlashMode && mode === 'audio' && !file) return setStatus("Enregistre un audio");
 
-    setStatus(isPactMode ? "Préparation du pacte..." : "Calcul de l'empreinte...");
+    setStatus(isPactMode ? "Préparation..." : "Calcul de l'empreinte...");
     try {
       let hashContent: Uint8Array;
 
       if (isPactMode) {
-        // Le hash du pacte inclut les noms des fichiers pour lier le tout
         const metaString = `${title}-${desc}-${pactFiles.map(f => f.name).join(',')}`;
         hashContent = sha256(new TextEncoder().encode(metaString));
-      } else if (isFlashMode && mode === 'text') {
+      } else if ((isFlashMode && mode === 'text') || mode === 'text') {
         hashContent = sha256(new TextEncoder().encode(textContent || title));
-      } else if (mode === 'text') {
-        const blob = new Blob([textContent], { type: 'text/plain' });
-        const textFile = new File([blob], `${title.replace(/\s+/g, '-').toLowerCase()}.txt`, { type: 'text/plain' });
-        const buffer = await textFile.arrayBuffer();
-        hashContent = sha256(new Uint8Array(buffer));
       } else {
         if (!file) return setStatus("Fichier manquant");
         const buffer = await file.arrayBuffer();
@@ -112,7 +102,7 @@ function SealContent() {
 
   async function sendToServer(hashB64: string) {
     const pubkey = localStorage.getItem('sceau_pubkey');
-    if (!pubkey) return setStatus("Connecte-toi d'abord !");
+    if (!pubkey) return setStatus("Connecte-toi !");
 
     const formData = new FormData();
     formData.append('hash', hashB64);
@@ -127,25 +117,22 @@ function SealContent() {
       formData.append('group_id', chatType === 'group' ? (chatId as string) : '');
       formData.append('required_signatures', requiredSignatures.toString());
       formData.append('isHosted', 'true');
-      
-      // Upload de plusieurs fichiers pour le Pacte
       pactFiles.forEach(f => formData.append('files', f));
     } else {
       formData.append('isFlash', isFlashMode.toString());
       formData.append('visibility', visibility);
-      formData.append('reveal_at', revealAt); // CAPSULE TEMPORELLE
+      formData.append('reveal_at', revealAt);
       formData.append('isMystery', isMystery.toString());
       formData.append('isEphemeral', isEphemeral.toString());
-      formData.append('unlockLikes', unlockLikes.toString());
       
-      if (selectedProjectId) formData.append('project_id', selectedProjectId); // DOSSIER MIROIR
+      if (selectedProjectId) formData.append('project_id', selectedProjectId);
       if (challengeIdParam) formData.append('challenge_id', challengeIdParam);
       
       if (!isFlashMode && file) formData.append('file', file);
       formData.append('isHosted', (!isFlashMode && isHosted).toString());
     }
 
-    setStatus(isPactMode ? "Scellement du pacte..." : "Ancrage...");
+    setStatus("Ancrage Bitcoin...");
     const res = await fetch(endpoint, { method: 'POST', body: formData });
     const data = await res.json();
     
@@ -160,7 +147,7 @@ function SealContent() {
         window.location.href = '/messages';
       } else {
         setStatus("✅ Scellé !");
-        setSealedResult({ title, hash: hashB64, date: new Date().toLocaleDateString('fr-FR'), isFlash: isFlashMode, otsSecured: data.ots_secured });
+        setSealedResult({ title, hash: hashB64, date: new Date().toLocaleDateString('fr-FR'), isFlash: isFlashMode });
       }
     } else {
       setStatus("❌ " + data.error);
@@ -171,157 +158,84 @@ function SealContent() {
     return (
       <div className="p-6 font-serif text-center flex flex-col items-center">
         <div className="text-6xl mb-4">{sealedResult.isFlash ? '⚡' : '✅'}</div>
-        <h1 className="text-3xl font-bold mb-2" style={{color: 'var(--text-main)'}}>C'est dans le marbre.</h1>
-        <div className="bg-[var(--bg-surface)] p-6 rounded-3xl border border-[var(--border-color)] w-full max-w-sm text-left shadow-lg mt-6">
-          <h3 className="font-bold mb-2" style={{color: '#2C1810'}}>{sealedResult.title}</h3>
-          <p className="text-[0.6rem] font-mono text-[#A89070] break-all bg-[var(--bg-main)] p-2 rounded border border-[var(--border-color)]">{sealedResult.hash}</p>
-          <p className="text-xs text-right mt-3 text-[#7A5A3A]">Scellé le {sealedResult.date}</p>
+        <h1 className="text-3xl font-bold mb-2">C'est gravé.</h1>
+        <div className="bg-white p-6 rounded-3xl border w-full max-w-sm text-left shadow-lg mt-6">
+          <h3 className="font-bold mb-2">{sealedResult.title}</h3>
+          <p className="text-[0.6rem] font-mono break-all bg-gray-50 p-2 rounded">{sealedResult.hash}</p>
+          <p className="text-xs text-right mt-3">Scellé le {sealedResult.date}</p>
         </div>
-        <div className="flex gap-2 mt-8 w-full max-w-sm">
-          <button onClick={() => window.location.reload()} className="flex-1 bg-[#2C1810] text-white p-3 rounded-xl font-bold text-sm">Nouveau</button>
-          <Link href="/feed" className="flex-1 border-2 border-[#EFE0CA] text-[#2C1810] p-3 rounded-xl font-bold text-sm text-center">Voir le Feed</Link>
-        </div>
+        <button onClick={() => window.location.reload()} className="mt-8 bg-black text-white p-3 rounded-xl font-bold w-full max-w-sm">Nouveau</button>
       </div>
     );
   }
 
   return (
-    <div className="p-6 font-serif max-w-md mx-auto">
+    <div className="p-6 font-sans max-w-md mx-auto">
+      <div className="text-center mb-6">
+        <h1 className="text-4xl font-bold mb-2">{isPactMode ? "Nouveau Pacte." : (isFlashMode ? "Flash." : "L'Atelier.")}</h1>
+      </div>
+
       {!isPactMode && (
-        <div className="flex justify-center mb-6">
-          <div className="flex bg-[var(--bg-main)] p-1 rounded-xl border border-[var(--border-color)]">
-            <Link href="/seal" className="px-6 py-2 rounded-lg font-bold text-sm bg-[var(--bg-surface)] shadow text-[#E76F51]">✍️ Sceller</Link>
-            <Link href="/verify" className="px-6 py-2 rounded-lg font-bold text-sm opacity-50 hover:opacity-100 transition">🔍 Vérifier</Link>
-          </div>
+        <div className="flex bg-[#F9F6F0] p-1 rounded-xl mb-4">
+          <button onClick={() => { setIsFlashMode(false); setMode('file'); }} className={`flex-1 py-2 rounded-lg font-bold text-sm ${!isFlashMode ? 'bg-white shadow' : 'opacity-50'}`}>📁 Normal</button>
+          <button onClick={() => { setIsFlashMode(true); setMode('text'); }} className={`flex-1 py-2 rounded-lg font-bold text-sm ${isFlashMode ? 'bg-black text-white shadow' : 'opacity-50'}`}>⚡ Flash</button>
         </div>
       )}
 
-      <div className="text-center mb-6">
-        <h1 className="text-4xl font-bold mb-2" style={{color: 'var(--text-main)'}}>
-          {isPactMode ? "Nouveau Pacte." : (isFlashMode ? "Flash." : "L'Atelier.")}
-        </h1>
-        {isPactMode && <p className="text-sm text-[var(--text-muted)] italic">Coffre partagé & Scellement collectif</p>}
-      </div>
-
-      <div className="space-y-4 bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm">
+      <div className="space-y-4 bg-white p-6 rounded-2xl border shadow-sm">
         
-        {!isPactMode && (
-          <div className="flex bg-[var(--bg-main)] p-1 rounded-xl mb-4 text-xs font-mono">
-            <button onClick={() => setMode('file')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'file' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{color: 'var(--text-main)'}}>📁 Fichier</button>
-            <button onClick={() => setMode('text')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'text' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{color: 'var(--text-main)'}}>✍️ Texte</button>
-            <button onClick={() => setMode('media')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'media' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{color: 'var(--text-main)'}}>📸 Photo</button>
-            <button onClick={() => setMode('audio')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'audio' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{color: 'var(--text-main)'}}>🎙️ Audio</button>
-          </div>
-        )}
-
-        <div>
-          <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">{isPactMode ? "Titre du Pacte (ex: Nos vacances)" : "Titre de l'œuvre"}</label>
-          <input type="text" className="w-full border-2 border-[var(--border-color)] focus:border-[#E76F51] rounded-xl p-3 outline-none bg-transparent" placeholder="Titre..." value={title} onChange={e=>setTitle(e.target.value)} autoFocus={isFlashMode} />
+        <div className="flex bg-[#F9F6F0] p-1 rounded-xl mb-4 text-xs font-mono">
+          {!isFlashMode && !isPactMode && <button onClick={() => setMode('file')} className={`flex-1 py-2 rounded-lg font-bold ${mode === 'file' ? 'bg-white shadow' : 'opacity-50'}`}>📁</button>}
+          <button onClick={() => setMode('text')} className={`flex-1 py-2 rounded-lg font-bold ${mode === 'text' ? 'bg-white shadow' : 'opacity-50'}`}>✍️ Texte</button>
+          <button onClick={() => setMode('media')} className={`flex-1 py-2 rounded-lg font-bold ${mode === 'media' ? 'bg-white shadow' : 'opacity-50'}`}>📸 Photo</button>
+          <button onClick={() => setMode('audio')} className={`flex-1 py-2 rounded-lg font-bold ${mode === 'audio' ? 'bg-white shadow' : 'opacity-50'}`}>🎙️ Audio</button>
         </div>
 
-        {!isFlashMode && (
+        <div>
+          <label className="text-xs font-mono font-bold opacity-50 uppercase">Titre</label>
+          <input type="text" className="w-full border-2 rounded-xl p-3 outline-none" value={title} onChange={e=>setTitle(e.target.value)} />
+        </div>
+
+        {isPactMode && (
+          <div className="bg-[#FDF8F0] p-4 rounded-xl border">
+            <label className="text-xs font-mono font-bold block mb-2">📁 Médias (Multi-fichiers)</label>
+            <input type="file" multiple className="w-full text-sm" onChange={e => setPactFiles(Array.from(e.target.files || []))} />
+          </div>
+        )}
+
+        {mode === 'text' && <textarea className="w-full border-2 rounded-xl p-4 outline-none min-h-[100px]" value={textContent} onChange={e=>setTextContent(e.target.value)} />}
+        {mode === 'file' && !isFlashMode && <input type="file" onChange={e=>setFile(e.target.files?.[0]||null)} />}
+        {mode === 'media' && <input type="file" accept="image/*,video/*" capture="environment" onChange={e=>setFile(e.target.files?.[0]||null)} />}
+        
+        {mode === 'audio' && (
           <div>
-            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Description</label>
-            <textarea className="w-full border-2 border-[var(--border-color)] focus:border-[#E76F51] rounded-xl p-3 outline-none bg-transparent" rows={2} value={desc} onChange={e=>setDesc(e.target.value)} />
+            {!isRecording && !audioUrl && <button onClick={startRecording} className="w-full bg-red-500 text-white py-2 rounded-lg font-bold">🔴 Enregistrer</button>}
+            {isRecording && <button onClick={stopRecording} className="w-full bg-black text-white py-2 rounded-lg font-bold animate-pulse">⏹ Arrêter</button>}
+            {audioUrl && !isRecording && <audio controls src={audioUrl} className="w-full mt-2" />}
+          </div>
+        )}
+
+        {!isFlashMode && !isPactMode && (
+          <div className="space-y-3 pt-4 border-t">
+            <div className="flex bg-white rounded-xl border p-1">
+              <button onClick={() => setVisibility('public')} className={`flex-1 py-2 text-xs font-bold rounded ${visibility === 'public' ? 'bg-[#F5F9EE] text-[#5D7A3A]' : 'opacity-50'}`}>🌍 Public</button>
+              <button onClick={() => setVisibility('friends')} className={`flex-1 py-2 text-xs font-bold rounded ${visibility === 'friends' ? 'bg-[#F0F6FC] text-[#2D6A9E]' : 'opacity-50'}`}>👥 Amis</button>
+              <button onClick={() => setVisibility('private')} className={`flex-1 py-2 text-xs font-bold rounded ${visibility === 'private' ? 'bg-[#FDF4F0] text-[#C44A2E]' : 'opacity-50'}`}>🔒 Privé</button>
+            </div>
+            <input type="date" value={revealAt} onChange={e=>setRevealAt(e.target.value)} className="w-full border-2 p-2 rounded-lg bg-yellow-50 text-sm" placeholder="Capsule Temporelle" />
           </div>
         )}
 
         {isPactMode && (
-          <div className="bg-[#FDF8F0] p-4 rounded-xl border border-[#EFE0CA]">
-            <label className="text-xs font-mono font-bold text-[#A89070] block mb-2">📁 Dossier Média (Photos, Vidéos, Docs)</label>
-            <input 
-              type="file" 
-              multiple 
-              className="w-full text-sm" 
-              onChange={e => setPactFiles(Array.from(e.target.files || []))} 
-            />
-            {pactFiles.length > 0 && (
-              <p className="text-xs font-bold text-[#3F8F5C] mt-2">✅ {pactFiles.length} fichier(s) prêt(s) à être scellé(s).</p>
-            )}
-          </div>
+          <input type="number" min="2" className="w-full border-2 p-2 rounded-lg text-center font-bold" value={requiredSignatures} onChange={e=>setRequiredSignatures(parseInt(e.target.value))} />
         )}
 
-        {!isPactMode && mode === 'file' && (
-          <div><label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Fichier</label><input type="file" className="w-full text-sm mt-2" onChange={e=>setFile(e.target.files?.[0]||null)} /></div>
-        )}
-
-        {!isPactMode && mode === 'media' && (
-          <div><label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Capture</label><input type="file" accept="image/*,video/*" capture="environment" className="w-full text-sm mt-2" onChange={e=>setFile(e.target.files?.[0]||null)} /></div>
-        )}
-
-        {!isPactMode && mode === 'audio' && (
-          <div>
-            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Audio</label>
-            <div className="mt-2">
-              {!isRecording && !audioUrl && <button onClick={startRecording} className="w-full bg-red-500 text-white py-2 rounded-lg font-bold text-xs">🔴 Enregistrer</button>}
-              {isRecording && <button onClick={stopRecording} className="w-full bg-black text-white py-2 rounded-lg font-bold text-xs animate-pulse">⏹ Arrêter</button>}
-              {audioUrl && !isRecording && <audio controls src={audioUrl} className="w-full h-10" />}
-            </div>
-          </div>
-        )}
-
-        {!isPactMode && mode === 'text' && (
-          <div><label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Texte</label><textarea className="w-full border-2 border-[var(--border-color)] focus:border-[#E76F51] rounded-xl p-4 outline-none bg-transparent min-h-[100px] font-mono text-sm" value={textContent} onChange={e=>setTextContent(e.target.value)} /></div>
-        )}
-
-        {!isPactMode && !isFlashMode && (
-          <div className="bg-[var(--bg-main)] p-4 rounded-xl border border-[var(--border-color)] space-y-3 mt-4">
-             <div className="mb-4">
-              <label className="text-xs font-mono font-bold text-[var(--text-muted)] mb-2 block">Visibilité</label>
-              <div className="flex bg-white rounded-xl border border-[var(--border-color)] p-1">
-                <button onClick={() => setVisibility('public')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${visibility === 'public' ? 'bg-[#F5F9EE] text-[#5D7A3A] shadow' : 'opacity-50'}`}>🌍 Public</button>
-                <button onClick={() => setVisibility('friends')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${visibility === 'friends' ? 'bg-[#F0F6FC] text-[#2D6A9E] shadow' : 'opacity-50'}`}>👥 Amis</button>
-                <button onClick={() => setVisibility('private')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${visibility === 'private' ? 'bg-[#FDF4F0] text-[#C44A2E] shadow' : 'opacity-50'}`}>🔒 Privé</button>
-              </div>
-            </div>
-            <div className="border-b border-[var(--border-color)] pb-3 mb-3">
-              <label className="text-xs font-mono font-bold text-[#A88620] block mb-1">📅 Capsule Temporelle</label>
-              <input type="date" value={revealAt} onChange={e=>setRevealAt(e.target.value)} className="w-full border-2 border-[#E9C46A] p-2 rounded-lg bg-[#FDF8F0] text-sm font-bold" style={{color: 'var(--text-main)'}} />
-            </div>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={isHosted} onChange={e=>setIsHosted(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
-              <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>☁️ Héberger le fichier</span>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={isMystery} onChange={e=>setIsMystery(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
-              <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>🎭 Sceau Mystère</span>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={isEphemeral} onChange={e=>setIsEphemeral(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
-              <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>⏳ Éphémère (24h)</span>
-            </label>
-          </div>
-        )}
-
-        {isPactMode && (
-          <div className="bg-[var(--bg-main)] p-4 rounded-xl border border-[var(--border-color)] mt-4">
-            <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">Signatures requises</label>
-            <input type="number" min="2" className="w-full border-2 border-[var(--border-color)] p-2 rounded-lg text-center font-bold text-lg bg-transparent mt-1" value={requiredSignatures} onChange={e=>setRequiredSignatures(parseInt(e.target.value))} />
-          </div>
-        )}
-
-        {/* DOSSIER MIROIR */}
-        {!isFlashMode && !isPactMode && mySeals.length > 0 && (
-          <div className="bg-[#F0F6FC] p-4 rounded-xl border border-[#C9D8E8] mt-2">
-            <label className="text-xs font-mono font-bold text-[#2D6A9E] block mb-2">📚 Nouvelle version (optionnel)</label>
-            <select value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)} className="w-full border-2 border-[#C9D8E8] p-2 rounded-lg bg-white text-sm" style={{color: 'var(--text-main)'}}>
-              <option value="">— Œuvre nouvelle (V1) —</option>
-              {mySeals.map((s: any) => (
-                <option key={s.id} value={s.id}>{s.title} (V{s.version_number || 1})</option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        <button onClick={handleSeal} className={`w-full p-4 rounded-xl font-bold shadow-lg mt-6 text-white ${isPactMode ? 'bg-[#2C1810]' : (isFlashMode ? 'bg-[#2C1810]' : 'bg-gradient-to-r from-[#E76F51] to-[#F4A261]')}`}>
-          {isPactMode ? 'SCELLER LE PACTE' : (isFlashMode ? 'GRAVER EN 1 CLIC' : 'SCELLER MON ŒUVRE')}
-        </button>
-        {status && <p className="text-center font-bold mt-2 text-[#E76F51]">{status}</p>}
+        <button onClick={handleSeal} className="w-full p-4 rounded-xl font-bold text-white bg-gradient-to-r from-[#E76F51] to-[#F4A261] mt-4">SCELLER</button>
       </div>
     </div>
   );
 }
 
 export default function Seal() {
-  return <Suspense fallback={<div className="p-10 text-center font-mono">Chargement...</div>}><SealContent /></Suspense>;
+  return <Suspense fallback={<div className="p-10 text-center">Chargement...</div>}><SealContent /></Suspense>;
 }
