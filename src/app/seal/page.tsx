@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, Suspense } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
 import { sha256 } from '@noble/hashes/sha256';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -9,6 +9,7 @@ function SealContent() {
   const isPactMode = searchParams.get('pact') === 'true';
   const chatId = searchParams.get('chat_id');
   const chatType = searchParams.get('chat_type');
+  const challengeIdParam = searchParams.get('challenge_id');
 
   const [isFlashMode, setIsFlashMode] = useState(false);
   const [mode, setMode] = useState<'file' | 'text' | 'media' | 'audio'>('file');
@@ -23,6 +24,8 @@ function SealContent() {
   const [isEphemeral, setIsEphemeral] = useState(false); // RESTAURÉ
   const [unlockLikes, setUnlockLikes] = useState(10);    // RESTAURÉ
   const [requiredSignatures, setRequiredSignatures] = useState(2);
+  const [mySeals, setMySeals] = useState<any[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   
   const [status, setStatus] = useState('');
   const [sealedResult, setSealedResult] = useState<any>(null);
@@ -31,6 +34,18 @@ function SealContent() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+
+  useEffect(() => {
+    const p = localStorage.getItem('sceau_pubkey');
+    if (!p || isPactMode) return;
+    fetch(`/api/profil?pubkey=${encodeURIComponent(p)}`)
+      .then(r => r.json())
+      .then(d => {
+        const roots = (d.seals || []).filter((x: any) => !x.is_flash && !x.is_ephemeral);
+        setMySeals(roots);
+      })
+      .catch(() => {});
+  }, [isPactMode]);
 
   async function startRecording() {
     try {
@@ -113,6 +128,8 @@ function SealContent() {
       formData.append('isMystery', isMystery.toString());
       formData.append('isEphemeral', isEphemeral.toString());
       formData.append('unlockLikes', unlockLikes.toString());
+      if (selectedProjectId) formData.append('project_id', selectedProjectId);
+      if (challengeIdParam) formData.append('challenge_id', challengeIdParam);
     }
 
     setStatus(isPactMode ? "Envoi du pacte..." : "Ancrage dans la blockchain...");
@@ -177,8 +194,8 @@ function SealContent() {
 
       {!isPactMode && (
         <div className="flex bg-[var(--bg-main)] p-1 rounded-xl mb-6">
-          <button onClick={() => setIsFlashMode(false)} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${!isFlashMode ? 'bg-[var(--bg-surface)] shadow text-[#E76F51]' : 'opacity-50'}`}>📁 Normal</button>
-          <button onClick={() => setIsFlashMode(true)} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${isFlashMode ? 'bg-[var(--text-main)] shadow text-white' : 'opacity-50'}`}>⚡ Flash</button>
+          <button onClick={() => { setIsFlashMode(false); setSelectedProjectId(''); }} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${!isFlashMode ? 'bg-[var(--bg-surface)] shadow text-[#E76F51]' : 'opacity-50'}`}>📁 Normal</button>
+          <button onClick={() => { setIsFlashMode(true); setSelectedProjectId(''); }} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${isFlashMode ? 'bg-[var(--text-main)] shadow text-white' : 'opacity-50'}`}>⚡ Flash</button>
         </div>
       )}
 
@@ -255,6 +272,19 @@ function SealContent() {
                 <input type="number" min="2" className="w-full border-2 border-[var(--border-color)] p-2 rounded-lg text-center font-bold text-lg bg-transparent mt-1" value={requiredSignatures} onChange={e=>setRequiredSignatures(parseInt(e.target.value))} />
               </div>
             )}
+          </div>
+        )}
+
+        {!isFlashMode && !isPactMode && mySeals.length > 0 && (
+          <div className="bg-[#F0F6FC] p-4 rounded-xl border border-[#C9D8E8] mb-2">
+            <label className="text-xs font-mono font-bold text-[#2D6A9E] uppercase block mb-2">📚 Nouvelle version d'une œuvre existante (optionnel)</label>
+            <select value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)} className="w-full border-2 border-[#C9D8E8] p-2 rounded-lg bg-white text-sm" style={{color: 'var(--text-main)'}}>
+              <option value="">— Œuvre nouvelle (V1) —</option>
+              {mySeals.map((s: any) => (
+                <option key={s.id} value={s.id}>{s.title} (V{s.version_number || 1})</option>
+              ))}
+            </select>
+            <p className="text-[0.6rem] text-[#2D6A9E] mt-1 italic">Sceller une nouvelle version crée un lien vers la précédente. Le Dossier Miroir prouve l'évolution de ton œuvre.</p>
           </div>
         )}
 

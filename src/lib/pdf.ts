@@ -1,74 +1,194 @@
-import { jsPDF } from "jspdf";
+import { jsPDF } from 'jspdf';
 
-export function generateCertificate(title: string, author: string, date: string, hash: string, qrCodeDataUrl: string) {
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://sceau-app.vercel.app';
+
+export function generateCertificate(
+  title: string,
+  author: string,
+  date: string,
+  hashBase64: string,
+  qrCodeDataUrl: string,
+  hashHex?: string,
+  sealId?: string
+) {
+  // Convertir en hex si non fourni
+  const hash = hashHex || (() => {
+    try {
+      return Buffer.from(hashBase64, 'base64').toString('hex');
+    } catch {
+      return hashBase64;
+    }
+  })();
+
+  const hashChunks = hash.toUpperCase().match(/.{1,32}/g) || [hash];
+
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-  doc.setFillColor(253, 248, 240); doc.rect(0, 0, 297, 210, 'F');
-  doc.setDrawColor(231, 111, 81); doc.setLineWidth(2); doc.rect(10, 10, 277, 190);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(36); doc.setTextColor(44, 24, 16);
-  doc.text("CERTIFICAT D'ANTÉRIORITÉ", 148.5, 40, { align: "center" });
-  doc.setFontSize(16); doc.setTextColor(122, 90, 58); doc.text("Délivré par le protocole SCEAU", 148.5, 50, { align: "center" });
-  doc.setFontSize(14); doc.setTextColor(44, 24, 16);
-  doc.text(`Titre : ${title}`, 30, 80); doc.text(`Créateur : @${author}`, 30, 90); doc.text(`Date : ${new Date(date).toLocaleString('fr-FR')}`, 30, 100);
-  doc.setFont("courier", "normal"); doc.setFontSize(10); doc.text(`SHA-256 :`, 30, 120); doc.text(hash.slice(0, 80), 30, 125); doc.text(hash.slice(80), 30, 130);
-  if(qrCodeDataUrl) { doc.addImage(qrCodeDataUrl, 'PNG', 210, 70, 60, 60); doc.setFontSize(10); doc.text("Scannez pour vérifier", 240, 140, { align: "center" }); }
-  doc.save(`SCEAU-${title.replace(/\s+/g, '-')}.pdf`);
+
+  // Fond et cadre
+  doc.setFillColor(253, 248, 240);
+  doc.rect(0, 0, 297, 210, 'F');
+  doc.setDrawColor(231, 111, 81);
+  doc.setLineWidth(2);
+  doc.rect(10, 10, 277, 190);
+
+  // Titre
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(32);
+  doc.setTextColor(44, 24, 16);
+  doc.text("CERTIFICAT D'ANTÉRIORITÉ", 148.5, 38, { align: 'center' });
+
+  doc.setFontSize(14);
+  doc.setTextColor(122, 90, 58);
+  doc.text("Délivré par le protocole SCEAU", 148.5, 48, { align: 'center' });
+
+  // Métadonnées
+  doc.setFontSize(13);
+  doc.setTextColor(44, 24, 16);
+  doc.text(`Titre : ${title}`, 25, 68);
+  doc.text(`Créateur : @${author}`, 25, 76);
+  doc.text(`Date de scellement : ${new Date(date).toLocaleString('fr-FR')}`, 25, 84);
+
+  // Hash hex complet
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(44, 24, 16);
+  doc.text("EMPREINTE SHA-256 (hexadécimal) :", 25, 96);
+
+  doc.setFont('courier', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(90, 75, 68);
+  hashChunks.forEach((chunk: string, i: number) => {
+    doc.text(chunk, 25, 104 + i * 5);
+  });
+
+  // Mention OTS
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(93, 122, 58);
+  doc.text("Ancrage temporel : OpenTimestamps (blockchain Bitcoin)", 25, 145);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(122, 90, 58);
+  doc.text("La preuve .ots est téléchargeable depuis la page publique de l'œuvre", 25, 152);
+  doc.text("et vérifiable indépendamment sur https://opentimestamps.org", 25, 158);
+
+  // QR code
+  if (qrCodeDataUrl) {
+    doc.addImage(qrCodeDataUrl, 'PNG', 215, 60, 60, 60);
+    doc.setFontSize(8);
+    doc.setTextColor(122, 90, 58);
+    doc.text("Scannez pour vérifier en ligne", 245, 125, { align: 'center' });
+  }
+
+  // Lien de vérification
+  if (sealId) {
+    doc.setFontSize(8);
+    doc.setTextColor(74, 144, 194);
+    const url = `${APP_URL}/o/${sealId}`;
+    doc.textWithLink(`Vérifier : ${url}`, 25, 175, { url });
+  }
+
+  // Mention légale
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(7);
+  doc.setTextColor(150, 150, 150);
+  doc.text(
+    "Document généré par SCEAU. Le hash SHA-256 est infalsifiable : toute modification, même d'un seul bit, change le hash.",
+    25,
+    188
+  );
+
+  doc.save(`SCEAU-${title.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`);
 }
 
-// LA CORRECTION EST ICI : on accepte un 5ème argument optionnel
-export function generatePortfolioPDF(author: string, seals: any[], startDate?: string, endDate?: string, isPro: boolean = false) {
+export function generatePortfolioPDF(
+  author: string,
+  seals: any[],
+  startDate?: string,
+  endDate?: string,
+  isPro: boolean = false
+) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  
-  doc.setFillColor(245, 233, 216); doc.rect(0, 0, 210, 297, 'F');
-  doc.setFont("helvetica", "bold"); doc.setFontSize(40); doc.setTextColor(231, 111, 81);
-  doc.text("PORTFOLIO", 105, 120, { align: "center" });
-  doc.setFontSize(24); doc.setTextColor(44, 24, 16);
-  doc.text(`@${author}`, 105, 140, { align: "center" });
-  doc.setFontSize(12); doc.setTextColor(122, 90, 58);
-  
+
+  doc.setFillColor(245, 233, 216);
+  doc.rect(0, 0, 210, 297, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(36);
+  doc.setTextColor(231, 111, 81);
+  doc.text('PORTFOLIO DE PREUVE', 105, 110, { align: 'center' });
+
+  doc.setFontSize(22);
+  doc.setTextColor(44, 24, 16);
+  doc.text(`@${author}`, 105, 128, { align: 'center' });
+
+  doc.setFontSize(11);
+  doc.setTextColor(122, 90, 58);
   let dateText = `Généré le ${new Date().toLocaleDateString('fr-FR')}`;
-  if (startDate && endDate) dateText += ` | Période : du ${new Date(startDate).toLocaleDateString('fr-FR')} au ${new Date(endDate).toLocaleDateString('fr-FR')}`;
-  
-  doc.text(dateText, 105, 155, { align: "center" });
-  doc.text(`${seals.length} œuvre(s) certifiée(s)`, 105, 165, { align: "center" });
+  if (startDate && endDate) {
+    dateText += ` | Période : du ${new Date(startDate).toLocaleDateString('fr-FR')} au ${new Date(endDate).toLocaleDateString('fr-FR')}`;
+  }
+  doc.text(dateText, 105, 142, { align: 'center' });
+  doc.text(`${seals.length} œuvre(s) certifiée(s)`, 105, 150, { align: 'center' });
+
+  doc.setFontSize(9);
+  doc.text(`Vérification : ${APP_URL}/o/[id]`, 105, 162, { align: 'center' });
 
   doc.addPage();
   let y = 20;
-  
-  seals.forEach((seal, index) => {
-    if (y > 240) { doc.addPage(); y = 20; }
-    doc.setDrawColor(239, 224, 202); doc.setLineWidth(1); doc.rect(15, y, 180, 60);
-    doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(44, 24, 16);
-    doc.text(seal.title, 20, y + 10);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(122, 90, 58);
-    const category = seal.category || 'Art';
+
+  seals.forEach((seal) => {
+    if (y > 230) {
+      doc.addPage();
+      y = 20;
+    }
+
+    doc.setDrawColor(239, 224, 202);
+    doc.setLineWidth(0.5);
+    doc.rect(15, y, 180, 65);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(44, 24, 16);
+    doc.text(seal.title || 'Sans titre', 20, y + 10);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(122, 90, 58);
     const dateStr = new Date(seal.timestamp).toLocaleString('fr-FR');
-    doc.text(`Catégorie : ${category} | Scellé le : ${dateStr}`, 20, y + 17);
-    doc.text(`❤️ ${seal.likes_count || 0} J'aime   |   💬 ${seal.comments_count || 0} Commentaires`, 20, y + 23);
+    doc.text(`Scellé le : ${dateStr}`, 20, y + 18);
+
     if (seal.description) {
-      doc.setFont("helvetica", "italic");
+      doc.setFont('helvetica', 'italic');
       const splitDesc = doc.splitTextToSize(`"${seal.description}"`, 170);
-      doc.text(splitDesc, 20, y + 30);
+      doc.text(splitDesc.slice(0, 2), 20, y + 26);
     }
-    doc.setFont("courier", "normal"); doc.setFontSize(8); doc.setTextColor(150, 150, 150);
-    doc.text(`Hash : ${seal.hash ? seal.hash.slice(0, 80) + '...' : 'Non disponible'}`, 20, y + 50);
+
+    if (seal.has_ots_proof || seal.ots_proof) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(93, 122, 58);
+      doc.text('✓ Ancré via OpenTimestamps (Bitcoin)', 20, y + 42);
+    }
+
+    doc.setTextColor(74, 144, 194);
+    doc.setFontSize(8);
+    doc.textWithLink('[ Vérifier en ligne ]', 20, y + 52, { url: `${APP_URL}/o/${seal.id}` });
+
     if (seal.is_hosted && seal.file_path) {
-      doc.setTextColor(74, 144, 194);
-      doc.textWithLink(`[ Cliquez ici pour ouvrir l'œuvre originale ]`, 130, y + 50, { url: seal.file_path });
-    } else if (seal.is_flash) {
-       doc.setTextColor(196, 74, 46);
-       doc.text(`[ ⚡ Sceau Flash - Fichier local ]`, 130, y + 50);
+      doc.textWithLink('[ Ouvrir le fichier original ]', 110, y + 52, { url: seal.file_path });
     }
-    y += 70;
+
+    y += 75;
   });
 
   if (!isPro) {
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      doc.setFontSize(60);
-      doc.setTextColor(200, 180, 160);
-      doc.text("SCEAU FREE", 50, 150, { angle: 45 });
-      doc.text("Passez PRO pour retirer", 50, 170, { angle: 45 });
+      doc.setFontSize(50);
+      doc.setTextColor(220, 200, 180);
+      doc.text('SCEAU FREE', 40, 150, { angle: 45 });
     }
   }
 

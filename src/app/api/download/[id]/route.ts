@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/db/pool';
+import { r2Client } from '@/lib/r2';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -15,6 +17,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: 'Introuvable' }, { status: 404 });
     }
 
+    const filename = res.rows[0].file_path.split('/').pop() as string;
+
+    const obj = await r2Client.send(new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: filename,
+    }));
+
+    if (!obj.Body) {
+      return NextResponse.json({ error: 'Fichier introuvable' }, { status: 404 });
+    }
+
+    // Log après vérification, avant envoi
     if (viewerPubkey) {
       const v = await pool.query(
         "SELECT id FROM users WHERE encode(pubkey, 'base64') = $1",
@@ -28,8 +42,27 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       }
     }
 
-    return NextResponse.redirect(res.rows[0].file_path);
-  } catch {
+    // Conversion en Buffer (compatible Node 18+ et Vercel Edge)
+    const streamToBuffer = async (stream: any): Promise<Buffer> => {
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) {
+        chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+      }
+      return Buffer.concat(chunks);
+    };
+
+    const buffer = await streamToBuffer(obj.Body);
+
+    return new NextResponse(new Uint8Array(buffer), {
+      status: 200,
+      headers: {
+        'Content-Type': obj.ContentType || 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Length': String(buffer.length),
+      },
+    });
+  } catch (e) {
+    console.error('[download]', e);
     return NextResponse.json({ error: 'Erreur' }, { status: 500 });
   }
 }
