@@ -49,6 +49,11 @@ export default function PublicProfile() {
           {data.handle[0].toUpperCase()}
         </div>
         <h1 className="text-4xl font-bold mb-1" style={{color: 'var(--text-main)'}}>@{data.handle}</h1>
+        {data.open_to_collaboration && (
+          <span className="inline-block mt-2 bg-[#F0F6FC] text-[#2D6A9E] border border-[#C9D8E8] px-3 py-1 rounded-full text-xs font-bold">
+            🤝 Ouvert aux collaborations
+          </span>
+        )}
         <p className="text-sm font-mono text-[var(--text-muted)] mb-4">{data.role || 'Créateur sur SCEAU'}</p>
         
         {myHandle !== data.handle && (

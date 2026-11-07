@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function Messages() {
+function MessagesInner() {
   const router = useRouter();
   const [myHandle, setMyHandle] = useState('');
   const [contacts, setContacts] = useState<any[]>([]);
@@ -19,12 +19,20 @@ export default function Messages() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessagesLength = useRef(0);
   const myPubkey = typeof window !== 'undefined' ? localStorage.getItem('sceau_pubkey') : null;
+  const searchParams = useSearchParams();
+  const targetUser = searchParams.get('user');
 
   useEffect(() => {
     setMyHandle(localStorage.getItem('sceau_handle') || '');
     fetch('/api/messages').then(r => r.json()).then(d => setContacts(d.contacts || []));
     fetch(`/api/groups/list?me=${localStorage.getItem('sceau_handle')}`).then(r => r.json()).then(d => setGroups(d.groups || []));
   }, []);
+
+  useEffect(() => {
+    if (targetUser) {
+      setActiveChat({ type: 'dm', id: targetUser, name: targetUser });
+    }
+  }, [targetUser]);
 
   // Charger les messages avec FUSION intelligente
   useEffect(() => {
@@ -245,5 +253,13 @@ function PactModal({ pactId, onClose }: { pactId: string, onClose: () => void })
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Messages() {
+  return (
+    <Suspense fallback={<div className="p-10 text-center font-mono">Chargement des messages...</div>}>
+      <MessagesInner />
+    </Suspense>
   );
 }
