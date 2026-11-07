@@ -39,7 +39,7 @@ export async function GET(req: Request) {
       SELECT s.id, 
         CASE WHEN s.is_mystery = true THEN '🔒 Sceau Mystère' ELSE s.title END as title,
         CASE WHEN s.is_mystery = true AND (SELECT COUNT(*) FROM likes WHERE seal_id = s.id) < s.unlock_likes THEN null ELSE s.file_path END as file_path,
-        s.is_mystery, s.unlock_likes, s.is_flash, s.ots_proof,
+        s.is_mystery, s.unlock_likes, s.is_flash, s.is_ephemeral, s.ots_proof,
         s.description, s.category, s.timestamp, s.visibility, encode(s.hash, 'base64') as hash, u.handle as author,
         s.project_id, s.version_number,
         (SELECT COUNT(*) FROM likes WHERE seal_id = s.id AND reaction_type = 'like') as likes_like,
