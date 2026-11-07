@@ -396,7 +396,6 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
   try {
     if (pact.media_urls) mediaUrls = JSON.parse(pact.media_urls);
   } catch (e) {
-    // Si media_urls n'est pas un JSON valide (ancien pacte avec file_path simple)
     if (pact.file_path) mediaUrls = [pact.file_path];
   }
 

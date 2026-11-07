@@ -22,7 +22,7 @@ function SealContent() {
   // LA GALERIE DE PACTE (Multi-fichiers)
   const [pactFiles, setPactFiles] = useState<File[]>([]);
   
-  // LA GRANULARITÉ ET LA CAPSULE TEMPORELLE SONT PRÉSERVÉES
+  // LA GRANULARITÉ, LA CAPSULE TEMPORELLE ET LE MIROIR SONT PRÉSERVÉS
   const [visibility, setVisibility] = useState('public');
   const [revealAt, setRevealAt] = useState('');
   const [isHosted, setIsHosted] = useState(true);
@@ -215,7 +215,7 @@ function SealContent() {
         )}
 
         <div>
-          <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">{isPactMode ? "Titre du Pacte" : "Titre de l'œuvre"}</label>
+          <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">{isPactMode ? "Titre du Pacte (ex: Nos vacances)" : "Titre de l'œuvre"}</label>
           <input type="text" className="w-full border-2 border-[var(--border-color)] focus:border-[#E76F51] rounded-xl p-3 outline-none bg-transparent" placeholder="Titre..." value={title} onChange={e=>setTitle(e.target.value)} autoFocus={isFlashMode} />
         </div>
 
