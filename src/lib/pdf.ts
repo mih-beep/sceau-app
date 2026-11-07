@@ -194,3 +194,93 @@ export function generatePortfolioPDF(
 
   doc.save(`Portfolio-${author}.pdf`);
 }
+
+export function generatePactCertificate(
+  title: string,
+  description: string,
+  creator: string,
+  signataires: string[],
+  hash: string,
+  qrCodeDataUrl: string,
+  pactId: string
+) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  // Fond crème
+  doc.setFillColor(253, 248, 240);
+  doc.rect(0, 0, 210, 297, 'F');
+
+  // Cadre doré
+  doc.setDrawColor(233, 196, 106);
+  doc.setLineWidth(2);
+  doc.rect(10, 10, 190, 277);
+  doc.setLineWidth(0.5);
+  doc.rect(14, 14, 182, 269);
+
+  // Titre
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(28);
+  doc.setTextColor(44, 24, 16);
+  doc.text("CERTIFICAT DE PACTE", 105, 40, { align: 'center' });
+
+  doc.setFontSize(12);
+  doc.setTextColor(168, 134, 32); // Or foncé
+  doc.text("SCEAU · La poignée de main numérique", 105, 50, { align: 'center' });
+
+  // Ligne de séparation
+  doc.setDrawColor(233, 196, 106);
+  doc.line(60, 55, 150, 55);
+
+  // Titre du pacte
+  doc.setFontSize(20);
+  doc.setTextColor(44, 24, 16);
+  doc.text(title, 105, 75, { align: 'center' });
+
+  // Description
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(11);
+  doc.setTextColor(90, 75, 68);
+  const splitDesc = doc.splitTextToSize(`"${description}"`, 150);
+  doc.text(splitDesc, 105, 90, { align: 'center' });
+
+  // Créateur
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(122, 90, 58);
+  doc.text(`Proposé par : @${creator}`, 105, 115, { align: 'center' });
+
+  // Signatures
+  doc.setFontSize(14);
+  doc.setTextColor(44, 24, 16);
+  doc.text("Signataires", 105, 135, { align: 'center' });
+
+  doc.setFontSize(12);
+  doc.setTextColor(74, 144, 194);
+  const sigsText = signataires.map(s => `@${s}`).join('  ·  ');
+  doc.text(sigsText, 105, 145, { align: 'center' });
+
+  // Hash
+  doc.setFont('courier', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(150, 150, 150);
+  const hashChunks = hash.match(/.{1,40}/g) || [hash];
+  hashChunks.forEach((chunk, i) => {
+    doc.text(chunk, 105, 170 + (i * 5), { align: 'center' });
+  });
+
+  // QR Code
+  if (qrCodeDataUrl) {
+    doc.addImage(qrCodeDataUrl, 'PNG', 80, 195, 50, 50);
+    doc.setFontSize(9);
+    doc.setTextColor(122, 90, 58);
+    doc.text("Scannez pour vérifier l'authenticité", 105, 255, { align: 'center' });
+  }
+
+  // Mention Blockchain
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(93, 122, 58);
+  doc.text("Preuve ancrée via OpenTimestamps (Bitcoin)", 105, 265, { align: 'center' });
+
+  doc.save(`Pacte-${title.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`);
+}

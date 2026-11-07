@@ -2,6 +2,8 @@
 import { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { sha256 } from '@noble/hashes/sha256';
+import { generatePactCertificate } from '@/lib/pdf';
+import QRCode from 'qrcode';
 
 function MessagesInner() {
   const router = useRouter();
@@ -22,6 +24,8 @@ function MessagesInner() {
   const [groupName, setGroupName] = useState('');
   const [activePact, setActivePact] = useState<any>(null);
   const [isSealingChat, setIsSealingChat] = useState(false);
+  
+  const [showSharedVault, setShowSharedVault] = useState(false);
 
   // Audio
   const [isRecording, setIsRecording] = useState(false);
@@ -39,18 +43,13 @@ function MessagesInner() {
     setMyHandle(handle);
     setMyPubkey(pubkey);
 
-    fetch('/api/messages').then(r => r.json()).then(d => setContacts(d.contacts || []));
-    fetch(`/api/groups/list?me=${handle}`).then(r => r.json()).then(d => setGroups(d.groups || []));
-
-    // Charger les amis pour distinguer vert vs orange
     if (handle) {
-      fetch(`/api/friends?me=${handle}`)
-        .then(r => r.json())
-        .then(d => {
-          const handles = new Set<string>((d.friends || []).map((f: any) => f.handle));
-          setFriendHandles(handles);
-        })
-        .catch(() => {});
+      fetch(`/api/messages?me=${handle}`).then(r => r.json()).then(d => setContacts(d.contacts || []));
+      fetch(`/api/groups/list?me=${handle}`).then(r => r.json()).then(d => setGroups(d.groups || []));
+      fetch(`/api/friends?me=${handle}`).then(r => r.json()).then(d => {
+        const handles = new Set<string>((d.friends || []).map((f: any) => f.handle));
+        setFriendHandles(handles);
+      }).catch(() => {});
     }
 
     if (targetUser) setActiveChat({ type: 'dm', id: targetUser, name: targetUser });
@@ -105,7 +104,6 @@ function MessagesInner() {
     } catch (e) { console.error(e); }
   }
 
-  // === ENREGISTREMENT VOCAL (upload R2, pas base64) ===
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -122,25 +120,16 @@ function MessagesInner() {
       mediaRecorder.onstop = async () => {
         clearInterval(recordingIntervalRef.current);
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-
-        if (audioBlob.size > 2 * 1024 * 1024) {
-          alert("Audio trop lourd (max ~2 Mo, ~60 secondes). Raccourcis la prochaine fois !");
-          return;
-        }
-
+        if (audioBlob.size > 2 * 1024 * 1024) return alert("Audio trop lourd (max 2 Mo).");
         if (!myPubkey) return;
 
-        // Upload dans R2
         const formData = new FormData();
         formData.append('pubkey', myPubkey);
         formData.append('audio', new File([audioBlob], `voice-${Date.now()}.webm`, { type: 'audio/webm' }));
 
         const res = await fetch('/api/messages/upload-audio', { method: 'POST', body: formData });
         const data = await res.json();
-        if (!res.ok || !data.url) {
-          alert('Erreur upload audio : ' + (data.error || 'inconnue'));
-          return;
-        }
+        if (!res.ok || !data.url) return alert('Erreur upload audio');
 
         const msg = `[AUDIO]${data.url}`;
         if (activeChat.type === 'dm') {
@@ -152,9 +141,7 @@ function MessagesInner() {
 
       mediaRecorder.start();
       setIsRecording(true);
-    } catch (err) {
-      alert("Impossible d'accéder au micro.");
-    }
+    } catch (err) { alert("Impossible d'accéder au micro."); }
   }
 
   function stopRecording() {
@@ -166,21 +153,14 @@ function MessagesInner() {
     }
   }
 
-  // === SCELLER LA DISCUSSION ===
   async function sealDiscussion() {
     if (!messages.length || !myPubkey) return;
-
-    const confirm = window.confirm(
-      `Sceller les ${Math.min(messages.length, 50)} derniers messages dans ton Coffre Privé ?\n\nCela crée une preuve infalsifiable de la conversation avec ${activeChat.name}.`
-    );
+    const confirm = window.confirm(`Sceller les ${Math.min(messages.length, 50)} derniers messages dans ton Coffre Privé ?`);
     if (!confirm) return;
 
     setIsSealingChat(true);
-
     const lastMessages = messages.slice(-50);
-    const textToSeal = lastMessages
-      .map(m => `[@${m.sender} - ${new Date(m.created_at).toLocaleString()}]\n${m.content.startsWith('[AUDIO]') ? 'Message vocal' : m.content}`)
-      .join('\n\n');
+    const textToSeal = lastMessages.map(m => `[@${m.sender} - ${new Date(m.created_at).toLocaleString()}]\n${m.content.startsWith('[AUDIO]') ? 'Message vocal' : m.content}`).join('\n\n');
 
     const hash = sha256(new TextEncoder().encode(textToSeal));
     let hashStr = ''; for (let i = 0; i < hash.length; i++) hashStr += String.fromCharCode(hash[i]);
@@ -197,12 +177,8 @@ function MessagesInner() {
     formData.append('isEphemeral', 'false');
 
     const res = await fetch('/api/seal', { method: 'POST', body: formData });
-    if (res.ok) {
-      alert("✅ Discussion scellée ! Retrouve-la dans ton Coffre Privé (Profil → Coffre → Privé).");
-    } else {
-      const d = await res.json();
-      alert("Erreur : " + (d.error || 'inconnue'));
-    }
+    if (res.ok) alert("✅ Discussion scellée ! Retrouve-la dans ton Coffre Privé.");
+    else alert("Erreur lors du scellement.");
     setIsSealingChat(false);
   }
 
@@ -216,11 +192,26 @@ function MessagesInner() {
 
   const getHandleColor = (handle: string) => {
     if (handle === myHandle) return 'var(--text-main)';
-    return friendHandles.has(handle) ? '#3F8F5C' : '#C75A22';
+    return friendHandles.has(handle) ? '#4A90C2' : '#C75A22'; // Amis = Bleu, Inconnus = Orange
   };
 
+  const sharedPacts = Array.from(
+    new Map(
+      messages
+        .filter(m => m.content.startsWith('[PACTE]'))
+        .map(m => {
+          const [id, title] = m.content.replace('[PACTE]', '').split('|');
+          return [id, { id, title }];
+        })
+    ).values()
+  );
+
+  // SÉPARATION DES DISCUSSIONS ET SUGGESTIONS
+  const activeContacts = contacts.filter(c => c.has_chat);
+  const suggestions = contacts.filter(c => !c.has_chat);
+
   return (
-    <div className="p-4 md:p-6 h-[calc(100vh-140px)] flex gap-4 font-serif max-w-5xl mx-auto">
+    <div className="p-4 md:p-6 h-[calc(100vh-140px)] flex gap-4 font-serif max-w-5xl mx-auto relative">
 
       {/* LISTE */}
       <div className={`bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-4 overflow-y-auto ${activeChat ? 'hidden md:block md:w-1/3' : 'w-full md:w-1/3'}`}>
@@ -229,38 +220,54 @@ function MessagesInner() {
           <button onClick={() => setShowGroupModal(true)} className="bg-[#E76F51] text-white text-xs font-bold px-2 py-1 rounded-lg">+ Groupe</button>
         </div>
 
+        {/* GROUPES (NOIR) */}
         {groups.length > 0 && (
           <div className="mb-4">
             <h2 className="text-xs font-mono font-bold text-[#A89070] uppercase mb-2">Groupes</h2>
             {groups.map(g => (
               <div key={g.id} onClick={() => setActiveChat({ type: 'group', id: g.id, name: g.name })} className="p-2 rounded-xl cursor-pointer hover:bg-[var(--bg-main)] transition flex items-center gap-2 mb-1">
-                <div className="w-8 h-8 rounded-lg bg-white border border-[var(--border-color)] text-[var(--text-main)] flex items-center justify-center font-bold text-sm">G</div>
-                <div className="font-bold text-sm truncate" style={{color: 'var(--text-main)'}}>{g.name}</div>
+                <div className="w-8 h-8 rounded-lg bg-[#2C1810] text-white flex items-center justify-center font-bold text-sm">G</div>
+                <div className="font-bold text-sm truncate text-[#2C1810]">{g.name}</div>
               </div>
             ))}
           </div>
         )}
 
-        <h2 className="text-xs font-mono font-bold text-[#A89070] uppercase mb-2">Messages Privés</h2>
-        <div className="text-[0.55rem] text-[var(--text-muted)] italic mb-2">
-          🟢 Amis · 🟠 Inconnus
-        </div>
-        {contacts.filter(c => c.handle !== myHandle).map(c => {
+        {/* DISCUSSIONS ACTIVES (AMIS = BLEU, INCONNUS = ORANGE) */}
+        <h2 className="text-xs font-mono font-bold text-[#A89070] uppercase mb-2">Discussions</h2>
+        <div className="text-[0.55rem] text-[var(--text-muted)] italic mb-2">🔵 Amis · 🟠 Inconnus</div>
+        {activeContacts.map(c => {
           const isFriend = friendHandles.has(c.handle);
           return (
             <div key={c.id} onClick={() => setActiveChat({ type: 'dm', id: c.handle, name: c.handle })} className="p-2 rounded-xl cursor-pointer hover:bg-[var(--bg-main)] transition flex items-center gap-2 mb-1">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-white" style={{ background: isFriend ? '#3F8F5C' : '#C75A22' }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-white" style={{ background: isFriend ? '#4A90C2' : '#C75A22' }}>
                 {c.handle[0].toUpperCase()}
               </div>
-              <div className="font-bold text-sm" style={{color: isFriend ? '#3F8F5C' : '#C75A22'}}>@{c.handle}</div>
+              <div className="font-bold text-sm" style={{color: isFriend ? '#4A90C2' : '#C75A22'}}>@{c.handle}</div>
             </div>
           );
         })}
+        {activeContacts.length === 0 && <p className="text-xs text-[var(--text-muted)] italic mb-4">Aucune discussion active.</p>}
+
+        {/* SUGGESTIONS DE PROFILS */}
+        {suggestions.length > 0 && (
+          <div className="mt-6 border-t border-[var(--border-color)] pt-4">
+            <h2 className="text-xs font-mono font-bold text-[#A89070] uppercase mb-2">Suggestions</h2>
+            {suggestions.map(c => (
+              <div key={c.id} onClick={() => setActiveChat({ type: 'dm', id: c.handle, name: c.handle })} className="p-2 rounded-xl cursor-pointer hover:bg-[var(--bg-main)] transition flex items-center gap-2 mb-1 opacity-70 hover:opacity-100">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-[#A89070] bg-[var(--bg-main)] border border-[var(--border-color)]">
+                  {c.handle[0].toUpperCase()}
+                </div>
+                <div className="font-bold text-sm text-[var(--text-muted)]">@{c.handle}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* CHAT */}
       {activeChat ? (
-        <div className={`bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl flex flex-col overflow-hidden w-full md:w-2/3`}>
+        <div className={`bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl flex flex-col overflow-hidden w-full md:w-2/3 relative`}>
           <div className="p-4 border-b border-[var(--border-color)] flex justify-between items-center flex-wrap gap-2">
             <div className="flex items-center gap-3">
               <button onClick={() => setActiveChat(null)} className="md:hidden text-xl font-bold" style={{color: 'var(--text-main)'}}>←</button>
@@ -269,9 +276,8 @@ function MessagesInner() {
               </h2>
             </div>
             <div className="flex gap-2">
-              <button onClick={sealDiscussion} disabled={isSealingChat} className="bg-[#2C1810] text-white text-xs font-bold px-3 py-1 rounded-lg disabled:opacity-50">
-                {isSealingChat ? '⏳...' : '🔒 Sceller'}
-              </button>
+              <button onClick={() => setShowSharedVault(true)} className="bg-[#FDF8F0] text-[#A88620] border border-[#E9C46A] text-xs font-bold px-3 py-1 rounded-lg">📂 Coffre</button>
+              <button onClick={sealDiscussion} disabled={isSealingChat} className="bg-[#2C1810] text-white text-xs font-bold px-3 py-1 rounded-lg disabled:opacity-50">{isSealingChat ? '⏳...' : '🔒 Sceller'}</button>
               <button onClick={startPact} className="bg-[#4A90C2] text-white text-xs font-bold px-3 py-1 rounded-lg">+ Pacte</button>
             </div>
           </div>
@@ -296,11 +302,7 @@ function MessagesInner() {
                   {activeChat.type === 'group' && m.sender !== myHandle && (
                     <div className="text-[0.6rem] font-bold mb-1" style={{ color: getHandleColor(m.sender) }}>@{m.sender}</div>
                   )}
-                  {isAudio ? (
-                    <audio controls src={audioSrc!} className="h-10 w-56" />
-                  ) : (
-                    m.content
-                  )}
+                  {isAudio ? <audio controls src={audioSrc!} className="h-10 w-56" /> : m.content}
                 </div>
               );
             })}
@@ -314,6 +316,31 @@ function MessagesInner() {
             <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Écrire..." className="flex-1 bg-[var(--bg-main)] border border-[var(--border-color)] rounded-xl px-4 py-2 text-sm outline-none" style={{color: 'var(--text-main)'}} onKeyDown={e => e.key === 'Enter' && sendMessage()} />
             <button onClick={sendMessage} className="bg-[#E76F51] text-white px-4 py-2 rounded-xl font-bold">→</button>
           </div>
+
+          {/* LE PANNEAU DU COFFRE PARTAGÉ */}
+          {showSharedVault && (
+            <div className="absolute inset-0 bg-[var(--bg-surface)] z-20 flex flex-col rounded-2xl">
+              <div className="p-4 border-b border-[var(--border-color)] flex justify-between items-center">
+                <h3 className="font-bold text-lg text-[#A88620]">📂 Coffre Partagé</h3>
+                <button onClick={() => setShowSharedVault(false)} className="text-xl opacity-50">✕</button>
+              </div>
+              <div className="flex-1 p-4 overflow-y-auto">
+                <p className="text-xs text-[var(--text-muted)] italic mb-4">Retrouvez ici tous les pactes et accords échangés dans cette discussion.</p>
+                {sharedPacts.length === 0 ? (
+                  <p className="text-center text-sm text-[var(--text-muted)] py-10">Aucun pacte pour le moment.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {sharedPacts.map(p => (
+                      <div key={p.id} onClick={() => { setShowSharedVault(false); setActivePact(p.id); }} className="bg-[#FDF8F0] border border-[#E9C46A] p-4 rounded-xl cursor-pointer hover:shadow-md transition">
+                        <div className="font-bold" style={{color: 'var(--text-main)'}}>🤝 {p.title}</div>
+                        <div className="text-xs text-[#A88620] mt-1">Cliquez pour voir les détails et signer</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="hidden md:flex flex-1 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl items-center justify-center text-[var(--text-muted)]">
@@ -341,6 +368,8 @@ function MessagesInner() {
 
 function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void }) {
   const [pact, setPact] = useState<any>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  
   const loadPact = () => fetch(`/api/pacts/${pactId}`).then(r => r.json()).then(d => setPact(d));
   useEffect(() => { loadPact(); }, [pactId]);
 
@@ -351,6 +380,18 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
     if (data.success) loadPact();
   }
 
+  async function downloadCertificate() {
+    if (!pact) return;
+    setIsDownloading(true);
+    const verifyUrl = `${window.location.origin}/o/${pact.id}`;
+    const qrDataUrl = await QRCode.toDataURL(verifyUrl, { width: 300, margin: 1 });
+    generatePactCertificate(
+      pact.title, pact.description, pact.creator, pact.signataires || [], 
+      pact.hash_str || 'Hash non disponible', qrDataUrl, pact.id
+    );
+    setIsDownloading(false);
+  }
+
   if (!pact) return null;
   const myHandle = localStorage.getItem('sceau_handle');
   const hasSigned = pact.signataires?.includes(myHandle);
@@ -358,35 +399,53 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-      <div className={`bg-[var(--bg-surface)] w-full max-w-md rounded-3xl p-8 border-2 ${isSealed ? 'border-[#7A9B5A]' : 'border-[#4A90C2]'}`}>
-        <div className="flex justify-between items-start mb-4">
-          <h2 className="text-3xl font-bold" style={{color: 'var(--text-main)'}}>{pact.title}</h2>
-          {isSealed && <span className="bg-[#F5F9EE] text-[#5D7A3A] px-2 py-1 rounded text-xs font-bold">🔒 SCELLÉ</span>}
-        </div>
-        <p className="text-sm mb-4 text-[var(--text-muted)]">Proposé par @{pact.creator}</p>
-        <p className="italic mb-4 p-3 bg-[var(--bg-main)] rounded-xl text-sm" style={{color: 'var(--text-main)'}}>{pact.description}</p>
-
-        {pact.file_path && (
-          <a href={pact.file_path} target="_blank" rel="noopener" className="block bg-[#F0F6FC] text-[#2D6A9E] border border-[#C9D8E8] p-3 rounded-xl mb-4 text-center font-bold text-sm hover:underline">
-            📁 Voir le fichier joint
-          </a>
+      <div className={`bg-[#FDF8F0] w-full max-w-md rounded-3xl p-8 border-4 shadow-2xl relative ${isSealed ? 'border-[#E9C46A]' : 'border-[#4A90C2]'}`}>
+        
+        {/* Le sceau doré si scellé */}
+        {isSealed && (
+          <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[#E9C46A] text-[#2C1810] px-6 py-1 rounded-full text-xs font-black tracking-widest uppercase shadow-md border-2 border-white">
+            Certificat Scellé
+          </div>
         )}
 
+        <div className="text-center mb-6">
+          <div className="text-5xl mb-3">{isSealed ? '🏆' : '🤝'}</div>
+          <h2 className="text-3xl font-serif font-black" style={{color: '#2C1810'}}>{pact.title}</h2>
+          <p className="text-xs font-mono text-[#A88620] uppercase tracking-widest mt-2">Proposé par @{pact.creator}</p>
+        </div>
+
+        <p className="italic mb-6 p-4 bg-white/50 border border-[#EFE0CA] rounded-xl text-sm text-center" style={{color: 'var(--text-main)'}}>
+          "{pact.description}"
+        </p>
+
         <div className="mb-6">
-          <h3 className="font-bold mb-2 flex justify-between" style={{color: 'var(--text-main)'}}>
-            Signatures : <span>{pact.signataires?.length || 0} / {pact.required_signatures}</span>
+          <h3 className="text-xs font-mono font-bold text-[#A88620] uppercase mb-3 text-center">
+            Signatures officielles ({pact.signataires?.length || 0} / {pact.required_signatures})
           </h3>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-center gap-2">
             {(pact.signataires || []).map((s: string) => (
-              <span key={s} className="bg-[#F5F9EE] text-[#5D7A3A] border border-[#A8C77E] px-3 py-1 rounded-lg text-sm font-bold">✅ @{s}</span>
+              <span key={s} className="bg-[#F5F9EE] text-[#5D7A3A] border border-[#A8C77E] px-3 py-1 rounded-lg text-sm font-bold shadow-sm">✅ @{s}</span>
             ))}
           </div>
         </div>
-        <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 py-3 font-bold opacity-50" style={{color: 'var(--text-main)'}}>Fermer</button>
-          {!hasSigned && !isSealed && (
-            <button onClick={signPact} className="flex-1 bg-[#4A90C2] text-white py-3 rounded-xl font-bold">✍️ Contresigner</button>
+
+        {pact.file_path && (
+          <a href={pact.file_path} target="_blank" rel="noopener" className="block bg-[#F0F6FC] text-[#2D6A9E] border border-[#C9D8E8] p-3 rounded-xl mb-6 text-center font-bold text-sm hover:underline shadow-sm">
+            📁 Ouvrir le document joint
+          </a>
+        )}
+
+        <div className="flex flex-col gap-2 mt-8">
+          {isSealed ? (
+            <button onClick={downloadCertificate} disabled={isDownloading} className="w-full bg-gradient-to-r from-[#E9C46A] to-[#F4A261] text-[#2C1810] py-4 rounded-xl font-black text-lg shadow-lg hover:shadow-xl transition flex justify-center items-center gap-2">
+              {isDownloading ? 'Génération...' : '📜 Télécharger le Certificat PDF'}
+            </button>
+          ) : (
+            <button onClick={signPact} disabled={hasSigned} className="w-full bg-[#4A90C2] text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-[#2D6A9E] transition disabled:opacity-50">
+              {hasSigned ? '✅ Vous avez signé' : '✍️ Contresigner le Pacte'}
+            </button>
           )}
+          <button onClick={onClose} className="w-full py-2 font-bold opacity-50 hover:opacity-100 transition" style={{color: '#2C1810'}}>Fermer</button>
         </div>
       </div>
     </div>
