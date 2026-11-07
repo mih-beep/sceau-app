@@ -17,6 +17,7 @@ export default function Profil() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [accessLogSealId, setAccessLogSealId] = useState<string | null>(null);
+  const [showAccessLogList, setShowAccessLogList] = useState(false);
 
   async function loadProfil() {
     const pubkey = localStorage.getItem('sceau_pubkey');
@@ -164,6 +165,7 @@ export default function Profil() {
 
       <div className="flex gap-4 mb-8">
         <button onClick={openPortfolioModal} className="flex-1 bg-[var(--text-main)] text-[var(--bg-surface)] p-3 rounded-xl font-bold text-sm shadow-md hover:opacity-80 transition">📄 Exporter mon Portfolio</button>
+        <button onClick={() => setShowAccessLogList(true)} className="flex-1 bg-[#F0F6FC] text-[#2D6A9E] border border-[#C9D8E8] p-3 rounded-xl font-bold text-sm shadow-sm hover:bg-[#E0EDF8] transition">📖 Journal des accès</button>
       </div>
 
       <div className="mb-4">
@@ -253,6 +255,34 @@ export default function Profil() {
         </div>
       )}
       {accessLogSealId && <AccessLogModal sealId={accessLogSealId} onClose={() => setAccessLogSealId(null)} />}
+
+      {/* MODALE DE SÉLECTION DU JOURNAL DES ACCÈS */}
+      {showAccessLogList && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-[var(--bg-surface)] w-full max-w-md rounded-3xl p-6 max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold" style={{color: 'var(--text-main)'}}>Journal des accès</h2>
+              <button onClick={() => setShowAccessLogList(false)} className="text-2xl opacity-50">✕</button>
+            </div>
+            <p className="text-sm text-[var(--text-muted)] italic mb-4">Sélectionne une œuvre pour voir qui l'a consultée ou téléchargée.</p>
+            <div className="flex-1 overflow-y-auto space-y-2">
+              {data.seals.map((seal: any) => (
+                <div 
+                  key={seal.id} 
+                  onClick={() => { setShowAccessLogList(false); setAccessLogSealId(seal.id); }} 
+                  className="p-3 rounded-xl border border-[var(--border-color)] hover:bg-[var(--bg-main)] cursor-pointer transition flex justify-between items-center"
+                >
+                  <div>
+                    <div className="font-bold text-sm" style={{color: 'var(--text-main)'}}>{seal.title}</div>
+                    <div className="text-xs text-[var(--text-muted)]">{new Date(seal.timestamp).toLocaleDateString('fr-FR')}</div>
+                  </div>
+                  <span className="text-[#4A90C2] text-sm font-bold">Voir →</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
