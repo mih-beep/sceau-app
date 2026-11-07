@@ -24,7 +24,6 @@ function MessagesInner() {
   const [groupName, setGroupName] = useState('');
   const [activePact, setActivePact] = useState<any>(null);
   const [isSealingChat, setIsSealingChat] = useState(false);
-  
   const [showSharedVault, setShowSharedVault] = useState(false);
 
   // Audio
@@ -206,7 +205,6 @@ function MessagesInner() {
     ).values()
   );
 
-  // SÉPARATION DES DISCUSSIONS ET SUGGESTIONS
   const activeContacts = contacts.filter(c => c.has_chat);
   const suggestions = contacts.filter(c => !c.has_chat);
 
@@ -220,7 +218,6 @@ function MessagesInner() {
           <button onClick={() => setShowGroupModal(true)} className="bg-[#E76F51] text-white text-xs font-bold px-2 py-1 rounded-lg">+ Groupe</button>
         </div>
 
-        {/* GROUPES (NOIR) */}
         {groups.length > 0 && (
           <div className="mb-4">
             <h2 className="text-xs font-mono font-bold text-[#A89070] uppercase mb-2">Groupes</h2>
@@ -233,7 +230,6 @@ function MessagesInner() {
           </div>
         )}
 
-        {/* DISCUSSIONS ACTIVES (AMIS = BLEU, INCONNUS = ORANGE) */}
         <h2 className="text-xs font-mono font-bold text-[#A89070] uppercase mb-2">Discussions</h2>
         <div className="text-[0.55rem] text-[var(--text-muted)] italic mb-2">🔵 Amis · 🟠 Inconnus</div>
         {activeContacts.map(c => {
@@ -249,7 +245,6 @@ function MessagesInner() {
         })}
         {activeContacts.length === 0 && <p className="text-xs text-[var(--text-muted)] italic mb-4">Aucune discussion active.</p>}
 
-        {/* SUGGESTIONS DE PROFILS */}
         {suggestions.length > 0 && (
           <div className="mt-6 border-t border-[var(--border-color)] pt-4">
             <h2 className="text-xs font-mono font-bold text-[#A89070] uppercase mb-2">Suggestions</h2>
@@ -317,7 +312,6 @@ function MessagesInner() {
             <button onClick={sendMessage} className="bg-[#E76F51] text-white px-4 py-2 rounded-xl font-bold">→</button>
           </div>
 
-          {/* LE PANNEAU DU COFFRE PARTAGÉ */}
           {showSharedVault && (
             <div className="absolute inset-0 bg-[var(--bg-surface)] z-20 flex flex-col rounded-2xl">
               <div className="p-4 border-b border-[var(--border-color)] flex justify-between items-center">
@@ -397,11 +391,19 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
   const hasSigned = pact.signataires?.includes(myHandle);
   const isSealed = pact.status === 'scelle';
 
+  // Parse sécurisé des médias
+  let mediaUrls: string[] = [];
+  try {
+    if (pact.media_urls) mediaUrls = JSON.parse(pact.media_urls);
+  } catch (e) {
+    // Si media_urls n'est pas un JSON valide (ancien pacte avec file_path simple)
+    if (pact.file_path) mediaUrls = [pact.file_path];
+  }
+
   return (
     <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-      <div className={`bg-[#FDF8F0] w-full max-w-md rounded-3xl p-8 border-4 shadow-2xl relative ${isSealed ? 'border-[#E9C46A]' : 'border-[#4A90C2]'}`}>
+      <div className={`bg-[#FDF8F0] w-full max-w-md rounded-3xl p-8 border-4 shadow-2xl relative max-h-[90vh] overflow-y-auto ${isSealed ? 'border-[#E9C46A]' : 'border-[#4A90C2]'}`}>
         
-        {/* Le sceau doré si scellé */}
         {isSealed && (
           <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[#E9C46A] text-[#2C1810] px-6 py-1 rounded-full text-xs font-black tracking-widest uppercase shadow-md border-2 border-white">
             Certificat Scellé
@@ -418,6 +420,31 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
           "{pact.description}"
         </p>
 
+        {/* LA GALERIE DE MÉDIAS */}
+        {mediaUrls.length > 0 && (
+          <div className="mb-6">
+            <p className="text-xs font-bold text-[#A89070] uppercase font-mono mb-2">Médias joints ({mediaUrls.length})</p>
+            <div className="flex gap-2 overflow-x-auto snap-x hide-scrollbar pb-2">
+              {mediaUrls.map((url: string, i: number) => {
+                const isImage = url.match(/\.(jpeg|jpg|gif|png|webp)/i);
+                const isVideo = url.match(/\.(mp4|webm|ogg|mov)/i);
+                return (
+                  <div key={i} className="snap-start shrink-0 w-32 h-32 bg-[#FDF8F0] border border-[#EFE0CA] rounded-xl overflow-hidden flex items-center justify-center relative group">
+                    {isImage ? (
+                      <img src={url} alt="media" className="w-full h-full object-cover" />
+                    ) : isVideo ? (
+                      <video src={url} className="w-full h-full object-cover" />
+                    ) : (
+                      <a href={url} target="_blank" className="text-center p-2 text-xs font-bold text-[#2C1810] hover:text-[#E76F51]">📄<br/>Fichier</a>
+                    )}
+                    <a href={url} target="_blank" rel="noopener" className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition">Ouvrir</a>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="mb-6">
           <h3 className="text-xs font-mono font-bold text-[#A88620] uppercase mb-3 text-center">
             Signatures officielles ({pact.signataires?.length || 0} / {pact.required_signatures})
@@ -428,12 +455,6 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
             ))}
           </div>
         </div>
-
-        {pact.file_path && (
-          <a href={pact.file_path} target="_blank" rel="noopener" className="block bg-[#F0F6FC] text-[#2D6A9E] border border-[#C9D8E8] p-3 rounded-xl mb-6 text-center font-bold text-sm hover:underline shadow-sm">
-            📁 Ouvrir le document joint
-          </a>
-        )}
 
         <div className="flex flex-col gap-2 mt-8">
           {isSealed ? (
