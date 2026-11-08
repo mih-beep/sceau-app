@@ -18,6 +18,8 @@ export default function Profil() {
   const [endDate, setEndDate] = useState('');
   const [accessLogSealId, setAccessLogSealId] = useState<string | null>(null);
   const [showAccessLogList, setShowAccessLogList] = useState(false);
+  const [showTechProofs, setShowTechProofs] = useState(false);
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
 
   async function loadProfil() {
     const pubkey = localStorage.getItem('sceau_pubkey');
@@ -77,6 +79,35 @@ export default function Profil() {
     loadProfil();
   }
 
+  function openTechProofs() {
+    if (activeTab === 'favorites') setActiveTab('public');
+    setShowTechProofs(true);
+  }
+
+  async function refreshOts(sealId: string) {
+    const pubkey = localStorage.getItem('sceau_pubkey');
+    if (!pubkey) return alert('Connecte-toi.');
+    setRefreshingId(sealId);
+    try {
+      const res = await fetch(`/api/seal/${sealId}/ots/refresh?pubkey=${encodeURIComponent(pubkey)}`, { method: 'POST' });
+      const d = await res.json();
+      if (d.status === 'upgraded') {
+        alert('✅ Preuve mise à jour avec confirmation Bitcoin');
+        await loadProfil();
+      } else if (d.status === 'pending') {
+        alert('⏳ Pas encore confirmé. Réessaie dans quelques heures.');
+      } else if (d.status === 'no_proof') {
+        alert('❌ Aucune preuve .ots enregistrée pour ce sceau.');
+      } else {
+        alert('❌ ' + (d.error || 'Erreur inconnue'));
+      }
+    } catch {
+      alert('❌ Impossible de contacter le serveur.');
+    } finally {
+      setRefreshingId(null);
+    }
+  }
+
   if (error) return <div className="p-10 text-center font-mono text-red-500">{error}</div>;
   if (!data) return <div className="p-10 text-center font-mono">Chargement...</div>;
 
@@ -92,6 +123,7 @@ export default function Profil() {
     return (
       <div className="p-6 max-w-2xl mx-auto font-sans">
         <button onClick={() => setActiveTab('public')} className="text-sm font-bold text-[#A89070] mb-4 hover:underline">← Retour au coffre</button>
+        <button onClick={openTechProofs} className="mb-4 bg-[#FDF8F0] text-[#A88620] border border-[#E9C46A] px-4 py-2 rounded-lg font-bold text-sm shadow-sm">🔬 Preuves techniques</button>
         <h2 className="text-2xl font-bold mb-4" style={{color: 'var(--text-main)'}}>📌 Mes Favoris</h2>
         <div className="grid gap-3">
           {data.favorites?.map((fav: any) => (
@@ -163,9 +195,10 @@ export default function Profil() {
         </div>
       </div>
 
-      <div className="flex gap-4 mb-8">
-        <button onClick={openPortfolioModal} className="flex-1 bg-[var(--text-main)] text-[var(--bg-surface)] p-3 rounded-xl font-bold text-sm shadow-md hover:opacity-80 transition">📄 Exporter mon Portfolio</button>
-        <button onClick={() => setShowAccessLogList(true)} className="flex-1 bg-[#F0F6FC] text-[#2D6A9E] border border-[#C9D8E8] p-3 rounded-xl font-bold text-sm shadow-sm hover:bg-[#E0EDF8] transition">📖 Journal des accès</button>
+      <div className="flex flex-wrap gap-3 mb-8">
+        <button onClick={openPortfolioModal} className="flex-1 min-w-[180px] bg-[var(--text-main)] text-[var(--bg-surface)] p-3 rounded-xl font-bold text-sm shadow-md hover:opacity-80 transition">📄 Exporter mon Portfolio</button>
+        <button onClick={() => setShowAccessLogList(true)} className="flex-1 min-w-[180px] bg-[#F0F6FC] text-[#2D6A9E] border border-[#C9D8E8] p-3 rounded-xl font-bold text-sm shadow-sm hover:bg-[#E0EDF8] transition">📖 Journal des accès</button>
+        <button onClick={openTechProofs} className="flex-1 min-w-[180px] bg-[#FDF8F0] text-[#A88620] border border-[#E9C46A] p-3 rounded-xl font-bold text-sm shadow-sm hover:bg-[#FCEFCB] transition">🔬 Preuves techniques</button>
       </div>
 
       <div className="mb-4">
@@ -255,6 +288,98 @@ export default function Profil() {
         </div>
       )}
       {accessLogSealId && <AccessLogModal sealId={accessLogSealId} onClose={() => setAccessLogSealId(null)} />}
+
+      {/* MODALE — PREUVES TECHNIQUES (propriétaire uniquement) */}
+      {showTechProofs && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-[var(--bg-surface)] w-full max-w-2xl rounded-3xl p-6 max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="text-2xl font-bold" style={{color: 'var(--text-main)'}}>🔬 Preuves techniques</h2>
+              <button onClick={() => setShowTechProofs(false)} className="text-2xl opacity-50">✕</button>
+            </div>
+            <p className="text-xs text-[var(--text-muted)] italic mb-4">
+              Zone technique. Le public ne voit que <strong>Validé / Non validé</strong> sur la page de chaque œuvre.
+              Ici tu peux vérifier, télécharger et forcer la confirmation des preuves OpenTimestamps.
+            </p>
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {data.seals.length === 0 && (
+                <p className="text-center italic text-[var(--text-muted)] py-10">Aucune œuvre dans ton coffre.</p>
+              )}
+              {data.seals.map((seal: any) => {
+                const pubkey = typeof window !== 'undefined' ? localStorage.getItem('sceau_pubkey') : '';
+                const isRefreshing = refreshingId === seal.id;
+                return (
+                  <div key={seal.id} className="bg-[var(--bg-main)] border border-[var(--border-color)] rounded-xl p-4">
+                    <div className="flex justify-between items-start gap-3 mb-3">
+                      <div className="min-w-0">
+                        <div className="font-bold text-sm truncate" style={{color: 'var(--text-main)'}}>{seal.title}</div>
+                        <div className="text-[0.65rem] font-mono text-[var(--text-muted)]">
+                          Scellé le {new Date(seal.timestamp).toLocaleDateString('fr-FR')}
+                        </div>
+                      </div>
+                      {seal.ots_upgraded_at ? (
+                        <span className="shrink-0 bg-[#F5F9EE] text-[#5D7A3A] border border-[#A8C77E] px-2 py-1 rounded text-[0.65rem] font-bold whitespace-nowrap">
+                          ✅ Confirmé {new Date(seal.ots_upgraded_at).toLocaleDateString('fr-FR')}
+                        </span>
+                      ) : seal.ots_proof ? (
+                        <span className="shrink-0 bg-[#FCEAD6] text-[#C44A2E] border border-[#F4D0A8] px-2 py-1 rounded text-[0.65rem] font-bold whitespace-nowrap">
+                          ⏳ En attente
+                        </span>
+                      ) : (
+                        <span className="shrink-0 bg-[#F3F3F3] text-[#666] border border-[#DDD] px-2 py-1 rounded text-[0.65rem] font-bold whitespace-nowrap">
+                          🔒 Pas d'ancrage
+                        </span>
+                      )}
+                    </div>
+
+                    {seal.hash_hex && (
+                      <div className="mb-3">
+                        <div className="text-[0.6rem] font-mono text-[var(--text-muted)] mb-1 uppercase">SHA-256 (hex)</div>
+                        <div className="bg-white border border-[var(--border-color)] rounded p-2 font-mono text-[0.6rem] break-all leading-relaxed">
+                          {seal.hash_hex}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-2">
+                      {seal.ots_proof ? (
+                        <>
+                          <a
+                            href={`/api/seal/${seal.id}/ots?pubkey=${encodeURIComponent(pubkey || '')}`}
+                            download
+                            className="bg-[#5D7A3A] text-white px-3 py-1.5 rounded-lg text-xs font-bold"
+                          >
+                            ⬇️ Télécharger .ots
+                          </a>
+                          <button
+                            onClick={() => refreshOts(seal.id)}
+                            disabled={isRefreshing || !!seal.ots_upgraded_at}
+                            className="bg-white border-2 border-[#7A9B5A] text-[#5D7A3A] px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40"
+                          >
+                            {isRefreshing ? '⏳...' : seal.ots_upgraded_at ? '✅ Confirmé' : '🔄 Vérifier confirmation'}
+                          </button>
+                          <a
+                            href="https://opentimestamps.org/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-white border border-[var(--border-color)] text-[var(--text-main)] px-3 py-1.5 rounded-lg text-xs font-bold"
+                          >
+                            🔍 Vérifier en ligne
+                          </a>
+                        </>
+                      ) : (
+                        <span className="text-xs text-[var(--text-muted)] italic">
+                          Aucune preuve .ots enregistrée (l'ancrage a échoué au scellage).
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODALE DE SÉLECTION DU JOURNAL DES ACCÈS */}
       {showAccessLogList && (
