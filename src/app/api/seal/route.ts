@@ -25,6 +25,7 @@ export async function POST(req: Request) {
     const projectIdInput = (data.get('project_id') as string) || null;
     const challengeId = (data.get('challenge_id') as string) || null;
     const visibilityInput = (data.get('visibility') as string) || 'public';
+    const isHostedInput = data.get('isHosted') !== 'false'; // par défaut : true
     const file = data.get('file') as File | null;
 
     if (!title) return NextResponse.json({ error: 'Titre requis' }, { status: 400 });
@@ -48,7 +49,7 @@ export async function POST(req: Request) {
 
     let filePath: string | null = null;
     let fileSize = 0;
-    if (!isFlash && file && file.size > 0) {
+    if (isHostedInput && !isFlash && file && file.size > 0) {
       const quota = await pool.query(
         "SELECT COALESCE(SUM(file_size), 0) as used FROM seals WHERE author_id = $1 AND is_hosted = true",
         [authorId]
