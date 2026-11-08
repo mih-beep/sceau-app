@@ -12,3 +12,5 @@ tsconfig.tsbuildinfo
 node_modules/
 .env.local
 .env
+SCEAU_CODE_FINAL.txt
+.env.local
