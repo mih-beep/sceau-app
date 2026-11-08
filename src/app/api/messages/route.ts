@@ -11,7 +11,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ contacts: users.rows });
     }
 
-    const myId = (await pool.query("SELECT id FROM users WHERE handle = $1", [me])).rows[0]?.id;
+    const myId = (await pool.query("SELECT id FROM users WHERE LOWER(handle) = LOWER($1)", [me])).rows[0]?.id;
     if (!myId) return NextResponse.json({ contacts: [] });
 
     // On renvoie tous les utilisateurs, avec un flag pour savoir si on a déjà discuté

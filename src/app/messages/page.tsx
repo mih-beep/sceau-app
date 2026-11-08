@@ -245,19 +245,21 @@ function MessagesInner() {
         })}
         {activeContacts.length === 0 && <p className="text-xs text-[var(--text-muted)] italic mb-4">Aucune discussion active.</p>}
 
-        {suggestions.length > 0 && (
-          <div className="mt-6 border-t border-[var(--border-color)] pt-4">
-            <h2 className="text-xs font-mono font-bold text-[#A89070] mb-2">Suggestions</h2>
-            {suggestions.map(c => (
+        <div className="mt-6 border-t border-[var(--border-color)] pt-4">
+          <h2 className="text-xs font-mono font-bold text-[#A89070] mb-2">Suggestions</h2>
+          {suggestions.length > 0 ? (
+            suggestions.map(c => (
               <div key={c.id} onClick={() => setActiveChat({ type: 'dm', id: c.handle, name: c.handle })} className="p-2 rounded-xl cursor-pointer hover:bg-[var(--bg-main)] transition flex items-center gap-2 mb-1 opacity-70 hover:opacity-100">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-[#A89070] bg-[var(--bg-main)] border border-[var(--border-color)]">
                   {c.handle[0].toUpperCase()}
                 </div>
                 <div className="font-bold text-sm text-[var(--text-muted)]">@{c.handle}</div>
               </div>
-            ))}
-          </div>
-        )}
+            ))
+          ) : (
+            <p className="text-xs text-[var(--text-muted)] italic">Aucune suggestion pour le moment.</p>
+          )}
+        </div>
       </div>
 
       {/* CHAT */}

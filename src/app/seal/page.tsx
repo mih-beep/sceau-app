@@ -188,8 +188,8 @@ function SealContent() {
       {/* === Toggle Normal / Flash === */}
       {!isPactMode && (
         <div className="flex bg-[var(--bg-main)] p-1 rounded-xl mb-4 border border-[var(--border-color)]">
-          <button type="button" onClick={() => { setIsFlashMode(false); setMode('file'); }} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${!isFlashMode ? 'bg-[var(--bg-surface)] shadow text-[#E76F51]' : 'opacity-50'}`}>📁 Normal</button>
-          <button type="button" onClick={() => { setIsFlashMode(true); setMode('text'); }} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${isFlashMode ? 'bg-[#2C1810] text-white shadow' : 'opacity-50'}`}>⚡ Flash</button>
+          <button type="button" onClick={() => { setIsFlashMode(false); setMode('file'); setIsHosted(true); setVisibility('public'); }} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${!isFlashMode ? 'bg-[var(--bg-surface)] shadow text-[#E76F51]' : 'opacity-50'}`}>📁 Normal</button>
+          <button type="button" onClick={() => { setIsFlashMode(true); setIsHosted(false); setVisibility('private'); }} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${isFlashMode ? 'bg-[#2C1810] text-white shadow' : 'opacity-50'}`}>⚡ Flash</button>
         </div>
       )}
 
@@ -198,10 +198,10 @@ function SealContent() {
         {/* === Sélecteur de mode === */}
         {!isPactMode && (
           <div className="flex bg-[var(--bg-main)] p-1 rounded-xl text-xs font-mono">
-            {!isFlashMode && <button type="button" onClick={() => setMode('file')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'file' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>📁 Fichier</button>}
+            <button type="button" onClick={() => setMode('file')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'file' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>📁 Fichier</button>
             <button type="button" onClick={() => setMode('text')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'text' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>✍️ Texte</button>
-            {!isFlashMode && <button type="button" onClick={() => setMode('media')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'media' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>📸 Photo</button>}
-            {!isFlashMode && <button type="button" onClick={() => setMode('audio')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'audio' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>🎙️ Audio</button>}
+            <button type="button" onClick={() => setMode('media')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'media' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>📸 Photo</button>
+            <button type="button" onClick={() => setMode('audio')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'audio' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>🎙️ Audio</button>
           </div>
         )}
 

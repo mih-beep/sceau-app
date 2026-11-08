@@ -13,7 +13,7 @@ export async function GET(req: Request) {
     // NOUVEAU : On nettoie le pseudo au cas où il y aurait un @
     me = me.replace('@', '');
 
-    const myIdRes = await pool.query("SELECT id FROM users WHERE handle = $1", [me]);
+    const myIdRes = await pool.query("SELECT id FROM users WHERE LOWER(handle) = LOWER($1)", [me]);
     if (myIdRes.rows.length === 0) {
       // Message plus clair pour le débogage
       return NextResponse.json({ error: "Ton compte n'existe pas dans la base de données. Déconnecte-toi et reconnecte-toi." }, { status: 404 });
@@ -61,8 +61,8 @@ export async function POST(req: Request) {
     const { me, target } = await req.json();
     
     // Nettoyage des pseudos
-    const myId = (await pool.query("SELECT id FROM users WHERE handle = $1", [me.replace('@', '')])).rows[0]?.id;
-    const targetId = (await pool.query("SELECT id FROM users WHERE handle = $1", [target.replace('@', '')])).rows[0]?.id;
+    const myId = (await pool.query("SELECT id FROM users WHERE LOWER(handle) = LOWER($1)", [me.replace('@', '')])).rows[0]?.id;
+    const targetId = (await pool.query("SELECT id FROM users WHERE LOWER(handle) = LOWER($1)", [target.replace('@', '')])).rows[0]?.id;
     
     if (!myId || !targetId) return NextResponse.json({ error: 'Utilisateur introuvable dans la base' }, { status: 404 });
 
