@@ -210,7 +210,7 @@ export default function Feed() {
 
   // === FEED NORMAL (CADRANS) ===
   return (
-    <main className="min-h-screen p-6 font-sans max-w-3xl mx-auto relative">
+    <main className="min-h-screen p-6 font-sans max-w-3xl md:max-w-5xl mx-auto relative w-full">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-4xl font-bold" style={{ color: 'var(--text-main)' }}>SCEAU<span className="text-[#E76F51] italic">.</span></h1>
         <Link href="/seal" className="bg-[#E76F51] text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md">+ Sceller</Link>

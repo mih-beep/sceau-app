@@ -147,7 +147,7 @@ export default function Profil() {
   });
 
   return (
-    <div className="p-6 max-w-2xl mx-auto font-serif relative">
+    <div className="p-6 max-w-2xl md:max-w-5xl mx-auto font-serif relative w-full">
       
       <div className="text-center mb-6 relative">
         <Link href="/settings" className="absolute top-0 right-0 text-2xl opacity-50 hover:opacity-100 transition" title="Paramètres">⚙️</Link>

@@ -65,7 +65,7 @@ export default function Verify() {
   };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto font-sans">
+    <div className="p-6 max-w-2xl md:max-w-5xl mx-auto font-sans w-full">
       <div className="flex justify-center mb-6">
         <div className="flex bg-[var(--bg-main)] p-1 rounded-xl border border-[var(--border-color)]">
           <Link href="/seal" className="px-6 py-2 rounded-lg font-bold text-sm opacity-50 hover:opacity-100 transition">✍️ Sceller</Link>

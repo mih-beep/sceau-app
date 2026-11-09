@@ -209,7 +209,7 @@ function MessagesInner() {
   const suggestions = contacts.filter(c => !c.has_chat);
 
   return (
-    <div className="p-4 md:p-6 h-[calc(100vh-140px)] flex gap-4 font-serif max-w-5xl mx-auto relative">
+    <div className="p-4 md:p-6 flex gap-4 font-serif w-full max-w-5xl md:max-w-none mx-auto relative h-full">
 
       {/* LISTE */}
       <div className={`bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-4 overflow-y-auto ${activeChat ? 'hidden md:block md:w-1/3' : 'w-full md:w-1/3'}`}>
