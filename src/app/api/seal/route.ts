@@ -55,7 +55,7 @@ export async function POST(req: Request) {
         "SELECT COALESCE(SUM(file_size), 0) as used FROM seals WHERE author_id = $1 AND is_hosted = true",
         [authorId]
       );
-      if (parseInt(quota.rows[0].used, 10) + file.size > 50 * 1024 * 1024) {
+      if (parseInt(quota.rows[0].used, 10) + file.size > 100 * 1024 * 1024) {
         return NextResponse.json({ error: 'Quota de 50 Mo dépassé.' }, { status: 403 });
       }
       fileSize = file.size;

@@ -8,7 +8,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ handle: 
 
   try {
     const user = await pool.query(
-      "SELECT id, handle, bio, role, open_to_collaboration FROM users WHERE handle = $1",
+      "SELECT id, handle, bio, role, open_to_collaboration FROM users WHERE LOWER(handle) = LOWER($1)",
       [handle]
     );
     if (user.rows.length === 0) return NextResponse.json({ error: 'Introuvable' }, { status: 404 });

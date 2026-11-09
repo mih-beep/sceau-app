@@ -17,7 +17,21 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS });
 }
 
+const pluginCache = new Map<string, { count: number, resetAt: number }>();
+
+function checkPluginLimit(ip: string) {
+  const now = Date.now();
+  let e = pluginCache.get(ip);
+  if (!e || e.resetAt < now) { e = { count: 0, resetAt: now + 60000 }; pluginCache.set(ip, e); }
+  if (e.count >= 30) return false;
+  e.count++;
+  return true;
+}
+
 export async function POST(req: Request) {
+  const ip = req.headers.get('x-forwarded-for') || 'unknown';
+  if (!checkPluginLimit(ip)) return NextResponse.json({ error: 'Trop de requêtes.' }, { status: 429, headers: CORS });
+
   try {
     const { apiKey, title, content, category, author_meta } = await req.json();
 

@@ -12,9 +12,15 @@ export function generateCertificate(
   sealId?: string
 ) {
   // Convertir en hex si non fourni
+  // Sécurisation côté client (pas de Buffer.from)
   const hash = hashHex || (() => {
     try {
-      return Buffer.from(hashBase64, 'base64').toString('hex');
+      const raw = atob(hashBase64);
+      let hex = '';
+      for (let i = 0; i < raw.length; i++) {
+        hex += raw.charCodeAt(i).toString(16).padStart(2, '0');
+      }
+      return hex;
     } catch {
       return hashBase64;
     }

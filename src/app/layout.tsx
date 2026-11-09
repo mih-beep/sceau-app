@@ -3,7 +3,6 @@ import './globals.css'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
-// import Manifeste from '@/components/Manifeste'
 import Cockpit from '@/components/Cockpit'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -48,16 +47,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   const isActive = (path: string) => pathname === path;
   const isToolsActive = pathname === '/seal' || pathname === '/verify';
-  // const showManifeste = ['/profil', '/seal', '/verify', '/settings'].includes(pathname);
-
   // Liens de la sidebar Desktop
   const navLinks = [
-    { name: 'Le Feed Global', path: '/feed', icon: '🌐', section: 'Espace Public' },
-    { name: "L'Atelier", path: '/seal', icon: '🛠️', section: 'Espace Public' },
-    { name: 'Projets (Merkle)', path: '/profil', icon: '📁', section: 'Mon Espace Pro' },
-    { name: 'Vérifier', path: '/verify', icon: '🔍', section: 'Mon Espace Pro' },
-    { name: 'Accords & Messages', path: '/messages', icon: '🤝', section: 'Mon Espace Pro' },
-    { name: 'Communauté', path: '/friends', icon: '👥', section: 'Réseau' },
+    { name: 'Le Feed Global', path: '/feed', icon: '', section: 'Espace Public' },
+    { name: "L'Atelier", path: '/seal', icon: '', section: 'Espace Public' },
+    { name: 'Projets (Merkle)', path: '/profil', icon: '', section: 'Mon Espace Pro' },
+    { name: 'Vérifier', path: '/verify', icon: '', section: 'Mon Espace Pro' },
+    { name: 'Accords & Messages', path: '/messages', icon: '', section: 'Mon Espace Pro' },
+    { name: 'Communauté', path: '/friends', icon: '', section: 'Réseau' },
   ];
 
   return (
@@ -75,7 +72,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* ========================================== */}
         {/* SIDEBAR GAUCHE (Uniquement Desktop)        */}
         {/* ========================================== */}
-        <aside className="hidden md:flex flex-col w-64 bg-[#1E1E1E] text-gray-300 border-r border-[#333] shrink-0">
+        <aside className="hidden md:flex flex-col w-64 bg-[#111111] text-gray-300 border-r border-[#333] shrink-0">
           <div className="p-6 pb-2">
             <Link href="/feed" className="text-3xl font-bold font-serif text-white">SCEAU<span className="text-[#E76F51]">.</span></Link>
           </div>

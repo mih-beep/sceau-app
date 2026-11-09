@@ -157,7 +157,7 @@ export default function Feed() {
         ) : (
           <div className="space-y-6">
             {globalCreations.map((c: any) => (
-              <div key={c.id} className="bg-[var(--bg-surface)] rounded-3xl border border-[var(--border-color)] shadow-sm overflow-hidden flex flex-col">
+              <div key={c.id} className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border-color)] shadow-sm overflow-hidden flex flex-col">
                 <div className="p-4 flex justify-between items-center border-b border-[var(--border-color)]">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#E76F51] to-[#F4A261] text-white flex items-center justify-center font-bold text-xs">
@@ -185,7 +185,7 @@ export default function Feed() {
                   
                   <div className="flex items-center justify-between mb-4">
                     <button onClick={() => likeCreation(c.id)} className="flex items-center gap-1 text-sm font-bold text-[#E76F51] hover:scale-105 transition">
-                      ❤️ {c.likes_count > 0 ? c.likes_count : 'Aimer'}
+                      {c.likes_count > 0 ? c.likes_count : '0'} J'aime
                     </button>
                   </div>
 
@@ -271,11 +271,11 @@ export default function Feed() {
         <div className="flex gap-2 overflow-x-auto pb-2 snap-x flex-1 hide-scrollbar">
           {['all', 'Art', 'Musique', 'Code', 'Écrit'].map(cat => (
             <button key={cat} onClick={() => setActiveCategory(cat)} className={`snap-start shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition border ${activeCategory === cat ? 'bg-[#E76F51] text-white border-[#E76F51] shadow-md' : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border-color)]'}`}>
-              {cat === 'all' ? '🌍 Tout' : cat}
+              {cat === 'all' ? 'Tout' : cat}
             </button>
           ))}
         </div>
-        <button onClick={rollRandom} className="shrink-0 bg-[#2C1810] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md flex items-center gap-1">🎲 Surprise</button>
+        <button onClick={rollRandom} className="shrink-0 bg-[#2C1810] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md flex items-center gap-1">Aléatoire</button>
       </div>
 
       {loading ? (
@@ -325,7 +325,7 @@ export default function Feed() {
                 className="w-full flex items-center justify-between p-4 rounded-xl border-2 border-dashed border-[#E76F51] bg-[#FDF4F0] hover:bg-[#FCEAD6] transition group"
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">🎬</span>
+                  <span className="text-2xl"></span>
                   <div className="text-left">
                     <div className="font-bold text-[#C44A2E]">
                       {creations.length > 0 ? `${creations.length} création(s) rattachée(s)` : "Aucune création"}
@@ -353,7 +353,7 @@ export default function Feed() {
                     )}
                     <p className="text-sm mb-3" style={{ color: 'var(--text-main)' }}>{c.content}</p>
                     <button onClick={() => likeCreation(c.id)} className="flex items-center gap-1 text-xs font-bold text-[#E76F51]">
-                      ❤️ {c.likes_count > 0 ? c.likes_count : 'Aimer'}
+                      {c.likes_count > 0 ? c.likes_count : '0'} J'aime
                     </button>
                   </div>
                 ))}
@@ -390,7 +390,7 @@ export default function Feed() {
       {/* === MODALE : CRÉER UNE CRÉATION === */}
       {showCreateModal && selectedSeal && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowCreateModal(false)}>
-          <div className="bg-[var(--bg-surface)] w-full max-w-md rounded-3xl p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-[var(--bg-surface)] w-full max-w-md rounded-xl p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold" style={{ color: 'var(--text-main)' }}>Nouvelle Création</h2>
               <button onClick={() => setShowCreateModal(false)} className="text-xl opacity-50 hover:opacity-100">✕</button>

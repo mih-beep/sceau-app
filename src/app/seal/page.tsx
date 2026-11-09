@@ -184,7 +184,7 @@ function SealContent() {
       <div className="p-6 font-sans text-center flex flex-col items-center max-w-md mx-auto">
         <div className="text-6xl mb-4">{sealedResult.isFlash ? '⚡' : '✅'}</div>
         <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-main)' }}>C'est gravé.</h1>
-        <div className="bg-[var(--bg-surface)] p-6 rounded-3xl border border-[var(--border-color)] w-full text-left shadow-lg mt-6">
+        <div className="bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-color)] w-full text-left shadow-sm mt-6">
           <h3 className="font-bold mb-2" style={{ color: 'var(--text-main)' }}>{sealedResult.title}</h3>
           <p className="text-[0.6rem] font-mono break-all text-[var(--text-muted)] bg-[var(--bg-main)] p-2 rounded border border-[var(--border-color)]">{sealedResult.hash}</p>
           <p className="text-xs text-right mt-3 text-[var(--text-muted)]">Scellé le {sealedResult.date}</p>
@@ -203,8 +203,8 @@ function SealContent() {
       {!isPactMode && (
         <div className="flex justify-center mb-6">
           <div className="flex bg-[var(--bg-main)] p-1 rounded-xl border border-[var(--border-color)]">
-            <Link href="/seal" className="px-6 py-2 rounded-lg font-bold text-sm bg-[var(--bg-surface)] shadow text-[#E76F51]">✍️ Sceller</Link>
-            <Link href="/verify" className="px-6 py-2 rounded-lg font-bold text-sm opacity-50 hover:opacity-100 transition" style={{ color: 'var(--text-main)' }}>🔍 Vérifier</Link>
+            <Link href="/seal" className="px-6 py-2 rounded-lg font-bold text-sm bg-[var(--bg-surface)] shadow text-[#E76F51]">Sceller</Link>
+            <Link href="/verify" className="px-6 py-2 rounded-lg font-bold text-sm opacity-50 hover:opacity-100 transition" style={{ color: 'var(--text-main)' }}>Vérifier</Link>
           </div>
         </div>
       )}
@@ -218,8 +218,8 @@ function SealContent() {
       {/* === Toggle Normal / Flash === */}
       {!isPactMode && (
         <div className="flex bg-[var(--bg-main)] p-1 rounded-xl mb-4 border border-[var(--border-color)]">
-          <button type="button" onClick={() => { setIsFlashMode(false); setMode('file'); setIsHosted(true); setVisibility('public'); }} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${!isFlashMode ? 'bg-[var(--bg-surface)] shadow text-[#E76F51]' : 'opacity-50'}`}>📁 Normal</button>
-          <button type="button" onClick={() => { setIsFlashMode(true); setIsHosted(false); setVisibility('private'); }} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${isFlashMode ? 'bg-[#2C1810] text-white shadow' : 'opacity-50'}`}>⚡ Flash</button>
+          <button type="button" onClick={() => { setIsFlashMode(false); setMode('file'); setIsHosted(true); setVisibility('public'); }} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${!isFlashMode ? 'bg-[var(--bg-surface)] shadow text-[#E76F51]' : 'opacity-50'}`}>Standard</button>
+          <button type="button" onClick={() => { setIsFlashMode(true); setIsHosted(false); setVisibility('private'); }} className={`flex-1 py-2 rounded-lg font-bold text-sm transition ${isFlashMode ? 'bg-[#2C1810] text-white shadow' : 'opacity-50'}`}>Mode Flash</button>
         </div>
       )}
 
@@ -228,11 +228,11 @@ function SealContent() {
         {/* === Sélecteur de mode === */}
         {!isPactMode && (
           <div className="flex bg-[var(--bg-main)] p-1 rounded-xl text-xs font-mono">
-            <button type="button" onClick={() => setMode('file')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'file' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>📁 Fichier</button>
-            <button type="button" onClick={() => setMode('text')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'text' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>✍️ Texte</button>
-            <button type="button" onClick={() => setMode('media')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'media' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>📸 Photo</button>
-            <button type="button" onClick={() => setMode('audio')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'audio' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>🎙️ Audio</button>
-            <button type="button" onClick={() => setMode('project')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'project' ? 'bg-[#FDF4F0] text-[#C44A2E] shadow' : 'opacity-50'}`} style={{ color: mode === 'project' ? '' : 'var(--text-main)' }}>📁 Projet</button>
+            <button type="button" onClick={() => setMode('file')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'file' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>Fichier</button>
+            <button type="button" onClick={() => setMode('text')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'text' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>Texte</button>
+            <button type="button" onClick={() => setMode('media')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'media' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>Image</button>
+            <button type="button" onClick={() => setMode('audio')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'audio' ? 'bg-[var(--bg-surface)] shadow' : 'opacity-50'}`} style={{ color: 'var(--text-main)' }}>Audio</button>
+            <button type="button" onClick={() => setMode('project')} className={`flex-1 py-2 rounded-lg font-bold transition ${mode === 'project' ? 'bg-[#FDF4F0] text-[#C44A2E] shadow' : 'opacity-50'}`} style={{ color: mode === 'project' ? '' : 'var(--text-main)' }}>Projet</button>
           </div>
         )}
 
@@ -279,7 +279,7 @@ function SealContent() {
           <div>
             <label className="text-xs font-mono font-bold uppercase" style={{ color: 'var(--text-muted)' }}>Fichier</label>
             <input type="file" className="w-full text-sm mt-1" onChange={e => setFile(e.target.files?.[0] || null)} />
-            {file && <p className="text-xs mt-1 text-[var(--text-muted)]">📎 {file.name} ({(file.size / 1024).toFixed(0)} Ko)</p>}
+            {file && <p className="text-xs mt-1 text-[var(--text-muted)]">Fichier : {file.name} ({(file.size / 1024).toFixed(0)} Ko)</p>}
           </div>
         )}
         
@@ -288,7 +288,7 @@ function SealContent() {
             <label className="text-xs font-mono font-bold uppercase block mb-2" style={{ color: '#A88620' }}>Dossier (Multi-fichiers)</label>
             <p className="text-xs text-[#A88620] mb-2 italic">SCEAU va créer un Arbre de Merkle et ancrer une seule preuve pour tout le dossier.</p>
             <input type="file" multiple className="w-full text-sm" onChange={e => setProjectFiles(Array.from(e.target.files || []))} />
-            {projectFiles.length > 0 && <p className="text-xs mt-2 text-[#5D7A3A] font-bold">📎 {projectFiles.length} fichier(s) sélectionné(s)</p>}
+            {projectFiles.length > 0 && <p className="text-xs mt-2 text-[#5D7A3A] font-bold">Fichier : {projectFiles.length} fichier(s) sélectionné(s)</p>}
           </div>
         )}
 
@@ -297,7 +297,7 @@ function SealContent() {
           <div>
             <label className="text-xs font-mono font-bold uppercase" style={{ color: 'var(--text-muted)' }}>Photo / Vidéo</label>
             <input type="file" accept="image/*,video/*" capture="environment" className="w-full text-sm mt-1" onChange={e => setFile(e.target.files?.[0] || null)} />
-            {file && <p className="text-xs mt-1 text-[var(--text-muted)]">📎 {file.name}</p>}
+            {file && <p className="text-xs mt-1 text-[var(--text-muted)]">Fichier : {file.name}</p>}
           </div>
         )}
 
@@ -319,20 +319,20 @@ function SealContent() {
             <div>
               <label className="text-[0.65rem] font-mono font-bold uppercase block mb-2" style={{ color: 'var(--text-muted)' }}>Visibilité</label>
               <div className="flex bg-[var(--bg-surface)] rounded-xl border border-[var(--border-color)] p-1">
-                <button type="button" onClick={() => setVisibility('public')} className={`flex-1 py-2 text-xs font-bold rounded transition ${visibility === 'public' ? 'bg-[#F5F9EE] text-[#5D7A3A]' : 'opacity-50'}`}>🌍 Public</button>
-                <button type="button" onClick={() => setVisibility('friends')} className={`flex-1 py-2 text-xs font-bold rounded transition ${visibility === 'friends' ? 'bg-[#F0F6FC] text-[#2D6A9E]' : 'opacity-50'}`}>👥 Amis</button>
-                <button type="button" onClick={() => setVisibility('private')} className={`flex-1 py-2 text-xs font-bold rounded transition ${visibility === 'private' ? 'bg-[#FDF4F0] text-[#C44A2E]' : 'opacity-50'}`}>🔒 Privé</button>
+                <button type="button" onClick={() => setVisibility('public')} className={`flex-1 py-2 text-xs font-bold rounded transition ${visibility === 'public' ? 'bg-[#F5F9EE] text-[#5D7A3A]' : 'opacity-50'}`}>Public</button>
+                <button type="button" onClick={() => setVisibility('friends')} className={`flex-1 py-2 text-xs font-bold rounded transition ${visibility === 'friends' ? 'bg-[#F0F6FC] text-[#2D6A9E]' : 'opacity-50'}`}>Amis</button>
+                <button type="button" onClick={() => setVisibility('private')} className={`flex-1 py-2 text-xs font-bold rounded transition ${visibility === 'private' ? 'bg-[#FDF4F0] text-[#C44A2E]' : 'opacity-50'}`}>Privé</button>
               </div>
             </div>
 
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={isHosted} onChange={e => setIsHosted(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
-              <span className="text-sm font-bold" style={{ color: 'var(--text-main)' }}>☁️ Héberger le fichier</span>
+              <span className="text-sm font-bold" style={{ color: 'var(--text-main)' }}>Héberger sur le Cloud</span>
             </label>
 
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={isMystery} onChange={e => setIsMystery(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
-              <span className="text-sm font-bold" style={{ color: 'var(--text-main)' }}>🎭 Sceau Mystère</span>
+              <span className="text-sm font-bold" style={{ color: 'var(--text-main)' }}>Sceau Mystère</span>
             </label>
 
             {isMystery && (
@@ -344,11 +344,11 @@ function SealContent() {
 
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={isEphemeral} onChange={e => setIsEphemeral(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
-              <span className="text-sm font-bold" style={{ color: 'var(--text-main)' }}>⏳ Éphémère (24h)</span>
+              <span className="text-sm font-bold" style={{ color: 'var(--text-main)' }}>Éphémère (24h)</span>
             </label>
 
             <div className="pt-2 border-t border-[var(--border-color)]">
-              <label className="text-xs font-mono font-bold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>⏱️ Capsule Temporelle (optionnel)</label>
+              <label className="text-xs font-mono font-bold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>Capsule Temporelle</label>
               <input type="date" value={revealAt} onChange={e => setRevealAt(e.target.value)} className="w-full border-2 border-[var(--border-color)] p-2 rounded-lg bg-transparent text-sm" style={{ color: 'var(--text-main)' }} />
             </div>
           </div>
@@ -378,7 +378,7 @@ function SealContent() {
         <button
           type="button"
           onClick={handleSeal}
-          className={`w-full p-4 rounded-xl font-bold text-white shadow-lg mt-2 ${isPactMode ? 'bg-[#4A90C2]' : (isFlashMode ? 'bg-[#2C1810]' : 'bg-gradient-to-r from-[#E76F51] to-[#F4A261]')}`}
+          className={`w-full p-4 rounded-xl font-bold text-white shadow-sm mt-2 ${isPactMode ? 'bg-[#4A90C2]' : (isFlashMode ? 'bg-[#2C1810]' : 'bg-gradient-to-r from-[#E76F51] to-[#F4A261]')}`}
         >
           {isPactMode ? 'CRÉER LE PACTE' : (isFlashMode ? 'GRAVER EN 1 CLIC' : 'SCELLER MON ŒUVRE')}
         </button>

@@ -26,10 +26,12 @@ function toDetachedOts(hash: Uint8Array, calendarBody: Buffer): Buffer {
       calendarBody.subarray(0, HEADER_MAGIC.length).equals(HEADER_MAGIC)) {
     return calendarBody;
   }
+  // Si le calendar a renvoyé une preuve partielle sans header, on l'encapsule proprement
+  const hashBuffer = Buffer.from(hash);
   return Buffer.concat([
     HEADER_MAGIC,
     Buffer.from([0x01, 0x08]), // version 1 + op SHA-256
-    Buffer.from(hash),
+    hashBuffer,
     calendarBody,
   ]);
 }

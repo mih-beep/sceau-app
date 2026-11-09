@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { anchorToBitcoin, hashDocument } from '../../../../../../sceau-protocol/src/index';
+import { anchorToBitcoin, hashDocument } from '@/lib/sceau-protocol';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;

@@ -7,7 +7,8 @@ export async function GET(req: Request) {
   if (!pubkey) return NextResponse.json({ error: 'Clé manquante' }, { status: 400 });
 
   try {
-    const user = await pool.query("SELECT id, handle, bio, role, is_pro, open_to_collaboration, first_name, last_name, birth_date FROM users WHERE encode(pubkey, 'base64') = $1", [pubkey]);
+    const cleanPubkey = pubkey.replace(/ /g, "+");
+    const user = await pool.query("SELECT id, handle, bio, role, is_pro, open_to_collaboration, first_name, last_name, birth_date FROM users WHERE encode(pubkey, 'base64') = $1", [cleanPubkey]);
     if (user.rows.length === 0) return NextResponse.json({ error: 'Inconnu' }, { status: 404 });
     const userId = user.rows[0].id;
     const isPro = user.rows[0].is_pro || false;

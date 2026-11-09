@@ -257,7 +257,7 @@ function MessagesInner() {
         )}
 
         <h2 className="text-xs font-mono font-bold text-[#A89070] mb-2">Discussions</h2>
-        <div className="text-[0.55rem] text-[var(--text-muted)] italic mb-2">🔵 Amis · 🟠 Inconnus</div>
+        <div className="text-[0.55rem] text-[var(--text-muted)] italic mb-2">Contacts établis · Prospects</div>
         {activeContacts.map(c => {
           const isFriend = friendHandles.has(c.handle);
           return (
@@ -295,12 +295,12 @@ function MessagesInner() {
             <div className="flex items-center gap-3">
               <button onClick={() => setActiveChat(null)} className="md:hidden text-xl font-bold" style={{color: 'var(--text-main)'}}>←</button>
               <h2 className="text-lg font-bold" style={{color: 'var(--text-main)'}}>
-                {activeChat.type === 'group' ? `👥 ${activeChat.name}` : `@${activeChat.name}`}
+                {activeChat.type === 'group' ? ` ${activeChat.name}` : `@${activeChat.name}`}
               </h2>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setShowSharedVault(true)} className="bg-[#FDF8F0] text-[#A88620] border border-[#E9C46A] text-xs font-bold px-3 py-1 rounded-lg">📂 Coffre</button>
-              <button onClick={sealDiscussion} disabled={isSealingChat} className="bg-[#2C1810] text-white text-xs font-bold px-3 py-1 rounded-lg disabled:opacity-50">{isSealingChat ? '⏳...' : '🔒 Sceller'}</button>
+              <button onClick={() => setShowSharedVault(true)} className="bg-[#FDF8F0] text-[#A88620] border border-[#E9C46A] text-xs font-bold px-3 py-1 rounded-lg">Coffre</button>
+              <button onClick={sealDiscussion} disabled={isSealingChat} className="bg-[#2C1810] text-white text-xs font-bold px-3 py-1 rounded-lg disabled:opacity-50">{isSealingChat ? '⏳...' : 'Sceller'}</button>
               <button onClick={startPact} className="bg-[#4A90C2] text-white text-xs font-bold px-3 py-1 rounded-lg">+ Pacte</button>
             </div>
           </div>
@@ -311,7 +311,7 @@ function MessagesInner() {
                 const [id, title] = m.content.replace('[PACTE]', '').split('|');
                 return (
                   <div key={i} className="bg-[var(--bg-main)] border-2 border-[#4A90C2] p-4 rounded-xl text-center my-4">
-                    <div className="font-bold text-lg mb-2" style={{color: 'var(--text-main)'}}>🤝 {title}</div>
+                    <div className="font-bold text-lg mb-2" style={{color: 'var(--text-main)'}}> {title}</div>
                     <button onClick={() => setActivePact(id)} className="bg-[#4A90C2] text-white px-4 py-2 rounded-lg text-xs font-bold">Voir / Signer</button>
                   </div>
                 );
@@ -334,7 +334,7 @@ function MessagesInner() {
 
           <div className="p-4 border-t border-[var(--border-color)] flex gap-2 items-center">
             <button onClick={isRecording ? stopRecording : startRecording} className={`p-2 rounded-xl font-bold text-xl ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-[var(--bg-main)] text-[var(--text-main)]'}`}>
-              {isRecording ? `${recordingTime}s ⏹` : '🎙️'}
+              {isRecording ? `${recordingTime}s Stop` : 'Audio'}
             </button>
             <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Écrire..." className="flex-1 bg-[var(--bg-main)] border border-[var(--border-color)] rounded-xl px-4 py-2 text-sm outline-none" style={{color: 'var(--text-main)'}} onKeyDown={e => e.key === 'Enter' && sendMessage()} />
             <button onClick={sendMessage} className="bg-[#E76F51] text-white px-4 py-2 rounded-xl font-bold">→</button>
@@ -343,7 +343,7 @@ function MessagesInner() {
           {showSharedVault && (
             <div className="absolute inset-0 bg-[var(--bg-surface)] z-20 flex flex-col rounded-2xl">
               <div className="p-4 border-b border-[var(--border-color)] flex justify-between items-center">
-                <h3 className="font-bold text-lg text-[#A88620]">📂 Coffre Partagé</h3>
+                <h3 className="font-bold text-lg text-[#A88620]">Coffre Partagé</h3>
                 <button onClick={() => setShowSharedVault(false)} className="text-xl opacity-50">✕</button>
               </div>
               <div className="flex-1 p-4 overflow-y-auto">
@@ -354,7 +354,7 @@ function MessagesInner() {
                   <div className="space-y-3">
                     {sharedPacts.map(p => (
                       <div key={p.id} onClick={() => { setShowSharedVault(false); setActivePact(p.id); }} className="bg-[#FDF8F0] border border-[#E9C46A] p-4 rounded-xl cursor-pointer hover:shadow-md transition">
-                        <div className="font-bold" style={{color: 'var(--text-main)'}}>🤝 {p.title}</div>
+                        <div className="font-bold" style={{color: 'var(--text-main)'}}> {p.title}</div>
                         <div className="text-xs text-[#A88620] mt-1">Cliquez pour voir les détails et signer</div>
                       </div>
                     ))}
@@ -372,7 +372,7 @@ function MessagesInner() {
 
       {showGroupModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-[var(--bg-surface)] w-full max-w-sm rounded-3xl p-6">
+          <div className="bg-[var(--bg-surface)] w-full max-w-sm rounded-xl p-6">
             <h2 className="text-2xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Créer un Groupe</h2>
             <input type="text" placeholder="Nom du groupe" className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={groupName} onChange={e => setGroupName(e.target.value)} />
             <div className="flex gap-2">
@@ -398,7 +398,7 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
 
   async function signPact() {
     const pubkey = localStorage.getItem('sceau_pubkey');
-    if (!pubkey) return alert("Connecte-toi.");
+    if (!pubkey) return alert("Veuillez vous connecter.");
     
     setIsSigning(true);
     const res = await fetch('/api/pacts/sign', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pact_id: pactId, pubkey }) });
@@ -407,12 +407,7 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
     if (data.success) {
       if (data.isNowSealed) {
         fireConfetti();
-        let message = "🤝 L'accord est scellé.\nLa confiance est gravée dans le marbre numérique.";
-        if (pact?.theme === 'amour') message = "❤️ Votre promesse d'amour est gravée pour l'éternité.";
-        if (pact?.theme === 'famille') message = "🏡 Le pacte de famille est scellé. Les liens sont protégés.";
-        if (pact?.theme === 'amitie') message = "🍻 Le pacte d'amitié est gravé. À la vôtre !";
-        
-        setTimeout(() => alert(message), 500);
+        alert("Le contrat est complet. L'empreinte a été ancrée sur la blockchain Bitcoin.");
       }
       loadPact();
     } else {
@@ -440,59 +435,90 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
   const progress = Math.min(100, ((pact.signataires?.length || 0) / pact.required_signatures) * 100);
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-      <div className={`bg-[#FDF8F0] w-full max-w-md rounded-3xl p-8 border-4 shadow-2xl relative max-h-[90vh] overflow-y-auto ${isSealed ? 'border-[#E9C46A]' : 'border-[#4A90C2]'}`}>
+    <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className={`bg-white w-full max-w-lg rounded-2xl border shadow-2xl relative max-h-[90vh] overflow-y-auto ${isSealed ? 'border-[#E9C46A]' : 'border-[#E5E5E5]'}`}>
         
         {isSealed && (
-          <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-[#E9C46A] text-[#2C1810] px-6 py-1 rounded-full text-xs font-bold tracking-widest shadow-md border-2 border-white">
-            🔒 Contrat Scellé sur Bitcoin
+          <div className="absolute top-0 left-0 w-full bg-[#E9C46A] text-[#2C1810] py-1.5 rounded-t-2xl text-center text-xs font-bold tracking-widest uppercase">
+            Contrat Scellé sur Bitcoin
           </div>
         )}
 
-        <div className="text-center mb-6">
-          <div className="text-5xl mb-3">{isSealed ? '🏆' : '🤝'}</div>
-          <h2 className="text-3xl font-serif font-bold text-[#2C1810]">{pact.title}</h2>
-          <p className="text-xs font-mono text-[#A88620] italic mt-2">Proposé par @{pact.creator}</p>
-        </div>
-
-        <div className="bg-white/50 border border-[#EFE0CA] rounded-xl p-4 mb-6">
-          <p className="italic text-sm text-center text-gray-700">"{pact.description}"</p>
-        </div>
-
-        {/* Barre de progression */}
-        <div className="mb-6">
-          <div className="flex justify-between text-xs font-bold text-gray-500 mb-1">
-            <span>Signatures</span>
-            <span>{pact.signataires?.length || 0} / {pact.required_signatures}</span>
+        <div className={`p-6 ${isSealed ? 'mt-6' : ''}`}>
+          <div className="mb-6">
+            <h2 className="text-2xl font-serif font-bold text-gray-900 leading-tight">{pact.title}</h2>
+            <p className="text-xs font-mono text-gray-500 mt-1">Proposé par @{pact.creator}</p>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
-            <div className={`h-2 rounded-full ${isSealed ? 'bg-[#E9C46A]' : 'bg-[#4A90C2]'}`} style={{ width: `${progress}%` }}></div>
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
-            {(pact.signataires || []).map((s: string) => (
-              <span key={s} className="bg-[#F5F9EE] text-[#5D7A3A] border border-[#A8C77E] px-3 py-1 rounded-lg text-sm font-bold shadow-sm">✅ @{s}</span>
-            ))}
-          </div>
-        </div>
 
-        <div className="flex flex-col gap-2 mt-8">
-          {isSealed ? (
-            <>
-              <div className="bg-[#F5F9EE] border border-[#A8C77E] p-3 rounded-xl text-center mb-2">
-                <p className="text-xs text-[#5D7A3A] font-bold">Empreinte du contrat (SHA-256) :</p>
-                <p className="text-[0.6rem] font-mono text-[#7A9B5A] break-all mt-1">{pact.hash_str}</p>
-              </div>
-              <button onClick={downloadCertificate} disabled={isDownloading} className="w-full bg-gradient-to-r from-[#E9C46A] to-[#F4A261] text-[#2C1810] py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition flex justify-center items-center gap-2">
-                {isDownloading ? 'Génération...' : '📜 Télécharger le Certificat PDF'}
-              </button>
-            </>
-          ) : (
-            <button onClick={signPact} disabled={hasSigned || isSigning} className="w-full bg-[#4A90C2] text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-[#2D6A9E] transition disabled:opacity-50">
-              {isSigning ? 'Signature...' : hasSigned ? '✅ Vous avez signé' : '✍️ Contresigner le Pacte'}
-            </button>
+          {pact.description && (
+            <div className="bg-gray-50 border border-gray-100 rounded-lg p-4 mb-6">
+              <p className="text-sm text-gray-700 leading-relaxed">"{pact.description}"</p>
+            </div>
           )}
-          <button onClick={onClose} className="w-full py-2 font-bold opacity-50 hover:opacity-100 transition text-[#2C1810]">Fermer</button>
+
+          {/* FICHIERS JOINTS */}
+          {pact.media_urls && pact.media_urls.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Documents du contrat</h3>
+              <div className="space-y-2">
+                {pact.media_urls.map((url: string, i: number) => (
+                  <a 
+                    key={i} 
+                    href={url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between text-sm font-medium text-gray-700 hover:text-black bg-white p-3 rounded-lg border border-gray-200 hover:border-gray-400 transition"
+                  >
+                    <span>Document {i + 1}</span>
+                    <span className="text-xs text-blue-600 font-bold">Télécharger</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* PROGRESSION */}
+          <div className="mb-8">
+            <div className="flex justify-between text-xs font-bold text-gray-600 mb-2">
+              <span>Signatures requises ({pact.signataires?.length || 0} / {pact.required_signatures})</span>
+              {isSealed && <span className="text-green-600 uppercase tracking-wide">Validé</span>}
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4">
+              <div className={`h-1.5 rounded-full transition-all duration-700 ${isSealed ? 'bg-[#E9C46A]' : 'bg-black'}`} style={{ width: `${progress}%` }}></div>
+            </div>
+            
+            <div className="flex flex-wrap gap-2">
+              {(pact.signataires || []).map((s: string) => (
+                <span key={s} className="bg-gray-100 text-gray-700 border border-gray-200 px-2.5 py-1 rounded-md text-xs font-medium">@{s}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* ACTIONS */}
+          <div className="flex flex-col gap-3">
+            {isSealed ? (
+              <>
+                <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg text-center mb-2">
+                  <p className="text-[0.65rem] text-gray-500 font-bold uppercase mb-1">Empreinte SHA-256</p>
+                  <p className="text-[0.6rem] font-mono text-gray-800 break-all">{pact.hash_str}</p>
+                </div>
+                <button onClick={downloadCertificate} disabled={isDownloading} className="w-full bg-black text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition">
+                  {isDownloading ? 'Génération...' : 'Télécharger le Certificat PDF'}
+                </button>
+              </>
+            ) : (
+              <button 
+                onClick={signPact} 
+                disabled={hasSigned || isSigning} 
+                className={`w-full py-3.5 rounded-xl font-bold text-white transition ${hasSigned ? 'bg-green-600 cursor-default' : 'bg-black hover:bg-gray-800'}`}
+              >
+                {isSigning ? 'Ancrage en cours...' : hasSigned ? 'Vous avez signé' : 'Contresigner le contrat'}
+              </button>
+            )}
+            <button onClick={onClose} className="w-full py-2 text-sm font-bold text-gray-400 hover:text-gray-800 transition">
+              Fermer
+            </button>
+          </div>
         </div>
       </div>
     </div>
