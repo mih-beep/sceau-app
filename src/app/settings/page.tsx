@@ -218,6 +218,18 @@ export default function Settings() {
             </button>
           </div>
 
+          <div className="mt-6 pt-6 border-t border-[#C9D8E8]">
+            <h3 className="text-sm font-bold text-[#2D6A9E] mb-3">Plugins pour Professionnels</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <a href="/downloads/sceau-wordpress.zip" download className="flex items-center justify-center bg-[#2D6A9E] text-white py-2 rounded-lg font-bold text-sm shadow hover:bg-[#1E507A] transition">
+                Télécharger pour WordPress
+              </a>
+              <a href="/downloads/sceau-github-action.yml" download className="flex items-center justify-center bg-[#1A1513] text-white py-2 rounded-lg font-bold text-sm shadow hover:bg-black transition">
+                Télécharger pour GitHub
+              </a>
+            </div>
+          </div>
+
           {apiKeys.length > 0 && (
             <div className="space-y-2 mt-4 border-t border-[#C9D8E8] pt-4">
               <p className="text-xs font-bold text-[#2D6A9E] mb-2">Vos clés actives :</p>

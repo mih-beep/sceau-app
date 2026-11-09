@@ -13,6 +13,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
+    // Enregistrement PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed:', err));
+    }
+
     setHandle(localStorage.getItem('sceau_handle'));
     const theme = localStorage.getItem('sceau_theme');
     if (theme === 'dark') { setIsDark(true); document.documentElement.classList.add('dark'); }

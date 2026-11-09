@@ -1,4 +1,4 @@
-name: "SCEAU - Ancrage de Preuve"
+name: "SCEAU - Preuve d'Antériorité"
 on:
   push:
     branches: [ "main", "master" ]
@@ -7,11 +7,12 @@ jobs:
   sceau_seal:
     runs-on: ubuntu-latest
     steps:
-      - name: Envoi du commit à SCEAU
+      - name: Envoi du code à SCEAU
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%B)
           COMMIT_SHA=$(git rev-parse --short HEAD)
           
+          # Appel à l'API SCEAU
           curl -X POST https://sceau-app.vercel.app/api/v1/plugin/seal \
             -H "Content-Type: application/json" \
             -d '{

@@ -1,7 +1,7 @@
 {
-  "name": "SCEAU",
+  "name": "SCEAU — Notaire de Poche",
   "short_name": "SCEAU",
-  "description": "Le Notaire de Poche du Web.",
+  "description": "L'infrastructure de preuve du 21ème siècle. Scellez vos œuvres sur Bitcoin.",
   "start_url": "/feed",
   "display": "standalone",
   "background_color": "#F9F6F0",
