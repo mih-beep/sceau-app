@@ -26,6 +26,13 @@ export async function GET(req: Request) {
 
     const pacts = await pool.query("SELECT COUNT(*) as total_pacts FROM pact_signatures WHERE user_id = $1", [userId]);
 
+    // Récupération des projets (Arbre de Merkle)
+    const projects = await pool.query(`
+      SELECT p.id, p.title, p.description, p.merkle_root, p.created_at, p.ots_proof,
+             (SELECT COUNT(*) FROM project_files WHERE project_id = p.id) as files_count
+      FROM projects p WHERE p.author_id = $1 ORDER BY p.created_at DESC
+    `, [userId]);
+
     const totalSealed = parseInt(stats.rows[0].total_sealed || 0);
     const totalPacts = parseInt(pacts.rows[0].total_pacts || 0);
 
@@ -76,7 +83,8 @@ export async function GET(req: Request) {
       used_bytes: parseInt(stats.rows[0].total_size || 0),
       pacts: totalPacts,
       badges: badges,
-      seals: seals.rows
+      seals: seals.rows,
+      projects: projects.rows
     });
   } catch (error) { return NextResponse.json({ error: 'Erreur' }, { status: 500 }); }
 }

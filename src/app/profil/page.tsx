@@ -27,7 +27,7 @@ export default function Profil() {
     try {
       const res = await fetch(`/api/profil?pubkey=${encodeURIComponent(pubkey)}`);
       const d = await res.json();
-      if (res.ok && d.handle) setData({ ...d, seals: d.seals || [], badges: d.badges || [], favorites: d.favorites || [] });
+      if (res.ok && d.handle) setData({ ...d, seals: d.seals || [], badges: d.badges || [], favorites: d.favorites || [], projects: d.projects || [] });
       else setError("Profil introuvable.");
     } catch (e) { setError("Erreur serveur."); }
   }
@@ -116,6 +116,7 @@ export default function Profil() {
     friends: data.seals.filter((s:any) => s.visibility === 'friends' && !s.is_flash).length,
     private: data.seals.filter((s:any) => s.visibility === 'private' && !s.is_flash).length,
     flash: data.seals.filter((s:any) => s.is_flash).length,
+    projects: data.projects.length,
   };
 
   // ONGLET FAVORIS
@@ -209,11 +210,39 @@ export default function Profil() {
           <button onClick={() => setActiveTab('private')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${activeTab === 'private' ? 'bg-[#FDF4F0] text-[#C44A2E] shadow' : 'opacity-50'}`}>🔒 Privé ({counts.private})</button>
           <button onClick={() => setActiveTab('flash')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${activeTab === 'flash' ? 'bg-[#2C1810] text-white shadow' : 'opacity-50'}`}>⚡ Flash ({counts.flash})</button>
           <button onClick={() => setActiveTab('favorites')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${activeTab === 'favorites' ? 'bg-[#FCEAD6] text-[#C44A2E] shadow' : 'opacity-50'}`}>📌 Favoris ({data.favorites?.length || 0})</button>
+          <button onClick={() => setActiveTab('projects')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${activeTab === 'projects' ? 'bg-[#F0F6FC] text-[#2D6A9E] shadow' : 'opacity-50'}`}>📁 Projets ({counts.projects})</button>
         </div>
       </div>
 
-      <div className="space-y-3 mb-10">
-        {filteredSeals.length === 0 && <p className="text-[var(--text-muted)] italic text-sm p-4 bg-[var(--bg-surface)] rounded-xl text-center">Aucune œuvre dans ce compartiment.</p>}
+      {/* RENDU DES PROJETS (Si l'onglet est actif) */}
+      {activeTab === 'projects' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+          {data.projects.length === 0 ? (
+            <p className="col-span-full text-[var(--text-muted)] italic text-sm p-4 bg-[var(--bg-surface)] rounded-xl text-center border border-[var(--border-color)]">Aucun projet (Arbre de Merkle) créé pour le moment.</p>
+          ) : (
+            data.projects.map((project: any) => (
+              <Link href={`/projets/${project.id}`} key={project.id} className="block bg-[var(--bg-surface)] p-5 rounded-2xl border border-[var(--border-color)] shadow-sm hover:border-[#4A90C2] transition group">
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-bold text-lg text-[var(--text-main)] group-hover:text-[#4A90C2] transition">{project.title}</h3>
+                  <span className={`text-[0.65rem] font-bold px-2 py-1 rounded ${project.ots_proof ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700'}`}>
+                    {project.ots_proof ? '✅ Scellé' : '⏳ Pending'}
+                  </span>
+                </div>
+                <p className="text-xs text-[var(--text-muted)] mb-3">{project.description || "Dossier Miroir"}</p>
+                <div className="flex justify-between items-center border-t border-[var(--border-color)] pt-3 mt-3">
+                  <span className="text-xs font-bold text-[#4A90C2]">📁 {project.files_count} fichiers</span>
+                  <span className="text-[0.65rem] font-mono text-[var(--text-muted)]">{new Date(project.created_at).toLocaleDateString('fr-FR')}</span>
+                </div>
+              </Link>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* RENDU DES SCEAUX (Si l'onglet n'est pas Projets) */}
+      {activeTab !== 'projects' && (
+        <div className="space-y-3 mb-10">
+          {filteredSeals.length === 0 && <p className="text-[var(--text-muted)] italic text-sm p-4 bg-[var(--bg-surface)] rounded-xl text-center border border-[var(--border-color)]">Aucune œuvre dans ce compartiment.</p>}
         
         {filteredSeals.map((seal: any) => (
           <div key={seal.id} className="bg-[var(--bg-surface)] p-4 rounded-xl border border-[var(--border-color)] flex flex-col sm:flex-row justify-between sm:items-center shadow-sm gap-3">
@@ -246,8 +275,9 @@ export default function Profil() {
               }} className="text-red-400 hover:text-red-600 p-2 text-xl">🗑️</button>
             </div>
           </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {showPortfolioModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
