@@ -59,7 +59,7 @@ export async function POST(req: Request) {
       const pact = await client.query(
         `INSERT INTO pacts (title, description, creator_id, group_id, required_signatures, hash, media_urls, is_hosted, category)
          VALUES ($1, $2, $3, $4, $5, decode($6, 'base64'), $7, $8, 'Art') RETURNING id`,
-        [title, description, creatorId, groupId, requiredSignatures, hash, JSON.stringify(mediaUrls), mediaUrls.length > 0]
+        [title, description, creatorId, groupId, requiredSignatures, hash, JSON.stringify(mediaUrls), mediaUrls.length > 0, theme]
       );
       pactId = pact.rows[0].id;
       await client.query(

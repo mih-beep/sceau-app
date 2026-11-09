@@ -202,16 +202,26 @@ export function generatePactCertificate(
   signataires: string[],
   hash: string,
   qrCodeDataUrl: string,
-  pactId: string
+  pactId: string,
+  theme: string = 'serieux'
 ) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
+  // Couleurs selon le thème
+  const colors = {
+    serieux: { border: [233, 196, 106], bg: [253, 250, 245], title: [44, 24, 16], accent: [168, 134, 32] },
+    amour: { border: [244, 114, 182], bg: [253, 242, 248], title: [131, 24, 67], accent: [219, 39, 119] },
+    famille: { border: [134, 239, 172], bg: [240, 253, 244], title: [20, 83, 45], accent: [22, 163, 74] },
+    amitie: { border: [147, 197, 253], bg: [239, 246, 255], title: [30, 58, 138], accent: [37, 99, 235] },
+  };
+  const c = colors[theme as keyof typeof colors] || colors.serieux;
+
   // Fond Parchemin
-  doc.setFillColor(253, 250, 245);
+  doc.setFillColor(c.bg[0], c.bg[1], c.bg[2]);
   doc.rect(0, 0, 210, 297, 'F');
 
   // Bordure Dorée Élégante
-  doc.setDrawColor(233, 196, 106);
+  doc.setDrawColor(c.border[0], c.border[1], c.border[2]);
   doc.setLineWidth(1);
   doc.rect(10, 10, 190, 277);
   doc.rect(12, 12, 186, 273);
@@ -224,11 +234,11 @@ export function generatePactCertificate(
 
   doc.setFont('times', 'italic');
   doc.setFontSize(14);
-  doc.setTextColor(168, 134, 32);
+  doc.setTextColor(c.accent[0], c.accent[1], c.accent[2]);
   doc.text("SCEAU · La poignée de main numérique", 105, 45, { align: 'center' });
 
   // Ligne de séparation
-  doc.setDrawColor(233, 196, 106);
+  doc.setDrawColor(c.border[0], c.border[1], c.border[2]);
   doc.line(60, 50, 150, 50);
 
   // Titre du Pacte

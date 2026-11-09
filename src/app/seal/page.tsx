@@ -29,6 +29,7 @@ function SealContent() {
   const [unlockLikes, setUnlockLikes] = useState(10);
   const [revealAt, setRevealAt] = useState('');
   const [requiredSignatures, setRequiredSignatures] = useState(2);
+  const [pactTheme, setPactTheme] = useState('serieux');
 
   const [status, setStatus] = useState('');
   const [sealedResult, setSealedResult] = useState<any>(null);
@@ -136,6 +137,7 @@ function SealContent() {
       endpoint = '/api/pacts/create';
       formData.append('group_id', chatType === 'group' ? (chatId as string) : '');
       formData.append('required_signatures', requiredSignatures.toString());
+      formData.append('theme', pactTheme);
       pactFiles.forEach(f => formData.append('files', f));
     } else {
       formData.append('isFlash', isFlashMode.toString());
@@ -354,10 +356,22 @@ function SealContent() {
 
         {/* === Pacte : signatures === */}
         {isPactMode && (
-          <div>
-            <label className="text-xs font-mono font-bold uppercase" style={{ color: 'var(--text-muted)' }}>Signatures requises</label>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-mono font-bold uppercase block mb-2" style={{ color: 'var(--text-muted)' }}>L'émotion du Pacte</label>
+              <div className="flex gap-2 flex-wrap">
+                <button type="button" onClick={() => setPactTheme('serieux')} className={`p-2 rounded-xl border-2 text-2xl transition ${pactTheme === 'serieux' ? 'border-[#E76F51] bg-[#FDF4F0]' : 'border-[var(--border-color)] opacity-50'}`} title="Sérieux">🤝</button>
+                <button type="button" onClick={() => setPactTheme('amour')} className={`p-2 rounded-xl border-2 text-2xl transition ${pactTheme === 'amour' ? 'border-pink-500 bg-pink-50' : 'border-[var(--border-color)] opacity-50'}`} title="Amour">❤️</button>
+                <button type="button" onClick={() => setPactTheme('famille')} className={`p-2 rounded-xl border-2 text-2xl transition ${pactTheme === 'famille' ? 'border-green-500 bg-green-50' : 'border-[var(--border-color)] opacity-50'}`} title="Famille">🏡</button>
+                <button type="button" onClick={() => setPactTheme('amitie')} className={`p-2 rounded-xl border-2 text-2xl transition ${pactTheme === 'amitie' ? 'border-blue-500 bg-blue-50' : 'border-[var(--border-color)] opacity-50'}`} title="Amitié">🍻</button>
+              </div>
+            </div>
+            
+            <div>
+              <label className="text-xs font-mono font-bold uppercase" style={{ color: 'var(--text-muted)' }}>Signatures requises</label>
             <input type="number" min="2" value={requiredSignatures} onChange={e => setRequiredSignatures(parseInt(e.target.value) || 2)} className="w-full border-2 border-[var(--border-color)] p-2 rounded-lg text-center font-bold text-lg bg-transparent mt-1" style={{ color: 'var(--text-main)' }} />
           </div>
+        </div>
         )}
 
         {/* === Bouton SCELLER === */}

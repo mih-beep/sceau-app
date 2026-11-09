@@ -407,8 +407,12 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
     if (data.success) {
       if (data.isNowSealed) {
         fireConfetti();
-        // On laisse un petit délai pour que les confettis tombent avant l'alerte
-        setTimeout(() => alert("🤝 L'accord est scellé.\nLa confiance est gravée dans le marbre numérique."), 500);
+        let message = "🤝 L'accord est scellé.\nLa confiance est gravée dans le marbre numérique.";
+        if (pact?.theme === 'amour') message = "❤️ Votre promesse d'amour est gravée pour l'éternité.";
+        if (pact?.theme === 'famille') message = "🏡 Le pacte de famille est scellé. Les liens sont protégés.";
+        if (pact?.theme === 'amitie') message = "🍻 Le pacte d'amitié est gravé. À la vôtre !";
+        
+        setTimeout(() => alert(message), 500);
       }
       loadPact();
     } else {
