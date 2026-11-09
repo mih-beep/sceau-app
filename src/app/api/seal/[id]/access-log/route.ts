@@ -26,11 +26,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     FROM access_log a JOIN users u ON a.viewer_id = u.id
     WHERE a.seal_id = $1
   `;
-  const params: any[] = [id];
+  const queryParams: any[] = [id];
 
   if (search) {
     sql += ` AND u.handle ILIKE $2`;
-    params.push(`%${search}%`);
+    queryParams.push(`%${search}%`);
   }
 
   if (sort === 'oldest_account') {
@@ -42,7 +42,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   sql += ` LIMIT 500`;
-  const log = await pool.query(sql, params);
+  const log = await pool.query(sql, queryParams);
 
   return NextResponse.json({
     entries: log.rows.map((r: any) => ({
