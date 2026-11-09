@@ -5,40 +5,60 @@ import Link from 'next/link';
 export default function Cockpit() {
   const [handle, setHandle] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [alerts, setAlerts] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
   const [pendingPacts, setPendingPacts] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const h = localStorage.getItem('sceau_handle');
     const pubkey = localStorage.getItem('sceau_pubkey');
     setHandle(h);
 
-    if (pubkey) {
-      // Récupérer les vraies données du profil
-      fetch(`/api/profil?pubkey=${encodeURIComponent(pubkey)}`)
-        .then(r => r.json())
-        .then(d => {
-          if (d.handle) setProfile(d);
-        });
+    if (!pubkey) { setLoading(false); return; }
 
-      fetch(`/api/pacts/pending?pubkey=${encodeURIComponent(pubkey)}`)
-        .then(r => r.json())
-        .then(d => setPendingPacts(d.count || 0));
+    // Profil
+    fetch(`/api/profil?pubkey=${encodeURIComponent(pubkey)}`)
+      .then(r => r.json())
+      .then(d => { if (d.handle) setProfile(d); })
+      .catch(() => {});
 
-      // Simuler les alertes (à brancher sur l'API journal des accès plus tard)
-      setAlerts([
-        { id: 1, text: '@client_X a téléchargé "Portfolio.pdf"', time: 'il y a 2 min', icon: '⬇️', urgent: false },
-        { id: 2, text: '@Inconnu (compte de 1h) a vu votre projet', time: 'il y a 15 min', icon: '⚠️', urgent: true },
-        { id: 3, text: '@Agence_Y a signé le Pacte de co-création', time: 'il y a 1h', icon: '🤝', urgent: false },
-      ]);
-    }
+    // Activité (rafraîchie toutes les 30s)
+    const fetchActivity = () => {
+      fetch(`/api/profil/activity?pubkey=${encodeURIComponent(pubkey)}`)
+        .then(r => r.json())
+        .then(d => setActivities(d.activities || []))
+        .catch(() => {});
+    };
+    fetchActivity();
+    const interval = setInterval(fetchActivity, 30000);
+
+    // Pactes en attente
+    fetch(`/api/pacts/pending?pubkey=${encodeURIComponent(pubkey)}`)
+      .then(r => r.json())
+      .then(d => setPendingPacts(d.count || 0))
+      .catch(() => {});
+
+    setLoading(false);
+    return () => clearInterval(interval);
   }, []);
 
-  // Calcul du vrai stockage
-  const maxQuotaGB = 0.1; // 100 Mo (0.1 Go) en version Free
+  // Stockage dynamique
+  const maxQuotaGB = 0.1; // 100 Mo Free
   const usedBytes = profile?.used_bytes || 0;
   const usedGB = (usedBytes / (1024 * 1024 * 1024)).toFixed(2);
   const percentage = Math.min(100, (parseFloat(usedGB) / maxQuotaGB) * 100);
+
+  // Équipe dynamique (toi + amis)
+  const teamCount = 1 + (profile?.friends_count || 0);
+  const teamMax = 1; // Free = 1 siège, PRO = 5
+
+  function timeAgo(dateStr: string) {
+    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+    if (diff < 1) return "à l'instant";
+    if (diff < 60) return `il y a ${diff} min`;
+    if (diff < 1440) return `il y a ${Math.floor(diff/60)}h`;
+    return `il y a ${Math.floor(diff/1440)}j`;
+  }
 
   return (
     <aside className="hidden lg:flex flex-col w-[340px] bg-[var(--bg-main)] border-l border-[var(--border-color)] h-full overflow-y-auto shrink-0">
@@ -63,20 +83,19 @@ export default function Cockpit() {
             </div>
             <div className="text-right">
               <p className="font-bold text-[var(--text-main)]">Équipe</p>
-              <p className="text-[var(--orange)] cursor-pointer hover:underline">1 / 1 siège</p>
+              <Link href="/friends" className="text-[var(--orange)] hover:underline">{teamCount} / {teamMax} siège{teamCount > 1 ? 's' : ''}</Link>
             </div>
           </div>
         </div>
 
-        {/* NOUVEAU : Bouton Accusé de réception (Le Graal du freelance) */}
         {profile && (
-          <button className="w-full bg-[#F0F6FC] border border-[#C9D8E8] text-[#2D6A9E] py-2 rounded-lg text-xs font-bold hover:bg-[#E0EDF8] transition flex items-center justify-center gap-2">
-            📩 Envoyer une preuve (Accusé)
-          </button>
+          <Link href="/profil" className="w-full bg-[#F0F6FC] border border-[#C9D8E8] text-[#2D6A9E] py-2 rounded-lg text-xs font-bold hover:bg-[#E0EDF8] transition flex items-center justify-center gap-2">
+            📩 Mon profil complet
+          </Link>
         )}
       </div>
 
-      {/* BLOC 2 : JOURNAL D'ACCÈS (Traqueur) */}
+      {/* BLOC 2 : JOURNAL D'ACCÈS (Traqueur DYNAMIQUE) */}
       <div className="p-6 border-b border-[var(--border-color)] flex-1">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)]">Traqueur d'accès</h3>
@@ -86,33 +105,47 @@ export default function Cockpit() {
           </span>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {!handle ? (
             <p className="text-xs text-[var(--text-muted)] italic">Connectez-vous pour voir l'activité.</p>
-          ) : alerts.length === 0 ? (
-            <p className="text-xs text-[var(--text-muted)] italic">Aucun accès récent.</p>
+          ) : loading ? (
+            <p className="text-xs text-[var(--text-muted)] italic">Chargement...</p>
+          ) : activities.length === 0 ? (
+            <p className="text-xs text-[var(--text-muted)] italic">Aucun accès récent. Partagez vos œuvres pour voir l'activité ici.</p>
           ) : (
-            alerts.map((alert) => (
-              <div key={alert.id} className={`p-3 rounded-xl border ${alert.urgent ? 'bg-[#FDF4F0] border-[#FCE0D6]' : 'bg-[var(--bg-surface)] border-[var(--border-color)]'}`}>
+            activities.map((a, i) => (
+              <Link 
+                key={i} 
+                href={`/o/${a.seal_id}`}
+                className={`block p-3 rounded-xl border transition hover:border-[var(--orange)] ${a.is_new_account ? 'bg-[#FDF4F0] border-[#FCE0D6]' : 'bg-[var(--bg-surface)] border-[var(--border-color)]'}`}
+              >
                 <div className="flex items-start gap-2">
-                  <span className="text-lg">{alert.icon}</span>
-                  <div>
-                    <p className={`text-xs font-bold ${alert.urgent ? 'text-[#C44A2E]' : 'text-[var(--text-main)]'}`}>{alert.text}</p>
-                    <p className="text-[0.65rem] text-[var(--text-muted)] mt-1">{alert.time}</p>
+                  <span className="text-lg">{a.action === 'download' ? '⬇️' : '👁️'}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-bold ${a.is_new_account ? 'text-[#C44A2E]' : 'text-[var(--text-main)]'}`}>
+                      @{a.viewer} {a.action === 'download' ? 'a téléchargé' : 'a vu'}{' '}
+                      <span className="italic">"{a.seal_title?.slice(0, 25)}..."</span>
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-[0.65rem] text-[var(--text-muted)]">{timeAgo(a.created_at)}</p>
+                      {a.is_new_account && (
+                        <span className="text-[0.55rem] bg-red-100 text-red-600 font-bold px-1.5 py-0.5 rounded">Nouveau compte</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))
           )}
         </div>
-        {handle && (
-          <button className="w-full mt-4 text-xs font-bold text-[#4A90C2] hover:underline">
-            Voir tout le journal des accès
-          </button>
+        {handle && activities.length > 0 && (
+          <Link href="/profil" className="block w-full mt-4 text-xs font-bold text-[#4A90C2] hover:underline text-center">
+            Voir tout le journal des accès →
+          </Link>
         )}
       </div>
 
-      {/* BLOC 3 : PLAN DE TRAVAIL & AUDIT */}
+      {/* BLOC 3 : PLAN DE TRAVAIL DYNAMIQUE */}
       <div className="p-6 bg-[var(--bg-surface)] border-t border-[var(--border-color)]">
         <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)] mb-3">À faire</h3>
         <div className="space-y-2 mb-6">
@@ -125,14 +158,6 @@ export default function Cockpit() {
             </div>
             <span className="text-[var(--text-muted)] group-hover:text-[var(--orange)]">→</span>
           </Link>
-          
-          <button className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-[var(--bg-main)] transition group">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">📄</span>
-              <span className="text-sm font-bold text-[var(--text-main)]">Rapport d'audit PDF</span>
-            </div>
-            <span className="text-[var(--text-muted)] group-hover:text-[var(--orange)]">→</span>
-          </button>
 
           <Link href="/settings" className="flex items-center justify-between p-2 rounded-lg hover:bg-[var(--bg-main)] transition group">
             <div className="flex items-center gap-2">

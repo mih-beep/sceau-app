@@ -26,6 +26,12 @@ export async function GET(req: Request) {
 
     const pacts = await pool.query("SELECT COUNT(*) as total_pacts FROM pact_signatures WHERE user_id = $1", [userId]);
 
+    const friendsRes = await pool.query(`
+      SELECT COUNT(*) as count FROM friendships 
+      WHERE (requester_id = $1 OR addressee_id = $1) AND status = 'accepted'
+    `, [userId]);
+    const friendsCount = parseInt(friendsRes.rows[0].count || 0);
+
     // Récupération des projets (Arbre de Merkle)
     const projects = await pool.query(`
       SELECT p.id, p.title, p.description, p.merkle_root, p.created_at, p.ots_proof,
@@ -81,6 +87,7 @@ export async function GET(req: Request) {
       sealed: totalSealed,
       hosted: parseInt(stats.rows[0].total_hosted || 0),
       used_bytes: parseInt(stats.rows[0].total_size || 0),
+      friends_count: friendsCount,
       pacts: totalPacts,
       badges: badges,
       seals: seals.rows,
