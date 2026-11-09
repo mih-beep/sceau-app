@@ -25,6 +25,7 @@ function SealContent() {
   const [isMystery, setIsMystery] = useState(false);
   const [isEphemeral, setIsEphemeral] = useState(false);
   const [unlockLikes, setUnlockLikes] = useState(10);
+  const [revealAt, setRevealAt] = useState('');
   const [requiredSignatures, setRequiredSignatures] = useState(2);
 
   const [status, setStatus] = useState('');
@@ -116,6 +117,7 @@ function SealContent() {
       formData.append('isMystery', isMystery.toString());
       formData.append('isEphemeral', isEphemeral.toString());
       formData.append('unlockLikes', unlockLikes.toString());
+      formData.append('reveal_at', revealAt);
       formData.append('isHosted', isHosted.toString());
       if (challengeIdParam) formData.append('challenge_id', challengeIdParam);
       if (mode !== 'text' && file) formData.append('file', file);
@@ -306,6 +308,11 @@ function SealContent() {
               <input type="checkbox" checked={isEphemeral} onChange={e => setIsEphemeral(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
               <span className="text-sm font-bold" style={{ color: 'var(--text-main)' }}>⏳ Éphémère (24h)</span>
             </label>
+
+            <div className="pt-2 border-t border-[var(--border-color)]">
+              <label className="text-xs font-mono font-bold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>⏱️ Capsule Temporelle (optionnel)</label>
+              <input type="date" value={revealAt} onChange={e => setRevealAt(e.target.value)} className="w-full border-2 border-[var(--border-color)] p-2 rounded-lg bg-transparent text-sm" style={{ color: 'var(--text-main)' }} />
+            </div>
           </div>
         )}
 

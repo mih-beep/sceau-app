@@ -25,7 +25,8 @@ export async function POST(req: Request) {
     const projectIdInput = (data.get('project_id') as string) || null;
     const challengeId = (data.get('challenge_id') as string) || null;
     const visibilityInput = (data.get('visibility') as string) || 'public';
-    const isHostedInput = data.get('isHosted') !== 'false'; // par défaut : true
+    const isHostedInput = data.get('isHosted') !== 'false';
+    const revealAt = (data.get('reveal_at') as string) || null;
     const file = data.get('file') as File | null;
 
     if (!title) return NextResponse.json({ error: 'Titre requis' }, { status: 400 });
@@ -111,11 +112,11 @@ export async function POST(req: Request) {
         `INSERT INTO seals (
           hash, timestamp, author_id, title, description, is_public, visibility,
           is_hosted, file_path, file_size, is_flash, is_mystery, unlock_likes, is_ephemeral,
-          ots_proof, ots_submitted_at, project_id, version_number, challenge_id
+          ots_proof, ots_submitted_at, project_id, version_number, challenge_id, reveal_at
         ) VALUES (
           decode($1, 'base64'), NOW(), $2, $3, $4, $5, $6,
           $7, $8, $9, $10, $11, $12, $13,
-          $14, $15, $16, $17, $18
+          $14, $15, $16, $17, $18, $19
         ) RETURNING id`,
         [
           hash, authorId, title, description,
@@ -123,7 +124,7 @@ export async function POST(req: Request) {
           !isFlash && filePath ? true : false, filePath, fileSize,
           isFlash, isMystery, unlockLikes, isEphemeral,
           otsProof, otsProof ? new Date() : null,
-          projectId, versionNumber, challengeId,
+          projectId, versionNumber, challengeId, revealAt || null,
         ]
       );
       sealId = result.rows[0].id;
