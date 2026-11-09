@@ -80,7 +80,7 @@ export default function Verify() {
         <button onClick={()=>{setTab('file');setResult(null)}} className={`flex-1 py-2 text-xs font-mono font-bold rounded-lg ${tab==='file'?'bg-[var(--bg-main)] shadow':'opacity-50'}`} style={{color: 'var(--text-main)'}}>Fichier</button>
         <button onClick={()=>{setTab('hash');setResult(null)}} className={`flex-1 py-2 text-xs font-mono font-bold rounded-lg ${tab==='hash'?'bg-[var(--bg-main)] shadow':'opacity-50'}`} style={{color: 'var(--text-main)'}}>Hash</button>
         <button onClick={()=>{setTab('title');setResult(null)}} className={`flex-1 py-2 text-xs font-mono font-bold rounded-lg ${tab==='title'?'bg-[var(--bg-main)] shadow':'opacity-50'}`} style={{color: 'var(--text-main)'}}>Titre</button>
-        <button onClick={()=>{setTab('timeline');setResult(null)}} className={`flex-1 py-2 text-xs font-mono font-bold rounded-lg ${tab==='timeline'?'bg-[#E76F51] text-white shadow':'opacity-50'}`} style={{color: tab==='timeline' ? '#FFF' : 'var(--text-main)'}}>📅 Frise</button>
+        <button onClick={()=>{setTab('timeline');setResult(null)}} className={`flex-1 py-2 text-xs font-mono font-bold rounded-lg ${tab==='timeline'?'bg-[#E76F51] text-white shadow':'opacity-50'}`} style={{color: tab==='timeline' ? '#FFF' : 'var(--text-main)'}}>Chronologie</button>
       </div>
 
       {tab === 'file' && (
@@ -156,7 +156,7 @@ export default function Verify() {
           {result.found ? (
             <div>
               <div className="text-center mb-6">
-                <div className="text-3xl mb-2">✅</div>
+                <div className="text-3xl mb-2"></div>
                 <h2 className="font-bold text-xl" style={{color: 'var(--text-main)'}}>{tab === 'title' ? 'ŒUVRES TROUVÉES' : 'FICHIER AUTHENTIQUE'}</h2>
                 <p className="text-sm text-[var(--text-muted)]">{result.seals.length} preuve(s)</p>
               </div>
@@ -185,7 +185,7 @@ export default function Verify() {
               </div>
             </div>
           ) : (
-            <p className="text-center font-bold text-[#A02E2E]">❌ Aucune œuvre trouvée.</p>
+            <p className="text-center font-bold text-[#A02E2E]"> Aucune œuvre trouvée.</p>
           )}
         </div>
       )}

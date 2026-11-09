@@ -67,7 +67,7 @@ export default function Cockpit() {
       <div className="p-6 border-b border-[var(--border-color)]">
         <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)] mb-4">Mon Espace Pro</h3>
         
-        <div className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-4 shadow-sm mb-4">
+        <div className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-lg p-4 shadow-sm mb-4">
           <div className="flex justify-between items-end mb-2">
             <span className="text-sm font-bold text-[var(--text-main)]">Stockage</span>
             <span className="text-xs font-mono text-[var(--text-muted)]">{usedGB} Go / {maxQuotaGB} Go</span>
@@ -89,8 +89,8 @@ export default function Cockpit() {
         </div>
 
         {profile && (
-          <Link href="/profil" className="w-full bg-[#F0F6FC] border border-[#C9D8E8] text-[#2D6A9E] py-2 rounded-lg text-xs font-bold hover:bg-[#E0EDF8] transition flex items-center justify-center gap-2">
-            📩 Mon profil complet
+          <Link href="/profil" className="w-full bg-white border border-[var(--border-color)] text-[var(--text-main)] py-2 rounded-lg text-xs font-bold hover:bg-[#E0EDF8] transition flex items-center justify-center gap-2">
+            Voir mon profil complet
           </Link>
         )}
       </div>
@@ -117,7 +117,7 @@ export default function Cockpit() {
               <Link 
                 key={i} 
                 href={`/o/${a.seal_id}`}
-                className={`block p-3 rounded-xl border transition hover:border-[var(--orange)] ${a.is_new_account ? 'bg-[#FDF4F0] border-[#FCE0D6]' : 'bg-[var(--bg-surface)] border-[var(--border-color)]'}`}
+                className={`block p-3 rounded-lg border transition hover:border-[var(--orange)] ${a.is_new_account ? 'bg-[#FDF4F0] border-[#FCE0D6]' : 'bg-[var(--bg-surface)] border-[var(--border-color)]'}`}
               >
                 <div className="flex items-start gap-2">
                   <span className="text-lg">{a.action === 'download' ? '⬇️' : '👁️'}</span>
@@ -151,7 +151,7 @@ export default function Cockpit() {
         <div className="space-y-2 mb-6">
           <Link href="/messages" className="flex items-center justify-between p-2 rounded-lg hover:bg-[var(--bg-main)] transition group">
             <div className="flex items-center gap-2">
-              <span className="text-lg">🤝</span>
+              <span className="text-lg"></span>
               <span className="text-sm font-bold text-[var(--text-main)]">
                 {pendingPacts > 0 ? `${pendingPacts} Pacte${pendingPacts > 1 ? 's' : ''} en attente` : 'Aucun pacte en attente'}
               </span>
@@ -161,18 +161,18 @@ export default function Cockpit() {
 
           <Link href="/settings" className="flex items-center justify-between p-2 rounded-lg hover:bg-[var(--bg-main)] transition group">
             <div className="flex items-center gap-2">
-              <span className="text-lg">🔌</span>
+              <span className="text-lg"></span>
               <span className="text-sm font-bold text-[var(--text-main)]">Connecter un plugin</span>
             </div>
             <span className="text-[var(--text-muted)] group-hover:text-[var(--orange)]">→</span>
           </Link>
         </div>
 
-        <div className="bg-gradient-to-br from-[#2D2421] to-black p-4 rounded-xl text-center shadow-lg relative overflow-hidden">
+        <div className="bg-[#1A1513] p-4 rounded-lg text-center shadow-lg relative overflow-hidden">
           <div className="relative z-10">
-            <p className="text-white font-bold text-sm mb-1">SCEAU PRO</p>
-            <p className="text-[0.65rem] text-gray-400 mb-3">Débloquez l'illimité.</p>
-            <Link href="/pricing" className="inline-block bg-[var(--orange)] text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-[var(--orange-hover)] transition">
+            <p className="text-[#EADFD4] font-bold text-sm mb-1">SCEAU PRO</p>
+            <p className="text-[0.65rem] text-[#8A7A72] mb-3">Débloquez l'illimité.</p>
+            <Link href="/pricing" className="inline-block bg-[#E76F51] text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-[var(--orange-hover)] transition">
               Mettre à niveau
             </Link>
           </div>

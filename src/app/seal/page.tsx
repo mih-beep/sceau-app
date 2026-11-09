@@ -53,7 +53,7 @@ function SealContent() {
       };
       mediaRecorder.start();
       setIsRecording(true);
-    } catch { setStatus("❌ Impossible d'accéder au micro."); }
+    } catch { setStatus(" Impossible d'accéder au micro."); }
   }
 
   function stopRecording() {
@@ -67,13 +67,13 @@ function SealContent() {
   async function handleSeal() {
     setStatus('');
 
-    if (!title.trim()) return setStatus("❌ Un titre est requis");
-    if (mode === 'project' && projectFiles.length === 0) return setStatus("❌ Sélectionne des fichiers pour ton projet");
-    if (isPactMode && pactFiles.length === 0) return setStatus("❌ Ajoute au moins un fichier au pacte");
-    if (!isPactMode && mode === 'text' && !textContent.trim()) return setStatus("❌ Écris ton texte");
-    if (!isPactMode && mode === 'file' && !file) return setStatus("❌ Choisis un fichier à sceller");
-    if (!isPactMode && mode === 'media' && !file) return setStatus("❌ Prends une photo ou une vidéo");
-    if (!isPactMode && mode === 'audio' && !file) return setStatus("❌ Enregistre un audio");
+    if (!title.trim()) return setStatus(" Un titre est requis");
+    if (mode === 'project' && projectFiles.length === 0) return setStatus(" Sélectionne des fichiers pour ton projet");
+    if (isPactMode && pactFiles.length === 0) return setStatus(" Ajoute au moins un fichier au pacte");
+    if (!isPactMode && mode === 'text' && !textContent.trim()) return setStatus(" Écris ton texte");
+    if (!isPactMode && mode === 'file' && !file) return setStatus(" Choisis un fichier à sceller");
+    if (!isPactMode && mode === 'media' && !file) return setStatus(" Prends une photo ou une vidéo");
+    if (!isPactMode && mode === 'audio' && !file) return setStatus(" Enregistre un audio");
 
     setStatus(isPactMode ? "Préparation du pacte..." : "Calcul de l'empreinte...");
     try {
@@ -98,7 +98,7 @@ function SealContent() {
       } else if (mode === 'text') {
         hashContent = sha256(new TextEncoder().encode(textContent));
       } else {
-        if (!file) return setStatus("❌ Fichier manquant");
+        if (!file) return setStatus(" Fichier manquant");
         hashContent = sha256(new Uint8Array(await file.arrayBuffer()));
       }
 
@@ -111,13 +111,13 @@ function SealContent() {
       }
     } catch (e: any) {
       console.error(e);
-      setStatus("❌ Erreur de gravure : " + (e?.message || 'inconnue'));
+      setStatus(" Erreur de gravure : " + (e?.message || 'inconnue'));
     }
   }
 
   async function sendToServer(hashB64: string, merkleRoot?: string, projectManifest?: any[]) {
     const pubkey = localStorage.getItem('sceau_pubkey');
-    if (!pubkey) return setStatus("❌ Connecte-toi d'abord !");
+    if (!pubkey) return setStatus(" Connecte-toi d'abord !");
 
     const formData = new FormData();
     formData.append('hash', hashB64);
@@ -158,7 +158,7 @@ function SealContent() {
       const data = await res.json().catch(() => ({} as any));
 
       if (!res.ok) {
-        return setStatus("❌ " + (data?.error || `Erreur serveur (${res.status})`));
+        return setStatus(" " + (data?.error || `Erreur serveur (${res.status})`));
       }
 
       if (isPactMode) {
@@ -170,25 +170,25 @@ function SealContent() {
         }
         window.location.href = '/messages';
       } else {
-        setStatus("✅ Scellé !");
+        setStatus(" Scellé !");
         setSealedResult({ title, hash: hashB64, date: new Date().toLocaleDateString('fr-FR'), isFlash: isFlashMode, ots: !!data.ots_secured });
       }
     } catch (e: any) {
       console.error(e);
-      setStatus("❌ Erreur réseau : " + (e?.message || 'impossible de contacter le serveur'));
+      setStatus(" Erreur réseau : " + (e?.message || 'impossible de contacter le serveur'));
     }
   }
 
   if (sealedResult) {
     return (
       <div className="p-6 font-sans text-center flex flex-col items-center max-w-md mx-auto">
-        <div className="text-6xl mb-4">{sealedResult.isFlash ? '⚡' : '✅'}</div>
+        <div className="text-6xl mb-4">{sealedResult.isFlash ? '⚡' : ''}</div>
         <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-main)' }}>C'est gravé.</h1>
         <div className="bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-color)] w-full text-left shadow-sm mt-6">
           <h3 className="font-bold mb-2" style={{ color: 'var(--text-main)' }}>{sealedResult.title}</h3>
           <p className="text-[0.6rem] font-mono break-all text-[var(--text-muted)] bg-[var(--bg-main)] p-2 rounded border border-[var(--border-color)]">{sealedResult.hash}</p>
           <p className="text-xs text-right mt-3 text-[var(--text-muted)]">Scellé le {sealedResult.date}</p>
-          {sealedResult.ots && <p className="text-xs mt-2 text-[#5D7A3A] font-bold">✅ Preuve horodatée</p>}
+          {sealedResult.ots && <p className="text-xs mt-2 text-[#5D7A3A] font-bold"> Preuve horodatée</p>}
         </div>
         <button onClick={() => window.location.reload()} className="mt-8 bg-[#2C1810] text-white p-3 rounded-xl font-bold w-full">Sceller une autre œuvre</button>
         <Link href="/feed" className="mt-3 border-2 border-[var(--border-color)] text-[var(--text-main)] p-3 rounded-xl font-bold w-full text-center">Voir le Feed</Link>
@@ -306,8 +306,8 @@ function SealContent() {
           <div>
             <label className="text-xs font-mono font-bold uppercase" style={{ color: 'var(--text-muted)' }}>Audio</label>
             <div className="mt-1">
-              {!isRecording && !audioUrl && <button type="button" onClick={startRecording} className="w-full bg-red-500 text-white py-2 rounded-lg font-bold text-xs">🔴 Enregistrer</button>}
-              {isRecording && <button type="button" onClick={stopRecording} className="w-full bg-[#2C1810] text-white py-2 rounded-lg font-bold text-xs animate-pulse">⏹ Arrêter</button>}
+              {!isRecording && !audioUrl && <button type="button" onClick={startRecording} className="w-full bg-red-500 text-white py-2 rounded-lg font-bold text-xs">Démarrer l'enregistrement</button>}
+              {isRecording && <button type="button" onClick={stopRecording} className="w-full bg-[#2C1810] text-white py-2 rounded-lg font-bold text-xs animate-pulse">Arrêter</button>}
               {audioUrl && !isRecording && <audio controls src={audioUrl} className="w-full mt-2 h-10" />}
             </div>
           </div>
@@ -383,9 +383,9 @@ function SealContent() {
           {isPactMode ? 'CRÉER LE PACTE' : (isFlashMode ? 'GRAVER EN 1 CLIC' : 'SCELLER MON ŒUVRE')}
         </button>
 
-        {/* === ✅ Affichage du statut — CE QUI MANQUAIT === */}
+        {/* ===  Affichage du statut — CE QUI MANQUAIT === */}
         {status && (
-          <p className={`text-center font-bold text-sm p-3 rounded-lg border ${status.includes('✅') ? 'bg-[#F5F9EE] text-[#5D7A3A] border-[#A8C77E]' : status.includes('❌') ? 'bg-[#FDF4F0] text-[#C44A2E] border-[#FCE0D6]' : 'bg-[#F0F6FC] text-[#2D6A9E] border-[#C9D8E8]'}`}>
+          <p className={`text-center font-bold text-sm p-3 rounded-lg border ${status.includes('') ? 'bg-[#F5F9EE] text-[#5D7A3A] border-[#A8C77E]' : status.includes('') ? 'bg-[#FDF4F0] text-[#C44A2E] border-[#FCE0D6]' : 'bg-[#F0F6FC] text-[#2D6A9E] border-[#C9D8E8]'}`}>
             {status}
           </p>
         )}
