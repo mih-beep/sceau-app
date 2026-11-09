@@ -5,6 +5,32 @@ import { sha256 } from '@noble/hashes/sha256';
 import { generatePactCertificate } from '@/lib/pdf';
 import QRCode from 'qrcode';
 
+
+function fireConfetti() {
+  const colors = ['#E76F51', '#F4A261', '#E9C46A', '#2A9D8F', '#4A90C2'];
+  for (let i = 0; i < 50; i++) {
+    const el = document.createElement('div');
+    el.style.position = 'fixed';
+    el.style.width = '10px';
+    el.style.height = '10px';
+    el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    el.style.left = Math.random() * 100 + 'vw';
+    el.style.top = '-10px';
+    el.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+    el.style.zIndex = '9999';
+    el.style.pointerEvents = 'none';
+    el.style.transition = `transform ${1 + Math.random() * 2}s ease-in, opacity ${1 + Math.random()}s ease-out`;
+    
+    document.body.appendChild(el);
+    
+    requestAnimationFrame(() => {
+      el.style.transform = `translateY(${window.innerHeight + 100}px) rotate(${Math.random() * 360}deg)`;
+      el.style.opacity = '0';
+    });
+    
+    setTimeout(() => el.remove(), 3000);
+  }
+}
 function MessagesInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -380,7 +406,9 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
     
     if (data.success) {
       if (data.isNowSealed) {
-        alert("🎉 Le pacte est complet ! Il a été gravé sur Bitcoin pour l'éternité.");
+        fireConfetti();
+        // On laisse un petit délai pour que les confettis tombent avant l'alerte
+        setTimeout(() => alert("🤝 L'accord est scellé.\nLa confiance est gravée dans le marbre numérique."), 500);
       }
       loadPact();
     } else {

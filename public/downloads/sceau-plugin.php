@@ -72,6 +72,24 @@ function sceau_seal_on_publish($new_status, $old_status, $post) {
 
         // On met quand même à jour la métadonnée localement (optimiste)
         update_post_meta($post->ID, 'sceau_sealed', 'true');
+        
+        // On stocke un flag pour afficher la notification "Sceau posé"
+        set_transient('sceau_seal_success_' . get_current_user_id(), true, 30);
+    }
+}
+
+// Affichage de la notification "Sceau posé"
+add_action('admin_notices', 'sceau_admin_notice');
+function sceau_admin_notice() {
+    $user_id = get_current_user_id();
+    if (get_transient('sceau_seal_success_' . $user_id)) {
+        delete_transient('sceau_seal_success_' . $user_id);
+        ?>
+        <div class="notice notice-success is-dismissible" style="border-left-color: #E76F51;">
+            <p><strong>🛡️ Sceau posé.</strong> Votre travail est protégé pour l'éternité. Continuez à créer, on veille sur votre héritage.</p>
+        </div>
+        <?php
+    }
     }
 }
 

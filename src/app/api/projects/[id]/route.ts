@@ -5,8 +5,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const { id } = await params;
   try {
     const projectRes = await pool.query(`
-      SELECT p.*, u.handle as author 
-      FROM projects p JOIN users u ON p.author_id = u.id 
+      SELECT p.*, u.handle as author, parent.title as parent_title, parent.id as parent_id
+      FROM projects p 
+      JOIN users u ON p.author_id = u.id 
+      LEFT JOIN projects parent ON p.parent_id = parent.id
       WHERE p.id = $1
     `, [id]);
 

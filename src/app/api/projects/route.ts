@@ -18,6 +18,7 @@ export async function POST(req: Request) {
     const description = ((data.get('description') as string) || '').trim();
     const pubkey = data.get('pubkey') as string;
     const isHosted = data.get('isHosted') !== 'false';
+    const parentId = data.get('parent_id') || null;
     const merkleRoot = data.get('merkle_root') as string;
     const manifestStr = data.get('manifest') as string; // JSON array of {name, hash, size}
     const files = (data.getAll('files') as File[]).filter((f) => f && f.size > 0);
@@ -87,8 +88,8 @@ export async function POST(req: Request) {
     try {
       await client.query('BEGIN');
       const projectRes = await client.query(
-        `INSERT INTO projects (author_id, title, description, merkle_root, ots_proof) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-        [authorId, title, description, merkleRoot, otsProof]
+        `INSERT INTO projects (author_id, title, description, merkle_root, ots_proof, parent_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+        [authorId, title, description, merkleRoot, otsProof, parentId]
       );
       projectId = projectRes.rows[0].id;
 
