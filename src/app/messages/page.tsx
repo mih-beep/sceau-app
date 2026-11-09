@@ -365,15 +365,28 @@ function MessagesInner() {
 function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void }) {
   const [pact, setPact] = useState<any>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSigning, setIsSigning] = useState(false);
   
   const loadPact = () => fetch(`/api/pacts/${pactId}`).then(r => r.json()).then(d => setPact(d));
   useEffect(() => { loadPact(); }, [pactId]);
 
   async function signPact() {
     const pubkey = localStorage.getItem('sceau_pubkey');
+    if (!pubkey) return alert("Connecte-toi.");
+    
+    setIsSigning(true);
     const res = await fetch('/api/pacts/sign', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pact_id: pactId, pubkey }) });
     const data = await res.json();
-    if (data.success) loadPact();
+    
+    if (data.success) {
+      if (data.isNowSealed) {
+        alert("🎉 Le pacte est complet ! Il a été gravé sur Bitcoin pour l'éternité.");
+      }
+      loadPact();
+    } else {
+      alert(data.error);
+    }
+    setIsSigning(false);
   }
 
   async function downloadCertificate() {
@@ -383,7 +396,7 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
     const qrDataUrl = await QRCode.toDataURL(verifyUrl, { width: 300, margin: 1 });
     generatePactCertificate(
       pact.title, pact.description, pact.creator, pact.signataires || [], 
-      pact.hash_str || 'Hash non disponible', qrDataUrl, pact.id
+      pact.hash_str || 'Hash en cours de calcul', qrDataUrl, pact.id
     );
     setIsDownloading(false);
   }
@@ -392,65 +405,39 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
   const myHandle = localStorage.getItem('sceau_handle');
   const hasSigned = pact.signataires?.includes(myHandle);
   const isSealed = pact.status === 'scelle';
-
-  // Parse sécurisé des médias
-  let mediaUrls: string[] = [];
-  try {
-    if (pact.media_urls) mediaUrls = JSON.parse(pact.media_urls);
-  } catch (e) {
-    if (pact.file_path) mediaUrls = [pact.file_path];
-  }
+  const progress = Math.min(100, ((pact.signataires?.length || 0) / pact.required_signatures) * 100);
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
       <div className={`bg-[#FDF8F0] w-full max-w-md rounded-3xl p-8 border-4 shadow-2xl relative max-h-[90vh] overflow-y-auto ${isSealed ? 'border-[#E9C46A]' : 'border-[#4A90C2]'}`}>
         
         {isSealed && (
-          <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[#E9C46A] text-[#2C1810] px-6 py-1 rounded-full text-xs font-bold tracking-widest shadow-md border-2 border-white">
-            Certificat Scellé
+          <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-[#E9C46A] text-[#2C1810] px-6 py-1 rounded-full text-xs font-bold tracking-widest shadow-md border-2 border-white">
+            🔒 Contrat Scellé sur Bitcoin
           </div>
         )}
 
         <div className="text-center mb-6">
           <div className="text-5xl mb-3">{isSealed ? '🏆' : '🤝'}</div>
-          <h2 className="text-3xl font-serif font-bold" style={{color: '#2C1810'}}>{pact.title}</h2>
+          <h2 className="text-3xl font-serif font-bold text-[#2C1810]">{pact.title}</h2>
           <p className="text-xs font-mono text-[#A88620] italic mt-2">Proposé par @{pact.creator}</p>
         </div>
 
-        <p className="italic mb-6 p-4 bg-white/50 border border-[#EFE0CA] rounded-xl text-sm text-center" style={{color: 'var(--text-main)'}}>
-          "{pact.description}"
-        </p>
+        <div className="bg-white/50 border border-[#EFE0CA] rounded-xl p-4 mb-6">
+          <p className="italic text-sm text-center text-gray-700">"{pact.description}"</p>
+        </div>
 
-        {/* LA GALERIE DE MÉDIAS */}
-        {mediaUrls.length > 0 && (
-          <div className="mb-6">
-            <p className="text-xs font-bold text-[#A89070] font-mono mb-2">Médias joints ({mediaUrls.length})</p>
-            <div className="flex gap-2 overflow-x-auto snap-x hide-scrollbar pb-2">
-              {mediaUrls.map((url: string, i: number) => {
-                const isImage = url.match(/\.(jpeg|jpg|gif|png|webp)/i);
-                const isVideo = url.match(/\.(mp4|webm|ogg|mov)/i);
-                return (
-                  <div key={i} className="snap-start shrink-0 w-32 h-32 bg-[#FDF8F0] border border-[#EFE0CA] rounded-xl overflow-hidden flex items-center justify-center relative group">
-                    {isImage ? (
-                      <img src={url} alt="media" className="w-full h-full object-cover" />
-                    ) : isVideo ? (
-                      <video src={url} className="w-full h-full object-cover" />
-                    ) : (
-                      <a href={url} target="_blank" className="text-center p-2 text-xs font-bold text-[#2C1810] hover:text-[#E76F51]">📄<br/>Fichier</a>
-                    )}
-                    <a href={url} target="_blank" rel="noopener" className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition">Ouvrir</a>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
+        {/* Barre de progression */}
         <div className="mb-6">
-          <h3 className="text-xs font-mono font-bold text-[#A88620] mb-3 text-center">
-            Signatures officielles ({pact.signataires?.length || 0} / {pact.required_signatures})
-          </h3>
-          <div className="flex flex-wrap justify-center gap-2">
+          <div className="flex justify-between text-xs font-bold text-gray-500 mb-1">
+            <span>Signatures</span>
+            <span>{pact.signataires?.length || 0} / {pact.required_signatures}</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
+            <div className={`h-2 rounded-full ${isSealed ? 'bg-[#E9C46A]' : 'bg-[#4A90C2]'}`} style={{ width: `${progress}%` }}></div>
+          </div>
+          
+          <div className="flex flex-wrap gap-2">
             {(pact.signataires || []).map((s: string) => (
               <span key={s} className="bg-[#F5F9EE] text-[#5D7A3A] border border-[#A8C77E] px-3 py-1 rounded-lg text-sm font-bold shadow-sm">✅ @{s}</span>
             ))}
@@ -459,15 +446,21 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
 
         <div className="flex flex-col gap-2 mt-8">
           {isSealed ? (
-            <button onClick={downloadCertificate} disabled={isDownloading} className="w-full bg-gradient-to-r from-[#E9C46A] to-[#F4A261] text-[#2C1810] py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition flex justify-center items-center gap-2">
-              {isDownloading ? 'Génération...' : '📜 Télécharger le Certificat PDF'}
-            </button>
+            <>
+              <div className="bg-[#F5F9EE] border border-[#A8C77E] p-3 rounded-xl text-center mb-2">
+                <p className="text-xs text-[#5D7A3A] font-bold">Empreinte du contrat (SHA-256) :</p>
+                <p className="text-[0.6rem] font-mono text-[#7A9B5A] break-all mt-1">{pact.hash_str}</p>
+              </div>
+              <button onClick={downloadCertificate} disabled={isDownloading} className="w-full bg-gradient-to-r from-[#E9C46A] to-[#F4A261] text-[#2C1810] py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition flex justify-center items-center gap-2">
+                {isDownloading ? 'Génération...' : '📜 Télécharger le Certificat PDF'}
+              </button>
+            </>
           ) : (
-            <button onClick={signPact} disabled={hasSigned} className="w-full bg-[#4A90C2] text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-[#2D6A9E] transition disabled:opacity-50">
-              {hasSigned ? '✅ Vous avez signé' : '✍️ Contresigner le Pacte'}
+            <button onClick={signPact} disabled={hasSigned || isSigning} className="w-full bg-[#4A90C2] text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-[#2D6A9E] transition disabled:opacity-50">
+              {isSigning ? 'Signature...' : hasSigned ? '✅ Vous avez signé' : '✍️ Contresigner le Pacte'}
             </button>
           )}
-          <button onClick={onClose} className="w-full py-2 font-bold opacity-50 hover:opacity-100 transition" style={{color: '#2C1810'}}>Fermer</button>
+          <button onClick={onClose} className="w-full py-2 font-bold opacity-50 hover:opacity-100 transition text-[#2C1810]">Fermer</button>
         </div>
       </div>
     </div>
