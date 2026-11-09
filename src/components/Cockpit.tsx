@@ -6,6 +6,7 @@ export default function Cockpit() {
   const [handle, setHandle] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
+  const [pendingPacts, setPendingPacts] = useState(0);
 
   useEffect(() => {
     const h = localStorage.getItem('sceau_handle');
@@ -19,6 +20,10 @@ export default function Cockpit() {
         .then(d => {
           if (d.handle) setProfile(d);
         });
+
+      fetch(`/api/pacts/pending?pubkey=${encodeURIComponent(pubkey)}`)
+        .then(r => r.json())
+        .then(d => setPendingPacts(d.count || 0));
 
       // Simuler les alertes (à brancher sur l'API journal des accès plus tard)
       setAlerts([
@@ -114,7 +119,9 @@ export default function Cockpit() {
           <Link href="/messages" className="flex items-center justify-between p-2 rounded-lg hover:bg-[var(--bg-main)] transition group">
             <div className="flex items-center gap-2">
               <span className="text-lg">🤝</span>
-              <span className="text-sm font-bold text-[var(--text-main)]">2 Pactes en attente</span>
+              <span className="text-sm font-bold text-[var(--text-main)]">
+                {pendingPacts > 0 ? `${pendingPacts} Pacte${pendingPacts > 1 ? 's' : ''} en attente` : 'Aucun pacte en attente'}
+              </span>
             </div>
             <span className="text-[var(--text-muted)] group-hover:text-[var(--orange)]">→</span>
           </Link>

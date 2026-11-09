@@ -3,7 +3,7 @@ import './globals.css'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
-import Manifeste from '@/components/Manifeste'
+// import Manifeste from '@/components/Manifeste'
 import Cockpit from '@/components/Cockpit'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -48,7 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   const isActive = (path: string) => pathname === path;
   const isToolsActive = pathname === '/seal' || pathname === '/verify';
-  const showManifeste = ['/profil', '/seal', '/verify', '/settings'].includes(pathname);
+  // const showManifeste = ['/profil', '/seal', '/verify', '/settings'].includes(pathname);
 
   // Liens de la sidebar Desktop
   const navLinks = [
@@ -129,7 +129,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
              <div className="w-full h-full">
                {children}
              </div>
-             {showManifeste && <div className="max-w-3xl mx-auto md:max-w-none"><Manifeste /></div>}
+
           </main>
 
           {/* NAV BOTTOM (Uniquement Mobile) */}
@@ -155,7 +155,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* ========================================== */}
         {/* COCKPIT (Uniquement Desktop)               */}
         {/* ========================================== */}
-        <Cockpit />
+        {pathname !== '/seal' && pathname !== '/messages' && <Cockpit />}
 
       </body>
     </html>
