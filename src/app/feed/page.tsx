@@ -10,21 +10,17 @@ export default function Feed() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
 
-  // Barre de recherche globale
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
-  // Créations rattachées (Feed interne)
   const [creations, setCreations] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Feed Global
   const [showCreationsFeed, setShowCreationsFeed] = useState(false);
   const [globalCreations, setGlobalCreations] = useState<any[]>([]);
   const [loadingGlobal, setLoadingGlobal] = useState(false);
 
-  // Modale de création
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createContent, setCreateContent] = useState('');
   const [createFile, setCreateFile] = useState<File | null>(null);
@@ -75,6 +71,17 @@ export default function Feed() {
       return () => clearTimeout(timer);
     }
   }, [activeStoryIndex, stories.length]);
+
+  async function likeCreation(id: string) {
+    if (!myPubkey) return alert('Connecte-toi pour liker !');
+    await fetch('/api/creations/like', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ creation_id: id, pubkey: myPubkey })
+    });
+    loadCreations(selectedSeal.id);
+    if (showCreationsFeed) loadGlobalFeed();
+  }
 
   async function submitCreation() {
     if ((!createContent.trim() && !createFile) || !myPubkey || !selectedSeal) return;
@@ -130,7 +137,7 @@ export default function Feed() {
     }
   };
 
-  // === SI ON EST DANS LE FEED GLOBAL DES CRÉATIONS ===
+  // === FEED GLOBAL (CRÉATIONS) ===
   if (showCreationsFeed) {
     return (
       <div className="p-6 max-w-lg mx-auto font-sans min-h-screen bg-[var(--bg-main)] pb-20">
@@ -142,15 +149,15 @@ export default function Feed() {
         </div>
 
         {loadingGlobal ? (
-           <p className="text-center font-mono py-10">Chargement des créations...</p>
+           <p className="text-center font-mono py-10">Chargement...</p>
         ) : globalCreations.length === 0 ? (
            <div className="text-center py-10 bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-color)]">
-             <p className="italic text-[var(--text-muted)]">Aucune création sur le réseau pour le moment.</p>
+             <p className="italic text-[var(--text-muted)]">Aucune création sur le réseau.</p>
            </div>
         ) : (
           <div className="space-y-6">
             {globalCreations.map((c: any) => (
-              <div key={c.id} className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-color)] shadow-sm overflow-hidden flex flex-col">
+              <div key={c.id} className="bg-[var(--bg-surface)] rounded-3xl border border-[var(--border-color)] shadow-sm overflow-hidden flex flex-col">
                 <div className="p-4 flex justify-between items-center border-b border-[var(--border-color)]">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#E76F51] to-[#F4A261] text-white flex items-center justify-center font-bold text-xs">
@@ -173,9 +180,15 @@ export default function Feed() {
                   </div>
                 )}
 
-                <div className="p-4">
+                <div className="p-5">
                   {c.content && <p className="text-sm mb-4" style={{ color: 'var(--text-main)' }}>{c.content}</p>}
                   
+                  <div className="flex items-center justify-between mb-4">
+                    <button onClick={() => likeCreation(c.id)} className="flex items-center gap-1 text-sm font-bold text-[#E76F51] hover:scale-105 transition">
+                      ❤️ {c.likes_count > 0 ? c.likes_count : 'Aimer'}
+                    </button>
+                  </div>
+
                   <button 
                     onClick={() => { setShowCreationsFeed(false); setSelectedSeal({ id: c.seal_id, title: c.seal_title, author: c.author, description: '' }); }}
                     className="w-full text-left bg-[var(--bg-main)] border border-[var(--border-color)] p-3 rounded-xl hover:border-[#E76F51] transition flex items-center justify-between group"
@@ -195,7 +208,7 @@ export default function Feed() {
     );
   }
 
-  // === SINON, ON EST DANS LE FEED NORMAL (CADRANS) ===
+  // === FEED NORMAL (CADRANS) ===
   return (
     <main className="min-h-screen p-6 font-sans max-w-3xl mx-auto relative">
       <div className="flex justify-between items-center mb-4">
@@ -203,7 +216,6 @@ export default function Feed() {
         <Link href="/seal" className="bg-[#E76F51] text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md">+ Sceller</Link>
       </div>
 
-      {/* BARRE DE RECHERCHE GLOBALE */}
       <div className="mb-6 relative z-40">
         <input 
           type="text" 
@@ -234,7 +246,6 @@ export default function Feed() {
         )}
       </div>
 
-      {/* Stories */}
       {stories.length > 0 && (
         <div className="flex gap-4 overflow-x-auto pb-4 mb-2 snap-x hide-scrollbar">
           {stories.map((story, index) => (
@@ -251,7 +262,6 @@ export default function Feed() {
         </div>
       )}
 
-      {/* Toggle Feed Cadran / Feed Créations */}
       <div className="flex bg-[var(--bg-surface)] border border-[var(--border-color)] p-1 rounded-xl mb-4">
         <button className="flex-1 py-2 text-sm font-bold rounded-lg bg-[var(--bg-main)] shadow" style={{ color: 'var(--text-main)' }}>Cadrans (Œuvres)</button>
         <button onClick={() => setShowCreationsFeed(true)} className="flex-1 py-2 text-sm font-bold rounded-lg opacity-50">Créations (Feed)</button>
@@ -284,13 +294,13 @@ export default function Feed() {
         </div>
       )}
 
-      {/* === LE NOUVEAU CADRAN === */}
+      {/* === LE CADRAN CARRE === */}
       {selectedSeal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedSeal(null)}>
-          <div className="bg-[var(--bg-surface)] w-full max-w-lg rounded-3xl relative max-h-[90vh] flex flex-col overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-[var(--bg-main)] w-full max-w-lg rounded-2xl relative max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border-2 border-[var(--border-color)]" onClick={e => e.stopPropagation()}>
             
-            {/* Header du Cadran */}
-            <div className="p-6 border-b border-[var(--border-color)] flex justify-between items-start bg-[var(--bg-surface)] z-10">
+            {/* En-tête du Cadran */}
+            <div className="p-5 border-b border-[var(--border-color)] flex justify-between items-start bg-[var(--bg-surface)] z-10">
               <div>
                 <h2 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-main)' }}>{selectedSeal.title}</h2>
                 <div className="flex items-center gap-3">
@@ -301,68 +311,74 @@ export default function Feed() {
             </div>
 
             {/* Contenu */}
-            <div className="p-6 overflow-y-auto flex-1 bg-[var(--bg-main)]">
+            <div className="p-5 overflow-y-auto flex-1 bg-[var(--bg-main)] space-y-4">
               
-              {/* Bloc Description */}
-              <div className="bg-[var(--bg-surface)] p-5 rounded-2xl border border-[var(--border-color)] shadow-sm mb-6">
-                <h3 className="text-xs font-mono font-bold uppercase mb-2 text-[var(--text-muted)]">Description du créateur</h3>
+              {/* Bloc Description (Carré) */}
+              <div className="bg-[var(--bg-surface)] p-4 rounded-xl border border-[var(--border-color)]">
+                <h3 className="text-[0.65rem] font-mono font-bold uppercase mb-2 text-[var(--text-muted)] tracking-wider">Description du créateur</h3>
                 <p className="text-sm italic" style={{ color: 'var(--text-main)' }}>{selectedSeal.description || "Aucune description fournie."}</p>
               </div>
 
-              {/* Le fameux bouton "Voir les créations" */}
-              <div className="mb-6">
-                <button 
-                  onClick={() => setShowCreateModal(true)}
-                  className="w-full flex items-center justify-between p-4 rounded-xl border-2 border-dashed border-[#E76F51] bg-[#FDF4F0] hover:bg-[#FCEAD6] transition group"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">🎬</span>
-                    <div className="text-left">
-                      <div className="font-bold text-[#C44A2E]">
-                        {creations.length > 0 ? `${creations.length} création(s) rattachée(s)` : "Aucune création pour l'instant"}
-                      </div>
-                      <div className="text-xs text-[#C44A2E] opacity-80">
-                        {creations.length > 0 ? "Cliquez pour explorer et commenter" : "Lancez la vôtre !"}
-                      </div>
+              {/* Bouton d'action (Créations) */}
+              <button 
+                onClick={() => setShowCreateModal(true)}
+                className="w-full flex items-center justify-between p-4 rounded-xl border-2 border-dashed border-[#E76F51] bg-[#FDF4F0] hover:bg-[#FCEAD6] transition group"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🎬</span>
+                  <div className="text-left">
+                    <div className="font-bold text-[#C44A2E]">
+                      {creations.length > 0 ? `${creations.length} création(s) rattachée(s)` : "Aucune création"}
+                    </div>
+                    <div className="text-xs text-[#C44A2E] opacity-80">
+                      {creations.length > 0 ? "Cliquez pour explorer" : "Lancez la vôtre !"}
                     </div>
                   </div>
-                  <span className="font-bold text-xl text-[#C44A2E] group-hover:translate-x-1 transition">→</span>
-                </button>
-              </div>
+                </div>
+                <span className="font-bold text-xl text-[#C44A2E] group-hover:translate-x-1 transition">→</span>
+              </button>
 
-              {/* Aperçu des 2 dernières créations (ou commentaires) */}
-              <div className="space-y-3 mb-6">
-                {creations.slice(0, 2).map((c, i) => (
+              {/* Liste des créations (avec Likes) */}
+              <div className="space-y-3 pb-4">
+                {creations.map((c, i) => (
                   <div key={i} className="bg-[var(--bg-surface)] p-4 rounded-xl border border-[var(--border-color)]">
                     <div className="flex justify-between items-center mb-2">
                       <span className="font-bold text-xs" style={{ color: 'var(--text-main)' }}>@{c.author}</span>
-                      <span className="text-[0.6rem] bg-[#E76F51] text-white px-2 py-0.5 rounded">Texte</span>
+                      <span className="text-[0.6rem] bg-[#E76F51] text-white px-2 py-0.5 rounded">{c.type === 'text' ? 'Texte' : c.type}</span>
                     </div>
-                    <p className="text-sm" style={{ color: 'var(--text-main)' }}>{c.content}</p>
+                    {c.media_url && c.type !== 'text' && (
+                      <div className="mb-3 rounded-lg overflow-hidden border border-[var(--border-color)]">
+                        {c.type === 'video' ? <video src={c.media_url} controls className="w-full max-h-48 object-cover" /> : <img src={c.media_url} className="w-full max-h-48 object-cover" />}
+                      </div>
+                    )}
+                    <p className="text-sm mb-3" style={{ color: 'var(--text-main)' }}>{c.content}</p>
+                    <button onClick={() => likeCreation(c.id)} className="flex items-center gap-1 text-xs font-bold text-[#E76F51]">
+                      ❤️ {c.likes_count > 0 ? c.likes_count : 'Aimer'}
+                    </button>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Barre de commentaire */}
+            {/* Barre de commentaire (Fix Bouton) */}
             {myHandle && (
               <div className="p-4 border-t border-[var(--border-color)] bg-[var(--bg-surface)]">
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   <input 
                     type="text" 
                     value={newComment} 
                     onChange={e => setNewComment(e.target.value)} 
-                    placeholder="Écrire un commentaire SCEAU..." 
-                    className="flex-1 bg-[var(--bg-main)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#E76F51]" 
+                    placeholder="Commenter..." 
+                    className="flex-1 min-w-0 bg-[var(--bg-main)] border border-[var(--border-color)] rounded-xl px-4 py-2 text-sm outline-none focus:border-[#E76F51]" 
                     style={{ color: 'var(--text-main)' }} 
                     onKeyDown={e => e.key === 'Enter' && submitComment()}
                   />
                   <button 
                     onClick={submitComment} 
                     disabled={isSubmitting}
-                    className="bg-[#E76F51] text-white px-6 rounded-xl font-bold disabled:opacity-50"
+                    className="shrink-0 bg-[#E76F51] text-white px-4 py-2 rounded-xl font-bold text-sm disabled:opacity-50"
                   >
-                    {isSubmitting ? '...' : 'Publier'}
+                    Publier
                   </button>
                 </div>
               </div>
@@ -371,7 +387,7 @@ export default function Feed() {
         </div>
       )}
 
-      {/* === MODALE : CRÉER UNE CRÉATION RATTACHÉE === */}
+      {/* === MODALE : CRÉER UNE CRÉATION === */}
       {showCreateModal && selectedSeal && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowCreateModal(false)}>
           <div className="bg-[var(--bg-surface)] w-full max-w-md rounded-3xl p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -379,64 +395,27 @@ export default function Feed() {
               <h2 className="text-xl font-bold" style={{ color: 'var(--text-main)' }}>Nouvelle Création</h2>
               <button onClick={() => setShowCreateModal(false)} className="text-xl opacity-50 hover:opacity-100">✕</button>
             </div>
-            <p className="text-xs text-[var(--text-muted)] mb-4">Rattacher une création au sceau : <strong>{selectedSeal.title}</strong></p>
-
+            
             <textarea 
               className="w-full border-2 border-[var(--border-color)] rounded-xl p-3 outline-none bg-transparent mb-4" 
               rows={3} 
-              placeholder="Écris ton commentaire ou la description de ton média..."
+              placeholder="Description de ton média..."
               value={createContent}
               onChange={e => setCreateContent(e.target.value)}
               style={{ color: 'var(--text-main)' }}
             />
 
             <div className="mb-6">
-              <label className="block text-xs font-mono font-bold text-[var(--text-muted)] uppercase mb-2">Média (Photo ou Vidéo)</label>
-              <input 
-                type="file" 
-                accept="image/*,video/*" 
-                onChange={e => setCreateFile(e.target.files?.[0] || null)} 
-                className="w-full text-sm" 
-              />
-              {createFile && <p className="text-xs mt-2 text-[#5D7A3A] font-bold">📎 {createFile.name}</p>}
+              <input type="file" accept="image/*,video/*" onChange={e => setCreateFile(e.target.files?.[0] || null)} className="w-full text-sm" />
             </div>
 
-            <button 
-              onClick={submitCreation}
-              disabled={isCreating || (!createContent.trim() && !createFile)}
-              className="w-full bg-[#E76F51] text-white py-3 rounded-xl font-bold shadow-md disabled:opacity-50 transition"
-            >
-              {isCreating ? 'Publication...' : 'Publier la création'}
+            <button onClick={submitCreation} disabled={isCreating} className="w-full bg-[#E76F51] text-white py-3 rounded-xl font-bold shadow-md">
+              {isCreating ? 'Publication...' : 'Publier'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Visionneuse Stories */}
-      {activeStoryIndex !== null && (
-        <div className="fixed inset-0 bg-black z-[100] flex flex-col">
-          <div className="flex gap-1 p-2 bg-gradient-to-b from-black/50 to-transparent absolute top-0 w-full z-10">
-            {stories.map((_, i) => (
-              <div key={i} className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
-                {i === activeStoryIndex && <div className="h-full bg-white animate-[progress_5s_linear_forwards]"></div>}
-                {i < activeStoryIndex && <div className="h-full bg-white w-full"></div>}
-              </div>
-            ))}
-          </div>
-          <button onClick={() => setActiveStoryIndex(null)} className="absolute top-6 right-4 text-white text-2xl z-20">✕</button>
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-             {stories[activeStoryIndex].file_path && stories[activeStoryIndex].is_hosted ? (
-                <img src={stories[activeStoryIndex].file_path} alt="story" className="max-h-[70vh] rounded-xl object-contain" />
-             ) : (
-                <div className="bg-[var(--bg-surface)] p-8 rounded-3xl border-4 border-[#E76F51] max-w-sm w-full">
-                  <h2 className="text-3xl font-bold mb-4" style={{ color: 'var(--text-main)' }}>{stories[activeStoryIndex].title}</h2>
-                  <p className="text-[var(--text-muted)] italic">Sceau éphémère de @{stories[activeStoryIndex].author}</p>
-                </div>
-             )}
-             <Link href={`/o/${stories[activeStoryIndex].id}`} className="mt-8 bg-white/10 text-white px-6 py-3 rounded-full font-bold backdrop-blur-md border border-white/20">Voir la preuve complète</Link>
-          </div>
-        </div>
-      )}
     </main>
   );
 }

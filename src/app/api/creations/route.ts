@@ -17,7 +17,7 @@ export async function GET(req: Request) {
 
   try {
     let sql = `
-      SELECT a.id, a.type, a.content, a.media_url, a.created_at, a.parent_id, u.handle as author
+      SELECT a.id, a.type, a.content, a.media_url, a.created_at, a.parent_id, u.handle as author, (SELECT COUNT(*) FROM creation_likes WHERE attachment_id = a.id) as likes_count
       FROM attachments a 
       JOIN users u ON a.user_id = u.id
       WHERE a.seal_id = $1
