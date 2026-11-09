@@ -109,6 +109,13 @@ export default function Settings() {
     setIsGeneratingKey(false);
   }
 
+  async function revokeApiKey(id: string) {
+    if (!confirm('Voulez-vous vraiment révoquer cette clé ? Les plugins qui l\'utilisent cesseront de fonctionner.')) return;
+    const res = await fetch(`/api/auth/api-keys?pubkey=${encodeURIComponent(pubkey)}&id=${id}`, { method: 'DELETE' });
+    if (res.ok) loadApiKeys();
+    else alert('Erreur lors de la révocation');
+  }
+
   function logout() {
     localStorage.clear();
     router.push('/login');
@@ -194,18 +201,18 @@ export default function Settings() {
             </div>
           )}
 
-          <div className="flex gap-2 mb-4">
+          <div className="flex flex-col sm:flex-row gap-2 mb-4">
             <input 
               type="text" 
               placeholder="Nom (ex: Mon site WordPress)" 
-              className="flex-1 border-2 border-[#C9D8E8] p-2 rounded-xl bg-white focus:border-[#4A90C2] outline-none text-sm" 
+              className="flex-1 min-w-0 border-2 border-[#C9D8E8] p-2 rounded-xl bg-white focus:border-[#4A90C2] outline-none text-sm" 
               value={newKeyName} 
               onChange={e => setNewKeyName(e.target.value)} 
             />
             <button 
               onClick={generateApiKey} 
               disabled={isGeneratingKey}
-              className="bg-[#4A90C2] text-white px-4 py-2 rounded-xl font-bold text-sm shadow-md disabled:opacity-50"
+              className="bg-[#4A90C2] text-white px-4 py-2 rounded-xl font-bold text-sm shadow-md disabled:opacity-50 shrink-0"
             >
               {isGeneratingKey ? '...' : 'Générer'}
             </button>
@@ -217,9 +224,12 @@ export default function Settings() {
               {apiKeys.map(k => (
                 <div key={k.id} className="flex justify-between items-center bg-white p-2 rounded-lg border border-[#C9D8E8] text-xs">
                   <span className="font-bold">{k.name}</span>
-                  <span className="text-[#8A7A72]">
-                    {k.last_used_at ? `Utilisée le ${new Date(k.last_used_at).toLocaleDateString('fr-FR')}` : 'Jamais utilisée'}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[#8A7A72]">
+                      {k.last_used_at ? `Utilisée le ${new Date(k.last_used_at).toLocaleDateString('fr-FR')}` : 'Jamais utilisée'}
+                    </span>
+                    <button onClick={() => revokeApiKey(k.id)} className="text-red-400 hover:text-red-600 font-bold" title="Révoquer">✕</button>
+                  </div>
                 </div>
               ))}
             </div>

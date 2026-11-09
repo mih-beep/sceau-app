@@ -50,3 +50,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Erreur' }, { status: 500 });
   }
 }
+
+// DELETE : Révoquer une clé
+export async function DELETE(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const pubkey = searchParams.get('pubkey');
+  const id = searchParams.get('id');
+
+  if (!pubkey || !id) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
+
+  try {
+    const user = await pool.query("SELECT id FROM users WHERE encode(pubkey, 'base64') = $1", [pubkey]);
+    if (user.rows.length === 0) return NextResponse.json({ error: 'Inconnu' }, { status: 401 });
+
+    await pool.query("DELETE FROM api_keys WHERE id = $1 AND user_id = $2", [id, user.rows[0].id]);
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    return NextResponse.json({ error: 'Erreur' }, { status: 500 });
+  }
+}

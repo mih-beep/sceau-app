@@ -31,7 +31,7 @@ export default function Cockpit() {
 
   // Calcul du vrai stockage
   const maxQuotaGB = 0.1; // 100 Mo (0.1 Go) en version Free
-  const usedBytes = profile?.hosted ? profile.hosted * 1024 * 1024 : 0; // Approximation (à affiner selon la vraie API)
+  const usedBytes = profile?.used_bytes || 0;
   const usedGB = (usedBytes / (1024 * 1024 * 1024)).toFixed(2);
   const percentage = Math.min(100, (parseFloat(usedGB) / maxQuotaGB) * 100);
 

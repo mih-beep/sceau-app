@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, Suspense } from 'react';
 import { sha256 } from '@noble/hashes/sha256';
+import { buildMerkleRoot } from '@/lib/merkle';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -76,10 +77,20 @@ function SealContent() {
     setStatus(isPactMode ? "Préparation du pacte..." : "Calcul de l'empreinte...");
     try {
       let hashContent: Uint8Array;
+      let projectManifest: any[] = [];
+      let merkleRoot = '';
 
       if (mode === 'project') {
-        // Pour un projet, le hash principal est calculé côté serveur (Merkle Root)
-        hashContent = sha256(new TextEncoder().encode(title)); // Hash factice temporaire
+        // On calcule les hashs de tous les fichiers localement
+        for (const f of projectFiles) {
+          const buf = await f.arrayBuffer();
+          const h = sha256(new Uint8Array(buf));
+          const hB64 = btoa(String.fromCharCode(...h));
+          projectManifest.push({ name: f.name, hash: hB64, size: f.size });
+        }
+        merkleRoot = buildMerkleRoot(projectManifest.map(m => m.hash));
+        // Le hash principal du sceau (pour l'affichage) sera le Merkle Root
+        hashContent = new Uint8Array(Array.from(atob(merkleRoot), c => c.charCodeAt(0)));
       } else if (isPactMode) {
         const metaString = `${title}-${desc}-${pactFiles.map(f => f.name).join(',')}`;
         hashContent = sha256(new TextEncoder().encode(metaString));
@@ -92,14 +103,18 @@ function SealContent() {
 
       let hashStr = '';
       for (let i = 0; i < hashContent.length; i++) hashStr += String.fromCharCode(hashContent[i]);
-      await sendToServer(btoa(hashStr));
+      if (mode === 'project') {
+        await sendToServer(merkleRoot, merkleRoot, projectManifest);
+      } else {
+        await sendToServer(btoa(hashStr));
+      }
     } catch (e: any) {
       console.error(e);
       setStatus("❌ Erreur de gravure : " + (e?.message || 'inconnue'));
     }
   }
 
-  async function sendToServer(hashB64: string) {
+  async function sendToServer(hashB64: string, merkleRoot?: string, projectManifest?: any[]) {
     const pubkey = localStorage.getItem('sceau_pubkey');
     if (!pubkey) return setStatus("❌ Connecte-toi d'abord !");
 
@@ -114,6 +129,8 @@ function SealContent() {
     if (mode === 'project') {
       endpoint = '/api/projects';
       formData.append('isHosted', isHosted.toString());
+      formData.append('merkle_root', merkleRoot as string); // On ajoute le root calculé client
+      formData.append('manifest', JSON.stringify(projectManifest || []));
       projectFiles.forEach(f => formData.append('files', f));
     } else if (isPactMode) {
       endpoint = '/api/pacts/create';

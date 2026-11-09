@@ -19,10 +19,13 @@ export async function OPTIONS() {
 
 export async function POST(req: Request) {
   try {
-    const { apiKey, title, content, category } = await req.json();
+    const { apiKey, title, content, category, author_meta } = await req.json();
 
     if (!apiKey || !title || !content) {
       return NextResponse.json({ error: 'Champs manquants (apiKey, title, content)' }, { status: 400, headers: CORS });
+    }
+    if (content.length > 1024 * 1024) {
+      return NextResponse.json({ error: 'Contenu trop long (max 1 Mo)' }, { status: 413, headers: CORS });
     }
 
     // 1. Vérifier la clé API

@@ -13,7 +13,7 @@ export async function GET(req: Request) {
     const isPro = user.rows[0].is_pro || false;
 
     const stats = await pool.query(`
-      SELECT COUNT(id) as total_sealed, SUM(CASE WHEN is_hosted = true THEN 1 ELSE 0 END) as total_hosted
+      SELECT COUNT(id) as total_sealed, SUM(CASE WHEN is_hosted = true THEN 1 ELSE 0 END) as total_hosted, SUM(file_size) as total_size
       FROM seals WHERE author_id = $1
     `, [userId]);
 
@@ -73,6 +73,7 @@ export async function GET(req: Request) {
       favorites: favorites.rows,
       sealed: totalSealed,
       hosted: parseInt(stats.rows[0].total_hosted || 0),
+      used_bytes: parseInt(stats.rows[0].total_size || 0),
       pacts: totalPacts,
       badges: badges,
       seals: seals.rows
