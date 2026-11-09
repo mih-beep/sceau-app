@@ -18,6 +18,10 @@ export default function Settings() {
   const [lastName, setLastName] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [pubkey, setPubkey] = useState('');
+  const [apiKeys, setApiKeys] = useState<any[]>([]);
+  const [newKeyName, setNewKeyName] = useState('');
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+  const [isGeneratingKey, setIsGeneratingKey] = useState(false);
 
   useEffect(() => {
     const h = localStorage.getItem('sceau_handle');
@@ -71,6 +75,38 @@ export default function Settings() {
       setMsg('❌ ' + data.error);
     }
     setSaving(false);
+  }
+
+  async function loadApiKeys() {
+    if (!pubkey) return;
+    const res = await fetch(`/api/auth/api-keys?pubkey=${encodeURIComponent(pubkey)}`);
+    if (res.ok) {
+      const d = await res.json();
+      setApiKeys(d.keys || []);
+    }
+  }
+
+  useEffect(() => {
+    if (pubkey) loadApiKeys();
+  }, [pubkey]);
+
+  async function generateApiKey() {
+    if (!newKeyName.trim()) return alert("Donne un nom à ta clé (ex: WordPress, GitHub)");
+    setIsGeneratingKey(true);
+    const res = await fetch('/api/auth/api-keys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pubkey, name: newKeyName })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setGeneratedKey(data.key);
+      setNewKeyName('');
+      loadApiKeys();
+    } else {
+      alert('Erreur: ' + data.error);
+    }
+    setIsGeneratingKey(false);
   }
 
   function logout() {
@@ -140,6 +176,66 @@ export default function Settings() {
           <p className="text-sm text-[#7A5A3A] mb-3">C'est l'empreinte de ton identité souveraine sur SCEAU. Garde-la secrète.</p>
           <div className="bg-white p-3 rounded-xl border border-[#EFE0CA] overflow-x-auto">
             <code className="text-xs font-mono text-gray-600 whitespace-nowrap">{pubkey}</code>
+          </div>
+        </div>
+
+        <div className="bg-[#F0F6FC] p-6 rounded-2xl border border-[#C9D8E8]">
+          <h2 className="text-lg font-bold mb-2 text-[#2D6A9E]">🔌 Clés API (Développeurs & Plugins)</h2>
+          <p className="text-xs text-[#2D6A9E] mb-4 italic">Générez une clé pour connecter SCEAU à votre site WordPress, GitHub ou une application externe.</p>
+
+          {generatedKey && (
+            <div className="bg-[#FFFCF7] border border-[#E9C46A] p-4 rounded-xl mb-4">
+              <p className="text-xs font-bold text-[#A88620] mb-1">⚠️ Copiez cette clé maintenant, elle ne sera plus jamais affichée :</p>
+              <div className="flex gap-2">
+                <code className="flex-1 bg-[var(--bg-main)] p-2 rounded text-xs break-all border border-[var(--border-color)]">{generatedKey}</code>
+                <button onClick={() => { navigator.clipboard.writeText(generatedKey); alert('Copié !'); }} className="bg-[#E9C46A] text-white px-3 rounded font-bold text-xs">Copier</button>
+              </div>
+              <button onClick={() => setGeneratedKey(null)} className="text-xs text-[#A88620] font-bold mt-2 underline">J'ai copié la clé, la fermer.</button>
+            </div>
+          )}
+
+          <div className="flex gap-2 mb-4">
+            <input 
+              type="text" 
+              placeholder="Nom (ex: Mon site WordPress)" 
+              className="flex-1 border-2 border-[#C9D8E8] p-2 rounded-xl bg-white focus:border-[#4A90C2] outline-none text-sm" 
+              value={newKeyName} 
+              onChange={e => setNewKeyName(e.target.value)} 
+            />
+            <button 
+              onClick={generateApiKey} 
+              disabled={isGeneratingKey}
+              className="bg-[#4A90C2] text-white px-4 py-2 rounded-xl font-bold text-sm shadow-md disabled:opacity-50"
+            >
+              {isGeneratingKey ? '...' : 'Générer'}
+            </button>
+          </div>
+
+          {apiKeys.length > 0 && (
+            <div className="space-y-2 mt-4 border-t border-[#C9D8E8] pt-4">
+              <p className="text-xs font-bold text-[#2D6A9E] mb-2">Vos clés actives :</p>
+              {apiKeys.map(k => (
+                <div key={k.id} className="flex justify-between items-center bg-white p-2 rounded-lg border border-[#C9D8E8] text-xs">
+                  <span className="font-bold">{k.name}</span>
+                  <span className="text-[#8A7A72]">
+                    {k.last_used_at ? `Utilisée le ${new Date(k.last_used_at).toLocaleDateString('fr-FR')}` : 'Jamais utilisée'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-6 pt-6 border-t border-[#C9D8E8]">
+            <h3 className="text-sm font-bold text-[#2D6A9E] mb-3">📦 Télécharger les Plugins (SCEAU Pro)</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <a href="/downloads/sceau-wordpress.zip" download className="flex items-center justify-center gap-2 bg-[#2D6A9E] text-white py-2 rounded-lg font-bold text-sm shadow hover:bg-[#1E507A] transition">
+                <span>🔌</span> Plugin WordPress
+              </a>
+              <a href="/downloads/sceau-github-action.yml" download className="flex items-center justify-center gap-2 bg-[#2C1810] text-white py-2 rounded-lg font-bold text-sm shadow hover:bg-black transition">
+                <span>🐙</span> GitHub Action (YML)
+              </a>
+            </div>
+            <p className="text-[0.65rem] text-[#2D6A9E] mt-2 italic text-center">Installez le plugin et collez-y votre clé API.</p>
           </div>
         </div>
 
