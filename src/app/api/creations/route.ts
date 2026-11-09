@@ -60,6 +60,17 @@ export async function POST(req: Request) {
     let media_url: string | null = null;
 
     if (file && file.size > 0) {
+      // === SÉCURITÉ : Vérification de l'extension ===
+      const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'webm', 'mp3', 'wav', 'ogg', 'pdf', 'txt'];
+      const fileName = file.name.toLowerCase();
+      const ext = fileName.split('.').pop() || '';
+      
+      if (!allowedExtensions.includes(ext)) {
+        return NextResponse.json({ 
+          error: `Format de fichier interdit (.${ext}).` 
+        }, { status: 400 });
+      }
+
       const buffer = Buffer.from(await file.arrayBuffer());
       const { endpoint, bucket } = requireS3();
       const key = `creations/${safeKeyPart(seal_id.slice(0, 8))}/${Date.now()}-${safeKeyPart(file.name)}`;
