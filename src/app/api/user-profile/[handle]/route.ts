@@ -18,7 +18,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ handle: 
     let viewerId = null;
 
     if (viewerHandle) {
-      const viewer = await pool.query("SELECT id FROM users WHERE handle = $1", [viewerHandle]);
+      const viewer = await pool.query("SELECT id FROM users WHERE LOWER(handle) = LOWER($1)", [viewerHandle]);
       if (viewer.rows.length > 0) {
         viewerId = viewer.rows[0].id;
         const friend = await pool.query(

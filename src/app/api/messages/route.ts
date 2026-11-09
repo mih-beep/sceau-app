@@ -36,8 +36,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
     }
 
-    const sender = await pool.query("SELECT id FROM users WHERE handle = $1", [sender_handle]);
-    const receiver = await pool.query("SELECT id FROM users WHERE handle = $1", [receiver_handle]);
+    const sender = await pool.query("SELECT id FROM users WHERE LOWER(handle) = LOWER($1)", [sender_handle]);
+    const receiver = await pool.query("SELECT id FROM users WHERE LOWER(handle) = LOWER($1)", [receiver_handle]);
     
     if (sender.rows.length === 0 || receiver.rows.length === 0) {
       return NextResponse.json({ error: 'Utilisateur inconnu' }, { status: 404 });

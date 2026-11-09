@@ -7,7 +7,7 @@ export async function GET(req: Request) {
   if (!me) return NextResponse.json({ notifications: [], unread: 0 });
 
   try {
-    const myId = (await pool.query("SELECT id FROM users WHERE handle = $1", [me])).rows[0]?.id;
+    const myId = (await pool.query("SELECT id FROM users WHERE LOWER(handle) = LOWER($1)", [me])).rows[0]?.id;
     if (!myId) return NextResponse.json({ notifications: [], unread: 0 });
 
     const result = await pool.query(`
