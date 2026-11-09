@@ -14,6 +14,9 @@ export default function Settings() {
   const [bio, setBio] = useState('');
   const [role, setRole] = useState('createur');
   const [openToCollab, setOpenToCollab] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [pubkey, setPubkey] = useState('');
 
   useEffect(() => {
@@ -32,6 +35,9 @@ export default function Settings() {
           setBio(d.bio || '');
           setRole(d.role || 'createur');
           setOpenToCollab(d.open_to_collaboration === true);
+          setFirstName(d.first_name || '');
+          setLastName(d.last_name || '');
+          setBirthDate(d.birth_date ? d.birth_date.split('T')[0] : '');
         }
         setLoading(false);
       })
@@ -50,6 +56,9 @@ export default function Settings() {
         bio,
         role,
         open_to_collaboration: openToCollab,
+        first_name: firstName,
+        last_name: lastName,
+        birth_date: birthDate,
       }),
     });
     const data = await res.json();
@@ -105,6 +114,25 @@ export default function Settings() {
             {saving ? 'Sauvegarde...' : 'Sauvegarder les modifications'}
           </button>
           {msg && <p className="text-center font-bold mt-3" style={{color: msg.includes('✅') ? '#7A9B5A' : '#C44A2E'}}>{msg}</p>}
+        </div>
+
+        <div className="bg-[#F0F6FC] p-6 rounded-2xl border border-[#C9D8E8]">
+          <h2 className="text-lg font-bold mb-2 text-[#2D6A9E]">🛡️ Identité de confiance (Privée)</h2>
+          <p className="text-xs text-[#2D6A9E] mb-4 italic">Ces informations ne sont jamais visibles sur votre profil. Elles servent uniquement à prouver que ce compte vous appartient en cas de litige.</p>
+          
+          <div className="flex gap-4 mb-4">
+            <div className="flex-1">
+              <label className="block text-xs font-bold text-[#2D6A9E] mb-1 font-mono">Prénom</label>
+              <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className="w-full border-2 border-[#C9D8E8] p-3 rounded-xl bg-white focus:border-[#4A90C2] outline-none" />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-bold text-[#2D6A9E] mb-1 font-mono">Nom</label>
+              <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className="w-full border-2 border-[#C9D8E8] p-3 rounded-xl bg-white focus:border-[#4A90C2] outline-none" />
+            </div>
+          </div>
+          
+          <label className="block text-xs font-bold text-[#2D6A9E] mb-1 font-mono">Date de naissance</label>
+          <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="w-full border-2 border-[#C9D8E8] p-3 rounded-xl bg-white focus:border-[#4A90C2] outline-none" />
         </div>
 
         <div className="bg-[#FDF8F0] p-6 rounded-2xl border border-[#EFE0CA]">

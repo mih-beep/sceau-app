@@ -9,6 +9,8 @@ export default function Feed() {
   const [stories, setStories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSeal, setSelectedSeal] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [activeCategory, setActiveCategory] = useState('all');
   
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);

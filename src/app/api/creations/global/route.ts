@@ -5,8 +5,6 @@ export const runtime = 'nodejs';
 
 export async function GET() {
   try {
-    // On récupère toutes les créations principales (pas les commentaires)
-    // On fait un ORDER BY RANDOM() pour le côté "découverte" et aléatoire demandé
     const result = await pool.query(`
       SELECT a.id, a.type, a.content, a.media_url, a.created_at, 
              u.handle as author,
