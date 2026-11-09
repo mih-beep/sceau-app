@@ -20,6 +20,9 @@ export async function POST(req: Request) {
     const requiredSignatures = parseInt((data.get('required_signatures') as string) || '2', 10);
     const hash = data.get('hash') as string;
     const files = (data.getAll('files') as File[]).filter((f) => f && f.size > 0);
+    
+    // ✅ On déclare le thème proprement ici
+    const theme = (data.get('theme') as string) || 'serieux';
 
     if (!title) return NextResponse.json({ error: 'Titre requis' }, { status: 400 });
     if (!hash) return NextResponse.json({ error: 'Hash requis' }, { status: 400 });
@@ -57,8 +60,8 @@ export async function POST(req: Request) {
     try {
       await client.query('BEGIN');
       const pact = await client.query(
-        `INSERT INTO pacts (title, description, creator_id, group_id, required_signatures, hash, media_urls, is_hosted, category)
-         VALUES ($1, $2, $3, $4, $5, decode($6, 'base64'), $7, $8, 'Art') RETURNING id`,
+        `INSERT INTO pacts (title, description, creator_id, group_id, required_signatures, hash, media_urls, is_hosted, category, theme)
+         VALUES ($1, $2, $3, $4, $5, decode($6, 'base64'), $7, $8, 'Art', $9) RETURNING id`,
         [title, description, creatorId, groupId, requiredSignatures, hash, JSON.stringify(mediaUrls), mediaUrls.length > 0, theme]
       );
       pactId = pact.rows[0].id;
