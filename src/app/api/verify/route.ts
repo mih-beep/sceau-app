@@ -5,15 +5,33 @@ export async function POST(req: Request) {
   try {
     const { hash, query } = await req.json();
     
-    // 1. Recherche par Hash (Vérification classique)
+    // 1. Recherche par Hash (Vérification classique + Projets)
     if (hash) {
-      const result = await pool.query(`
-        SELECT s.title, s.timestamp, s.is_hosted, s.file_path, s.category, u.handle as author
+      // a) On cherche dans les sceaux individuels
+      const sealResult = await pool.query(`
+        SELECT s.title, s.timestamp, s.is_hosted, s.file_path, s.category, u.handle as author,
+               'seal' as type
         FROM seals s JOIN users u ON s.author_id = u.id
         WHERE encode(s.hash, 'base64') = $1
-        ORDER BY s.timestamp ASC
       `, [hash]);
-      if (result.rows.length > 0) return NextResponse.json({ found: true, seals: result.rows });
+
+      // b) On cherche dans les fichiers de projets (Arbre de Merkle)
+      const projectResult = await pool.query(`
+        SELECT pf.file_name as title, p.created_at as timestamp, 
+               CASE WHEN pf.file_path IS NOT NULL THEN true ELSE false END as is_hosted, 
+               pf.file_path, 'Projet' as category, u.handle as author,
+               'project' as type, p.title as project_title, p.id as project_id
+        FROM project_files pf 
+        JOIN projects p ON pf.project_id = p.id
+        JOIN users u ON p.author_id = u.id
+        WHERE pf.file_hash = $1
+      `, [hash]);
+
+      const combinedSeals = [...sealResult.rows, ...projectResult.rows];
+
+      if (combinedSeals.length > 0) {
+        return NextResponse.json({ found: true, seals: combinedSeals });
+      }
       return NextResponse.json({ found: false });
     }
 

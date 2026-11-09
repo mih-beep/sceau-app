@@ -169,6 +169,11 @@ export default function Verify() {
                         <div className="text-xs text-[var(--text-muted)] mt-1">
                           Par <span className="font-bold text-[#E76F51]">@{seal.author}</span> le {new Date(seal.timestamp).toLocaleString('fr-FR')}
                         </div>
+                        {seal.type === 'project' && (
+                          <div className="mt-2 inline-block bg-[#F0F6FC] border border-[#C9D8E8] text-[#2D6A9E] px-2 py-1 rounded text-[0.65rem] font-bold">
+                            🛡️ Fait partie du dossier : {seal.project_title}
+                          </div>
+                        )}
                         {seal.hash && <div className="text-[0.65rem] font-mono text-[var(--text-muted)] mt-2 break-all">Hash: {seal.hash}</div>}
                       </div>
                     </div>
