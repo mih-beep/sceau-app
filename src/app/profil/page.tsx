@@ -22,19 +22,53 @@ export default function Profil() {
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
 
   async function loadProfil() {
-    const pubkey = localStorage.getItem('sceau_pubkey');
     const handle = localStorage.getItem('sceau_handle');
-    if (!pubkey && !handle) { router.push('/login'); return; }
-    
+
+    // Le pseudo est nécessaire pour retrouver le profil.
+    if (!handle || !handle.trim()) {
+      router.replace('/login');
+      return;
+    }
+
+    setError('');
+
     try {
-      const res = await fetch(`/api/profil?pubkey=${encodeURIComponent(pubkey || '')}&handle=${encodeURIComponent(handle || '')}`);
+      const res = await fetch(
+        `/api/profil?handle=${encodeURIComponent(handle.trim())}`,
+        { cache: 'no-store' }
+      );
+
       const d = await res.json();
-      if (res.ok && d.handle) setData({ ...d, seals: d.seals || [], badges: d.badges || [], favorites: d.favorites || [], projects: d.projects || [] });
-      else setError("Profil introuvable.");
-    } catch (e) { setError("Erreur serveur."); }
+
+      if (!res.ok) {
+        setError(
+          res.status === 404
+            ? "Profil introuvable. Vérifie ton pseudo ou reconnecte-toi."
+            : (d.error || "Impossible de charger le profil.")
+        );
+        return;
+      }
+
+      if (d.handle) {
+        setData({
+          ...d,
+          seals: d.seals || [],
+          badges: d.badges || [],
+          favorites: d.favorites || [],
+          projects: d.projects || []
+        });
+      } else {
+        setError("Les données du profil sont incomplètes.");
+      }
+    } catch (e) {
+      console.error("Erreur chargement profil :", e);
+      setError("Erreur serveur. Réessaie dans quelques instants.");
+    }
   }
 
-  useEffect(() => { loadProfil(); }, [router]);
+  useEffect(() => {
+    loadProfil();
+  }, [router]);
 
   const openPortfolioModal = () => {
     setShowPortfolioModal(true);
@@ -94,7 +128,7 @@ export default function Profil() {
       const res = await fetch(`/api/seal/${sealId}/ots/refresh?pubkey=${encodeURIComponent(pubkey)}`, { method: 'POST' });
       const d = await res.json();
       if (d.status === 'upgraded') {
-        alert('✅ Preuve mise à jour avec confirmation Bitcoin');
+        alert('✅ Preuve mise à jour avec confirmation Blockchain');
         await loadProfil();
       } else if (d.status === 'pending') {
         alert('⏳ Pas encore confirmé. Réessaie dans quelques heures.');

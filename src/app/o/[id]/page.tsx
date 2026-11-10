@@ -36,10 +36,10 @@ export default function PublicSealPage() {
   }, [params.id]);
 
   async function refreshOts() {
-    setRefreshMsg('Interrogation des calendars Bitcoin...');
+    setRefreshMsg('Interrogation des calendars Blockchain...');
     const res = await fetch(`/api/seal/${params.id}/ots/refresh`, { method: 'POST' });
     const d = await res.json();
-    if (d.status === 'upgraded') setRefreshMsg('✅ Preuve upgradée avec confirmation Bitcoin');
+    if (d.status === 'upgraded') setRefreshMsg('✅ Preuve upgradée avec confirmation Blockchain');
     else setRefreshMsg(d.message || '⏳ Pas encore confirmé.');
   }
 
@@ -133,7 +133,7 @@ export default function PublicSealPage() {
             <span className="text-2xl">⛓️</span>
             <div>
               <p className={`text-sm font-bold ${seal.has_ots_proof ? 'text-[#5D7A3A]' : 'text-[#C44A2E]'}`}>
-                Ancrage Bitcoin (OpenTimestamps)
+                Ancrage Blockchain (OpenTimestamps)
               </p>
               <p className={`text-xs ${seal.has_ots_proof ? 'text-[#7A9B5A]' : 'text-[#C44A2E]'}`}>
                 {seal.has_ots_proof ? 'Preuve .ots disponible' : 'Indisponible'}

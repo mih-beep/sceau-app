@@ -3,12 +3,20 @@ import { pool } from '@/db/pool';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const pubkey = searchParams.get('pubkey');
-  if (!pubkey) return NextResponse.json({ error: 'Clé manquante' }, { status: 400 });
+  const handle = searchParams.get('handle')?.trim();
+
+  if (!handle) {
+    return NextResponse.json(
+      { error: 'Pseudo manquant' },
+      { status: 400 }
+    );
+  }
 
   try {
-    const cleanPubkey = pubkey.replace(/ /g, "+");
-    const user = await pool.query("SELECT id, handle, bio, role, is_pro, open_to_collaboration, first_name, last_name, birth_date FROM users WHERE encode(pubkey, 'base64') = $1", [cleanPubkey]);
+    const user = await pool.query(
+      "SELECT id, handle, bio, role, is_pro, open_to_collaboration, first_name, last_name, birth_date FROM users WHERE LOWER(handle) = LOWER($1) LIMIT 1",
+      [handle]
+    );
     if (user.rows.length === 0) return NextResponse.json({ error: 'Inconnu' }, { status: 404 });
     const userId = user.rows[0].id;
     const isPro = user.rows[0].is_pro || false;

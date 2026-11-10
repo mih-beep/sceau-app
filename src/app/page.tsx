@@ -38,7 +38,7 @@ export default function Home() {
           Prouvez que vous l'avez<br/>créé <span className="text-[#E76F51] italic">en premier.</span>
         </h1>
         <p className="text-lg md:text-xl text-[var(--text-muted)] mb-10 max-w-2xl mx-auto leading-relaxed">
-          SCEAU est le protocole universel de preuve. Scellez vos fichiers, vos contrats et vos idées en un clic. La preuve est gravée sur la blockchain Bitcoin. Pour toujours.
+          SCEAU est le protocole universel de preuve. Scellez vos fichiers, vos contrats et vos idées en un clic. La preuve est gravée sur la blockchain Blockchain. Pour toujours.
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
           <Link href="/signup" className="bg-[#1A1513] text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-black transition">Sceller mon premier fichier</Link>
