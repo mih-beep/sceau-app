@@ -2,6 +2,16 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
+function getFileType(url: string) {
+  if (!url) return 'none';
+  const ext = url.split('?')[0].split('.').pop()?.toLowerCase() || '';
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) return 'image';
+  if (['mp4', 'webm', 'mov'].includes(ext)) return 'video';
+  if (['mp3', 'wav', 'ogg'].includes(ext)) return 'audio';
+  if (ext === 'pdf') return 'pdf';
+  return 'other';
+}
+
 export default function Feed() {
   const [seals, setSeals] = useState<any[]>([]);
   const [stories, setStories] = useState<any[]>([]);
@@ -289,15 +299,51 @@ export default function Feed() {
          <p className="text-center font-mono py-10">Connexion...</p>
       ) : (
         <div className="grid gap-6 mb-10">
-          {seals.filter(s => !s.is_ephemeral).map((seal) => (
-            <div key={seal.id} onClick={() => setSelectedSeal(seal)} className="bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm cursor-pointer hover:shadow-md transition">
-              <div className="flex justify-between items-start mb-2">
-                <h2 className="text-2xl font-bold" style={{ color: 'var(--text-main)' }}>{seal.title}</h2>
+          {seals.filter(s => !s.is_ephemeral).map((seal) => {
+            const fileType = seal.is_hosted && seal.file_path ? getFileType(seal.file_path) : 'none';
+            
+            return (
+            <div key={seal.id} onClick={() => setSelectedSeal(seal)} className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-color)] shadow-sm cursor-pointer hover:shadow-md transition overflow-hidden flex flex-col">
+              
+              {seal.is_hosted && seal.file_path && (
+                <div className="w-full h-48 bg-[var(--bg-main)] relative flex items-center justify-center overflow-hidden border-b border-[var(--border-color)]">
+                  {fileType === 'image' && <img src={seal.file_path} alt={seal.title} className="w-full h-full object-cover" />}
+                  {fileType === 'video' && (
+                    <div className="relative w-full h-full flex items-center justify-center bg-black">
+                      <video src={seal.file_path} className="w-full h-full object-cover opacity-50" />
+                      <div className="absolute text-white text-3xl opacity-80">▶</div>
+                    </div>
+                  )}
+                  {fileType === 'pdf' && (
+                    <div className="flex flex-col items-center justify-center text-[#E76F51]">
+                      <div className="text-5xl mb-2">📄</div>
+                      <span className="font-mono text-xs font-bold uppercase tracking-widest text-[var(--text-main)]">Document PDF</span>
+                    </div>
+                  )}
+                  {fileType === 'other' && (
+                    <div className="flex flex-col items-center justify-center text-[#4A90C2]">
+                      <div className="text-5xl mb-2">📎</div>
+                      <span className="font-mono text-xs font-bold uppercase tracking-widest text-[var(--text-main)]">Fichier joint</span>
+                    </div>
+                  )}
+                  {fileType === 'audio' && (
+                    <div className="flex flex-col items-center justify-center text-[#5D7A3A]">
+                      <div className="text-5xl mb-2">🎵</div>
+                      <span className="font-mono text-xs font-bold uppercase tracking-widest text-[var(--text-main)]">Fichier Audio</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="p-6 flex-1 flex flex-col">
+                <div className="flex justify-between items-start mb-2">
+                  <h2 className="text-2xl font-bold" style={{ color: 'var(--text-main)' }}>{seal.title}</h2>
+                </div>
+                <p className="text-sm text-[var(--text-muted)] mb-2 font-mono">Par @{seal.author} • {seal.category}</p>
+                <p className="text-sm text-[var(--text-muted)] italic line-clamp-2 mt-auto">{seal.description}</p>
               </div>
-              <p className="text-sm text-[var(--text-muted)] mb-2">Par @{seal.author} • {seal.category}</p>
-              <p className="text-sm text-[var(--text-muted)] italic line-clamp-2">{seal.description}</p>
             </div>
-          ))}
+          )})}
         </div>
       )}
 

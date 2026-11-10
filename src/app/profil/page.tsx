@@ -23,9 +23,11 @@ export default function Profil() {
 
   async function loadProfil() {
     const pubkey = localStorage.getItem('sceau_pubkey');
-    if (!pubkey) { router.push('/login'); return; }
+    const handle = localStorage.getItem('sceau_handle');
+    if (!pubkey && !handle) { router.push('/login'); return; }
+    
     try {
-      const res = await fetch(`/api/profil?pubkey=${encodeURIComponent(pubkey)}`);
+      const res = await fetch(`/api/profil?pubkey=${encodeURIComponent(pubkey || '')}&handle=${encodeURIComponent(handle || '')}`);
       const d = await res.json();
       if (res.ok && d.handle) setData({ ...d, seals: d.seals || [], badges: d.badges || [], favorites: d.favorites || [], projects: d.projects || [] });
       else setError("Profil introuvable.");
