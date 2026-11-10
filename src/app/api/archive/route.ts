@@ -105,10 +105,19 @@ export async function GET(req: Request) {
     const user = await pool.query("SELECT id, is_pro FROM users WHERE encode(pubkey, 'base64') = $1", [pubkey]);
     if (user.rows.length === 0) return NextResponse.json({ error: 'Inconnu' }, { status: 401 });
     
-    const result = await pool.query(`
-      SELECT id, url, site_root, title, last_status, last_checked_at, created_at, diff_data, pages_scanned, scan_count, ai_summary
-      FROM web_archives WHERE user_id = $1 ORDER BY created_at DESC
-    `, [user.rows[0].id]);
+    let result;
+    try {
+      result = await pool.query(`
+        SELECT id, url, site_root, title, last_status, last_checked_at, created_at, diff_data, pages_scanned, scan_count, ai_summary
+        FROM web_archives WHERE user_id = $1 ORDER BY created_at DESC
+      `, [user.rows[0].id]);
+    } catch (colErr) {
+      console.warn('[archive GET] colonnes manquantes, fallback:', colErr);
+      result = await pool.query(`
+        SELECT id, url, title, last_status, last_checked_at, created_at, diff_data
+        FROM web_archives WHERE user_id = $1 ORDER BY created_at DESC
+      `, [user.rows[0].id]);
+    }
     
     return NextResponse.json({ 
       archives: result.rows, 
