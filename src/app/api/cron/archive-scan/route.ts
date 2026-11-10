@@ -6,6 +6,15 @@ import { Resend } from 'resend';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+function cleanHtmlToText(html: string): string {
+  return html
+    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, '')
+    .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gim, '')
+    .replace(/<[^>]*>/g, '\n')
+    .replace(/\n\s*\n/g, '\n')
+    .trim();
+}
+
 function hashContent(content: string): string {
   return Buffer.from(sha256(new TextEncoder().encode(content))).toString('hex');
 }
@@ -50,11 +59,17 @@ export async function GET(req: Request) {
 
     for (const archive of archives.rows) {
       try {
-        const res = await fetch(archive.url, { headers: { 'User-Agent': 'SCEAU-Archive-Bot/1.0' } });
-        if (!res.ok) continue;
+        const res = await fetch(archive.url, { 
+          headers: { 'User-Agent': 'SCEAU-Archive-Bot/1.0' },
+          signal: AbortSignal.timeout(10000)
+        });
+        
+        if (!res.ok) throw new Error('Site inaccessible');
         
         const html = await res.text();
-        const newText = html.replace(/<[^>]*>/g, '\n').replace(/\n\s*\n/g, '\n').trim();
+        if (html.length > 5 * 1024 * 1024) throw new Error('Contenu trop lourd');
+        
+        const newText = cleanHtmlToText(html);
         const newHash = hashContent(newText);
 
         if (archive.last_hash !== newHash) {
@@ -90,7 +105,11 @@ export async function GET(req: Request) {
         }
         scanned++;
       } catch (e) {
-        console.error(`Erreur scan ${archive.url}:`, e);
+        // En cas d'erreur, on marque en erreur
+        await pool.query(
+          "UPDATE web_archives SET last_status = 'error', last_checked_at = NOW() WHERE id = $1",
+          [archive.id]
+        );
       }
     }
 

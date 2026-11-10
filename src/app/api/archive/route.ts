@@ -3,15 +3,63 @@ import { pool } from '@/db/pool';
 import { sha256 } from '@noble/hashes/sha256';
 
 export const runtime = 'nodejs';
-export const maxDuration = 30; // Nécessaire pour le temps de fetch
+export const maxDuration = 30;
 
-// Fonction utilitaire pour hasher le contenu
-function hashContent(content: string): string {
-  const hash = sha256(new TextEncoder().encode(content));
-  return Buffer.from(hash).toString('hex');
+// === SÉCURITÉ SSRF ===
+function isSafeUrl(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+    
+    const hostname = url.hostname.toLowerCase();
+    // Blocage des localhost et IPs privées
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return false;
+    if (/^10\./.test(hostname)) return false;
+    if (/^192\.168\./.test(hostname)) return false;
+    if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)) return false;
+    if (/^169\.254\./.test(hostname)) return false;
+    
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-// GET : Lister les archives de l'utilisateur
+// === FONCTION DE NETTOYAGE UNIFIÉE ===
+function cleanHtmlToText(html: string): string {
+  return html
+    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, '') // Supprime JS
+    .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gim, '') // Supprime CSS
+    .replace(/<[^>]*>/g, '\n') // Supprime les balises HTML
+    .replace(/\n\s*\n/g, '\n') // Supprime les lignes vides
+    .trim();
+}
+
+function hashContent(content: string): string {
+  return Buffer.from(sha256(new TextEncoder().encode(content))).toString('hex');
+}
+
+function generateDiff(oldText: string, newText: string) {
+  const oldLines = oldText.split('\n');
+  const newLines = newText.split('\n');
+  const diff = [];
+  const maxLines = Math.max(oldLines.length, newLines.length);
+  let changesCount = 0;
+
+  for (let i = 0; i < maxLines; i++) {
+    const oldLine = oldLines[i] || '';
+    const newLine = newLines[i] || '';
+    if (oldLine !== newLine) {
+      diff.push({ type: 'removed', text: oldLine.trim() });
+      diff.push({ type: 'added', text: newLine.trim() });
+      changesCount++;
+    } else if (oldLine.trim() !== '') {
+      diff.push({ type: 'unchanged', text: oldLine.trim() });
+    }
+  }
+  return { changesCount, details: diff.slice(0, 100) };
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const pubkey = searchParams.get('pubkey');
@@ -22,7 +70,7 @@ export async function GET(req: Request) {
     if (user.rows.length === 0) return NextResponse.json({ error: 'Inconnu' }, { status: 401 });
     
     const result = await pool.query(`
-      SELECT id, url, title, status, last_checked_at, created_at 
+      SELECT id, url, title, last_status, last_checked_at, created_at, diff_data
       FROM web_archives WHERE user_id = $1 ORDER BY created_at DESC
     `, [user.rows[0].id]);
     
@@ -36,7 +84,6 @@ export async function GET(req: Request) {
   }
 }
 
-// POST : Ajouter une URL
 export async function POST(req: Request) {
   const { pubkey, url, action } = await req.json();
   if (!pubkey || !url) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
@@ -48,64 +95,90 @@ export async function POST(req: Request) {
     const userId = user.rows[0].id;
     const isPro = user.rows[0].is_pro;
 
-    // 1. Vérification du quota
     const countQuery = await pool.query("SELECT COUNT(*) as count FROM web_archives WHERE user_id = $1", [userId]);
     const currentCount = parseInt(countQuery.rows[0].count);
     const maxLimit = isPro ? 50 : 3;
 
     if (currentCount >= maxLimit && action !== 'check') {
-      return NextResponse.json({ error: `Quota atteint (${maxLimit} URLs max). Passez à SCEAU PRO pour en ajouter plus.` }, { status: 403 });
+      return NextResponse.json({ error: `Quota atteint (${maxLimit} URLs max).` }, { status: 403 });
     }
 
-    // 2. Si c'est une vérification (action === 'check')
+    // === VÉRIFICATION (Le Scan Manuel) ===
     if (action === 'check') {
-      const archive = await pool.query("SELECT id, url, last_hash FROM web_archives WHERE id = $1 AND user_id = $2", [url, userId]); // Ici 'url' contient l'ID
+      const archive = await pool.query("SELECT id, url, last_hash, last_content FROM web_archives WHERE id = $1 AND user_id = $2", [url, userId]);
       if (archive.rows.length === 0) return NextResponse.json({ error: 'Archive introuvable' }, { status: 404 });
       
       const targetUrl = archive.rows[0].url;
       const oldHash = archive.rows[0].last_hash;
+      const oldContent = archive.rows[0].last_content || '';
 
-      const res = await fetch(targetUrl, { headers: { 'User-Agent': 'SCEAU-Archive-Bot/1.0' } });
-      const html = await res.text();
-      const newHash = hashContent(html);
+      try {
+        const res = await fetch(targetUrl, { 
+          headers: { 'User-Agent': 'SCEAU-Archive-Bot/1.0' },
+          signal: AbortSignal.timeout(10000) // 10 secondes max
+        });
+        
+        if (!res.ok) throw new Error('Site inaccessible');
+        
+        const html = await res.text();
+        if (html.length > 5 * 1024 * 1024) throw new Error('Contenu trop lourd'); // 5 Mo max
+        
+        const newText = cleanHtmlToText(html);
+        const newHash = hashContent(newText);
 
-      const isModified = oldHash !== newHash;
-      
-      if (isModified) {
-        await pool.query("UPDATE web_archives SET status = 'modified', last_checked_at = NOW() WHERE id = $1", [url]); // 'url' = id
-        return NextResponse.json({ status: 'modified' });
-      } else {
-        await pool.query("UPDATE web_archives SET status = 'intact', last_checked_at = NOW() WHERE id = $1", [url]);
-        return NextResponse.json({ status: 'intact' });
+        if (oldHash !== newHash) {
+          const diffResult = generateDiff(oldContent, newText);
+          await pool.query(
+            "UPDATE web_archives SET last_status = 'modified', last_checked_at = NOW(), diff_data = $1 WHERE id = $2", 
+            [JSON.stringify(diffResult), url]
+          );
+          return NextResponse.json({ status: 'modified', changes: diffResult.changesCount });
+        } else {
+          await pool.query("UPDATE web_archives SET last_status = 'intact', last_checked_at = NOW(), diff_data = NULL WHERE id = $1", [url]);
+          return NextResponse.json({ status: 'intact' });
+        }
+      } catch (e) {
+        // En cas d'erreur (timeout, 404, SSRF), on marque l'archive en erreur
+        await pool.query("UPDATE web_archives SET last_status = 'error', last_checked_at = NOW() WHERE id = $1", [url]);
+        return NextResponse.json({ status: 'error', error: 'Impossible de vérifier le site.' });
       }
     }
 
-    // 3. Sinon, c'est une nouvelle URL
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      return NextResponse.json({ error: 'URL invalide (doit commencer par http)' }, { status: 400 });
+    // === AJOUT D'UNE NOUVELLE URL ===
+    if (!isSafeUrl(url)) {
+      return NextResponse.json({ error: 'URL invalide ou non autorisée (sécurité).' }, { status: 400 });
     }
 
-    // Fetch initial
-    const res = await fetch(url, { headers: { 'User-Agent': 'SCEAU-Archive-Bot/1.0' } });
-    if (!res.ok) return NextResponse.json({ error: 'Impossible de joindre le site web.' }, { status: 400 });
-    
-    const html = await res.text();
-    const newHash = hashContent(html);
-    const title = new URL(url).hostname;
+    try {
+      const res = await fetch(url, { 
+        headers: { 'User-Agent': 'SCEAU-Archive-Bot/1.0' },
+        signal: AbortSignal.timeout(10000)
+      });
+      
+      if (!res.ok) throw new Error('Site inaccessible');
+      
+      const html = await res.text();
+      if (html.length > 5 * 1024 * 1024) throw new Error('Contenu trop lourd');
+      
+      const cleanText = cleanHtmlToText(html);
+      const newHash = hashContent(cleanText);
+      const title = new URL(url).hostname;
 
-    const insert = await pool.query(`
-      INSERT INTO web_archives (user_id, url, title, last_hash, status) 
-      VALUES ($1, $2, $3, $4, 'intact') RETURNING id
-    `, [userId, url, title, newHash]);
+      await pool.query(`
+        INSERT INTO web_archives (user_id, url, title, last_hash, last_content, last_status) 
+        VALUES ($1, $2, $3, $4, $5, 'intact')
+      `, [userId, url, title, newHash, cleanText]);
 
-    return NextResponse.json({ success: true, id: insert.rows[0].id });
+      return NextResponse.json({ success: true });
+    } catch (e: any) {
+      return NextResponse.json({ error: 'Impossible de joindre le site web.' }, { status: 400 });
+    }
 
   } catch (e: any) {
-    return NextResponse.json({ error: 'Erreur lors du traitement : ' + e.message }, { status: 500 });
+    return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 });
   }
 }
 
-// DELETE : Supprimer une URL
 export async function DELETE(req: Request) {
   const { searchParams } = new URL(req.url);
   const pubkey = searchParams.get('pubkey');
