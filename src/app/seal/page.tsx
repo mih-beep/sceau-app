@@ -197,7 +197,7 @@ function SealContent() {
   }
 
   return (
-    <div className="p-6 font-sans max-w-md md:max-w-4xl mx-auto w-full">
+    <div className="p-6 pb-32 font-sans max-w-md md:max-w-4xl mx-auto w-full">
 
       {/* === ONGLETS SCeller / Vérifier === */}
       {!isPactMode && (

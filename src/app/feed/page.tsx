@@ -269,7 +269,10 @@ export default function Feed() {
             <div key={story.id} onClick={() => setActiveStoryIndex(index)} className="snap-start shrink-0 flex flex-col items-center cursor-pointer group">
               <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-[#E76F51] to-[#F4A261]">
                 <div className="w-full h-full bg-[var(--bg-surface)] rounded-full border-2 border-[var(--bg-surface)] flex items-center justify-center font-bold text-xl overflow-hidden relative">
-                  {story.file_path && story.is_hosted ? <img src={story.file_path} alt="story" className="w-full h-full object-cover" /> : <span className="opacity-70">{story.author[0].toUpperCase()}</span>}
+                  {story.file_path && story.is_hosted ? (
+                    <img src={story.file_path} alt="story" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+                  ) : null}
+                  <span className="opacity-70 absolute inset-0 flex items-center justify-center bg-[var(--bg-main)]" style={{ display: story.file_path && story.is_hosted ? 'none' : 'flex' }}>{story.author[0].toUpperCase()}</span>
                   <span className="absolute bottom-0 right-0 bg-[#E76F51] text-white text-[0.5rem] px-1 rounded-tl-md">⏳</span>
                 </div>
               </div>
