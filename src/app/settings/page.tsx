@@ -128,7 +128,7 @@ export default function Settings() {
   if (loading) return <div className="p-10 text-center font-mono">Chargement...</div>;
 
   return (
-    <div className="p-6 max-w-2xl md:max-w-4xl mx-auto font-sans w-full">
+    <div className="p-6 pb-32 md:pb-6 max-w-2xl md:max-w-4xl mx-auto font-sans w-full">
       <div className="flex items-center gap-4 mb-8">
         <Link href="/profil" className="text-2xl opacity-50 hover:opacity-100 transition">←</Link>
         <h1 className="text-3xl font-bold" style={{color: 'var(--text-main)'}}>Paramètres.</h1>

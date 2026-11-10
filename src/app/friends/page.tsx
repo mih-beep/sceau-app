@@ -109,7 +109,7 @@ export default function Friends() {
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto font-serif min-h-screen">
+    <div className="p-6 pb-32 md:pb-6 max-w-2xl mx-auto font-serif min-h-screen">
       
       {/* EN-TÊTE ET BOUTONS DE NAVIGATION */}
       <div className="mb-6">

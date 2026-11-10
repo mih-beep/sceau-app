@@ -20,7 +20,7 @@ export default function ProjetDetail() {
   const isPending = !project.ots_proof;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto font-sans">
+    <div className="p-6 pb-32 md:pb-6 max-w-4xl mx-auto font-sans">
       <Link href="/projets" className="text-sm font-bold text-gray-500 hover:underline mb-4 inline-block">← Retour aux projets</Link>
       
       <div className="bg-white rounded-2xl border shadow-sm overflow-hidden mb-6">

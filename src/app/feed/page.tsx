@@ -150,7 +150,7 @@ export default function Feed() {
   // === FEED GLOBAL (CRÉATIONS) ===
   if (showCreationsFeed) {
     return (
-      <div className="p-6 max-w-lg mx-auto font-sans min-h-screen bg-[var(--bg-main)] pb-20">
+      <div className="p-6 pb-32 md:pb-6 max-w-lg mx-auto font-sans min-h-screen bg-[var(--bg-main)] pb-20">
         <div className="flex justify-between items-center mb-6">
           <button onClick={() => setShowCreationsFeed(false)} className="text-sm font-bold flex items-center gap-2 px-4 py-2 bg-[var(--bg-surface)] rounded-xl border border-[var(--border-color)]" style={{ color: 'var(--text-main)' }}>
             ← Retour

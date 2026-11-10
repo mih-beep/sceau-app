@@ -6,6 +6,8 @@ export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 const MAX_PAGES = 10;
+const FREE_LIMIT = 5;  // Sites gratuits (pas pages)
+const PRO_LIMIT = 50;
 
 function isSafeUrl(urlString: string): boolean {
   try {
@@ -30,6 +32,29 @@ function cleanHtmlToText(html: string): string {
     .trim();
 }
 
+function extractPageTitle(html: string, fallbackUrl: string): string {
+  // Cherche <title>...</title>
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (titleMatch && titleMatch[1]) {
+    const clean = titleMatch[1].replace(/\s+/g, ' ').trim();
+    if (clean.length > 0 && clean.length < 200) return clean;
+  }
+  // Cherche <h1>...</h1>
+  const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  if (h1Match && h1Match[1]) {
+    const clean = h1Match[1].replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    if (clean.length > 0 && clean.length < 100) return clean;
+  }
+  // Fallback : hostname + pathname
+  try {
+    const u = new URL(fallbackUrl);
+    if (u.pathname === '/' || u.pathname === '') return u.hostname;
+    return `${u.hostname}${u.pathname}`;
+  } catch {
+    return fallbackUrl;
+  }
+}
+
 function extractInternalLinks(html: string, baseUrl: string): string[] {
   const links: Set<string> = new Set();
   const regex = /<a[^>]+href=["']([^"']+)["']/gi;
@@ -40,6 +65,7 @@ function extractInternalLinks(html: string, baseUrl: string): string[] {
       const url = new URL(match[1], baseUrl);
       if (url.hostname === base.hostname && url.protocol.startsWith('http')) {
         url.hash = '';
+        url.search = ''; // ignore query strings pour éviter les doublons
         links.add(url.toString());
       }
     } catch { /* ignore */ }
@@ -60,7 +86,7 @@ async function fetchSitemap(siteRoot: string): Promise<string[]> {
   } catch { return []; }
 }
 
-async function scanPage(url: string): Promise<{ text: string; hash: string } | null> {
+async function scanPage(url: string): Promise<{ text: string; hash: string; title: string } | null> {
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': 'SCEAU-Bot/1.0' },
@@ -72,7 +98,8 @@ async function scanPage(url: string): Promise<{ text: string; hash: string } | n
     if (html.length > 5 * 1024 * 1024) return null;
     const text = cleanHtmlToText(html);
     const hash = Buffer.from(sha256(new TextEncoder().encode(text))).toString('hex');
-    return { text, hash };
+    const title = extractPageTitle(html, url);
+    return { text, hash, title };
   } catch { return null; }
 }
 
@@ -104,27 +131,84 @@ export async function GET(req: Request) {
   try {
     const user = await pool.query("SELECT id, is_pro FROM users WHERE encode(pubkey, 'base64') = $1", [pubkey]);
     if (user.rows.length === 0) return NextResponse.json({ error: 'Inconnu' }, { status: 401 });
-    
-    let result;
+    const userId = user.rows[0].id;
+    const isPro = user.rows[0].is_pro || false;
+
+    // Récupère toutes les pages, puis regroupe par site_root côté serveur
+    let pages;
     try {
-      result = await pool.query(`
+      pages = await pool.query(`
         SELECT id, url, site_root, title, last_status, last_checked_at, created_at, diff_data, pages_scanned, scan_count, ai_summary
         FROM web_archives WHERE user_id = $1 ORDER BY created_at DESC
-      `, [user.rows[0].id]);
+      `, [userId]);
     } catch (colErr) {
-      console.warn('[archive GET] colonnes manquantes, fallback:', colErr);
-      result = await pool.query(`
+      // Fallback si colonnes manquantes
+      pages = await pool.query(`
         SELECT id, url, title, last_status, last_checked_at, created_at, diff_data
         FROM web_archives WHERE user_id = $1 ORDER BY created_at DESC
-      `, [user.rows[0].id]);
+      `, [userId]);
     }
-    
+
+    // Regroupement par site_root (site principal)
+    const sitesMap = new Map<string, any>();
+    for (const page of pages.rows) {
+      const siteRoot = page.site_root || (() => {
+        try { return new URL(page.url).origin; } catch { return page.url; }
+      })();
+      
+      if (!sitesMap.has(siteRoot)) {
+        sitesMap.set(siteRoot, {
+          site_root: siteRoot,
+          main_id: page.id,          // la page principale (première = l'URL ajoutée)
+          main_title: page.site_root === null ? page.title : null, // à remplir
+          main_url: page.url,
+          pages_count: 0,
+          last_checked_at: page.last_checked_at,
+          created_at: page.created_at,
+          scan_count: page.scan_count || 1,
+          has_modifications: false,
+          pages: [],
+        });
+      }
+      
+      const site = sitesMap.get(siteRoot);
+      site.pages_count++;
+      site.pages.push(page);
+      
+      // Le main_id doit être celui de la page racine (pathname === '/')
+      try {
+        const u = new URL(page.url);
+        if (u.pathname === '/' || u.pathname === '') {
+          site.main_id = page.id;
+          site.main_title = page.title;
+          site.main_url = page.url;
+        }
+      } catch { /* ignore */ }
+      
+      if (page.last_status === 'modified') site.has_modifications = true;
+      if (new Date(page.last_checked_at) > new Date(site.last_checked_at)) {
+        site.last_checked_at = page.last_checked_at;
+      }
+    }
+
+    // Si le titre principal n'a pas été trouvé, fallback sur le hostname
+    for (const site of sitesMap.values()) {
+      if (!site.main_title) {
+        try { site.main_title = new URL(site.site_root).hostname; }
+        catch { site.main_title = site.site_root; }
+      }
+    }
+
+    const sitesArray = Array.from(sitesMap.values());
+
     return NextResponse.json({ 
-      archives: result.rows, 
-      is_pro: user.rows[0].is_pro,
-      limit: user.rows[0].is_pro ? 50 : 3
+      archives: sitesArray, 
+      is_pro: isPro,
+      limit: isPro ? PRO_LIMIT : FREE_LIMIT,
+      total_sites: sitesArray.length,
     });
   } catch (e) {
+    console.error('[archive GET]', e);
     return NextResponse.json({ error: 'Erreur' }, { status: 500 });
   }
 }
@@ -140,34 +224,25 @@ export async function POST(req: Request) {
     const userId = user.rows[0].id;
     const isPro = user.rows[0].is_pro;
 
-    const countQuery = await pool.query("SELECT COUNT(*) as count FROM web_archives WHERE user_id = $1", [userId]);
-    const currentCount = parseInt(countQuery.rows[0].count);
-    const maxLimit = isPro ? 50 : 3;
-
-    if (currentCount >= maxLimit && action !== 'check') {
-      return NextResponse.json({ error: `Quota atteint (${maxLimit} sites max).` }, { status: 403 });
-    }
-
-    // === VÉRIFICATION (scan manuel) ===
+    // === VÉRIFICATION (action 'check') ===
     if (action === 'check') {
       const archive = await pool.query(
-        "SELECT id, url, site_root, last_hash, last_content FROM web_archives WHERE id = $1 AND user_id = $2",
+        "SELECT id, url, last_hash, last_content FROM web_archives WHERE id = $1 AND user_id = $2",
         [url, userId]
       );
       if (archive.rows.length === 0) return NextResponse.json({ error: 'Archive introuvable' }, { status: 404 });
       
       const targetUrl = archive.rows[0].url;
-      const siteRoot = archive.rows[0].site_root || new URL(targetUrl).origin;
       const oldHash = archive.rows[0].last_hash;
       const oldContent = archive.rows[0].last_content || '';
 
       const scan = await scanPage(targetUrl);
       if (!scan) {
         await pool.query(
-          "UPDATE web_archives SET last_status = 'error', last_checked_at = NOW(), scan_count = scan_count + 1 WHERE id = $1",
+          "UPDATE web_archives SET last_status = 'error', last_checked_at = NOW(), scan_count = COALESCE(scan_count, 0) + 1 WHERE id = $1",
           [url]
         );
-        return NextResponse.json({ status: 'error', message: 'Impossible de vérifier le site.' });
+        return NextResponse.json({ status: 'error' });
       }
 
       if (oldHash !== scan.hash) {
@@ -175,21 +250,21 @@ export async function POST(req: Request) {
         await pool.query(
           `UPDATE web_archives 
            SET last_status = 'modified', last_checked_at = NOW(), diff_data = $1, 
-               last_hash = $2, last_content = $3, scan_count = scan_count + 1 
+               last_hash = $2, last_content = $3, scan_count = COALESCE(scan_count, 0) + 1 
            WHERE id = $4`,
           [JSON.stringify(diffResult), scan.hash, scan.text, url]
         );
         return NextResponse.json({ status: 'modified', changes: diffResult.changesCount });
       } else {
         await pool.query(
-          "UPDATE web_archives SET last_status = 'intact', last_checked_at = NOW(), scan_count = scan_count + 1 WHERE id = $1",
+          "UPDATE web_archives SET last_status = 'intact', last_checked_at = NOW(), scan_count = COALESCE(scan_count, 0) + 1 WHERE id = $1",
           [url]
         );
         return NextResponse.json({ status: 'intact' });
       }
     }
 
-    // === AJOUT D'UN SITE (crawl complet) ===
+    // === AJOUT D'UN NOUVEAU SITE ===
     if (!isSafeUrl(url)) {
       return NextResponse.json({ error: 'URL invalide ou non autorisée.' }, { status: 400 });
     }
@@ -197,7 +272,29 @@ export async function POST(req: Request) {
     const urlObj = new URL(url);
     const siteRoot = `${urlObj.protocol}//${urlObj.hostname}`;
 
-    // Découvre les pages à scanner
+    // COMPTAGE PAR SITE (pas par page) : combien de sites distincts ?
+    const sitesCountQuery = await pool.query(
+      "SELECT COUNT(DISTINCT site_root) as count FROM web_archives WHERE user_id = $1 AND site_root IS NOT NULL",
+      [userId]
+    );
+    const sitesCount = parseInt(sitesCountQuery.rows[0].count || 0);
+    const maxLimit = isPro ? PRO_LIMIT : FREE_LIMIT;
+
+    // Vérifie si ce site existe déjà
+    const existingSite = await pool.query(
+      "SELECT id FROM web_archives WHERE user_id = $1 AND site_root = $2 LIMIT 1",
+      [userId, siteRoot]
+    );
+
+    if (existingSite.rows.length === 0 && sitesCount >= maxLimit) {
+      return NextResponse.json({ 
+        error: `Quota atteint (${maxLimit} sites max). Passez à SCEAU PRO pour en ajouter plus.` 
+      }, { status: 403 });
+    }
+
+    // Si le site existe déjà, on ajoute juste les nouvelles pages
+    // Sinon, on crawle comme d'habitude
+
     let pages: string[] = [];
     const sitemapPages = await fetchSitemap(siteRoot);
     if (sitemapPages.length > 0) {
@@ -215,34 +312,38 @@ export async function POST(req: Request) {
       pages = [url, ...internalLinks.filter(l => l !== url)].slice(0, MAX_PAGES);
     }
 
-    // Scanne les pages en parallèle
     const scanResults = await Promise.all(pages.map(p => scanPage(p)));
-    const validResults = scanResults.filter((r, i): r is { text: string; hash: string } => r !== null);
     
-    if (validResults.length === 0) {
-      return NextResponse.json({ error: 'Aucune page n\'a pu être scannée.' }, { status: 400 });
-    }
-
-    // Crée une entrée par page
-    for (let i = 0; i < validResults.length; i++) {
+    let insertedCount = 0;
+    for (let i = 0; i < pages.length; i++) {
       const pageUrl = pages[i];
-      const pageData = validResults[i];
-      const title = new URL(pageUrl).pathname || '/';
+      const pageData = scanResults[i];
+      if (!pageData) continue;
       
-      await pool.query(`
-        INSERT INTO web_archives (user_id, url, site_root, title, last_hash, last_content, last_status, pages_scanned, scan_count)
-        VALUES ($1, $2, $3, $4, $5, $6, 'intact', $7, 1)
-      `, [userId, pageUrl, siteRoot, title, pageData.hash, pageData.text, validResults.length]);
+      // Vérifie si cette page existe déjà
+      const existing = await pool.query(
+        "SELECT id FROM web_archives WHERE user_id = $1 AND url = $2",
+        [userId, pageUrl]
+      );
+      
+      if (existing.rows.length === 0) {
+        await pool.query(`
+          INSERT INTO web_archives (user_id, url, site_root, title, last_hash, last_content, last_status, pages_scanned, scan_count)
+          VALUES ($1, $2, $3, $4, $5, $6, 'intact', $7, 1)
+        `, [userId, pageUrl, siteRoot, pageData.title, pageData.hash, pageData.text, pages.length]);
+        insertedCount++;
+      }
     }
 
     return NextResponse.json({ 
       success: true, 
-      pages_scanned: validResults.length,
+      pages_scanned: insertedCount,
+      total_pages: pages.length,
       site_root: siteRoot,
     });
   } catch (e: any) {
     console.error('[archive POST]', e);
-    return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 });
+    return NextResponse.json({ error: e?.message || 'Erreur serveur.' }, { status: 500 });
   }
 }
 
@@ -257,7 +358,23 @@ export async function DELETE(req: Request) {
     const user = await pool.query("SELECT id FROM users WHERE encode(pubkey, 'base64') = $1", [pubkey]);
     if (user.rows.length === 0) return NextResponse.json({ error: 'Inconnu' }, { status: 401 });
 
-    await pool.query("DELETE FROM web_archives WHERE id = $1 AND user_id = $2", [id, user.rows[0].id]);
+    // Si c'est un site entier, on supprime toutes ses pages
+    const site = await pool.query(
+      "SELECT site_root FROM web_archives WHERE id = $1 AND user_id = $2",
+      [id, user.rows[0].id]
+    );
+    
+    if (site.rows.length === 0) return NextResponse.json({ error: 'Introuvable' }, { status: 404 });
+
+    if (site.rows[0].site_root) {
+      await pool.query(
+        "DELETE FROM web_archives WHERE user_id = $1 AND site_root = $2",
+        [user.rows[0].id, site.rows[0].site_root]
+      );
+    } else {
+      await pool.query("DELETE FROM web_archives WHERE id = $1 AND user_id = $2", [id, user.rows[0].id]);
+    }
+    
     return NextResponse.json({ success: true });
   } catch (e) {
     return NextResponse.json({ error: 'Erreur' }, { status: 500 });

@@ -159,7 +159,7 @@ export default function Profil() {
   // ONGLET FAVORIS
   if (activeTab === 'favorites') {
     return (
-      <div className="p-6 max-w-2xl mx-auto font-sans">
+      <div className="p-6 pb-32 md:pb-6 max-w-2xl mx-auto font-sans">
         <button onClick={() => setActiveTab('public')} className="text-sm font-bold text-[#A89070] mb-4 hover:underline">← Retour au coffre</button>
         <button onClick={openTechProofs} className="mb-4 bg-[#FDF8F0] text-[#A88620] border border-[#E9C46A] px-4 py-2 rounded-lg font-bold text-sm shadow-sm">🔬 Preuves techniques</button>
         <h2 className="text-2xl font-bold mb-4" style={{color: 'var(--text-main)'}}>📌 Mes Favoris</h2>
