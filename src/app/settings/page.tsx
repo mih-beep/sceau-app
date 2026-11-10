@@ -17,6 +17,8 @@ export default function Settings() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [birthDate, setBirthDate] = useState('');
+  const [identityCount, setIdentityCount] = useState(0);
+  const [identityHistory, setIdentityHistory] = useState<any[]>([]);
   const [pubkey, setPubkey] = useState('');
   const [apiKeys, setApiKeys] = useState<any[]>([]);
   const [newKeyName, setNewKeyName] = useState('');
@@ -42,6 +44,8 @@ export default function Settings() {
           setFirstName(d.first_name || '');
           setLastName(d.last_name || '');
           setBirthDate(d.birth_date ? d.birth_date.split('T')[0] : '');
+          setIdentityCount(d.identity_changes_count || 0);
+          setIdentityHistory(d.identity_history || []);
         }
         setLoading(false);
       })
@@ -159,23 +163,40 @@ export default function Settings() {
           {msg && <p className="text-center font-bold mt-3" style={{color: msg.includes('✅') ? '#7A9B5A' : '#C44A2E'}}>{msg}</p>}
         </div>
 
-        <div className="bg-[#F0F6FC] p-6 rounded-2xl border border-[#C9D8E8]">
-          <h2 className="text-lg font-bold mb-2 text-[#2D6A9E]">🛡️ Identité de confiance (Privée)</h2>
-          <p className="text-xs text-[#2D6A9E] mb-4 italic">Ces informations ne sont jamais visibles sur votre profil. Elles servent uniquement à prouver que ce compte vous appartient en cas de litige.</p>
+        <div className={`p-6 rounded-2xl border ${identityCount >= 3 ? 'bg-red-50 border-red-200' : 'bg-[#F0F6FC] border-[#C9D8E8]'}`}>
+          <div className="flex justify-between items-start mb-2">
+            <h2 className={`text-lg font-bold ${identityCount >= 3 ? 'text-red-700' : 'text-[#2D6A9E]'}`}>🛡️ Identité de confiance (Privée)</h2>
+            {identityCount > 0 && (
+              <div className="relative group cursor-help">
+                <span className="bg-orange-100 text-orange-600 font-bold px-2 py-1 rounded text-xs border border-orange-200">
+                  ⚠️ {3 - identityCount} modification(s) restante(s)
+                </span>
+                <div className="absolute right-0 top-full mt-2 w-64 bg-gray-900 text-white text-xs p-3 rounded-lg shadow-xl hidden group-hover:block z-50">
+                  <p className="font-bold mb-1 border-b border-gray-700 pb-1">Historique des changements</p>
+                  {identityHistory.map((h: any, i: number) => (
+                    <p key={i} className="mt-1 opacity-80">Le {new Date(h.date).toLocaleDateString()} : {h.old_name} → {h.new_name}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <p className={`text-xs mb-4 italic ${identityCount >= 3 ? 'text-red-600' : 'text-[#2D6A9E]'}`}>
+            Ces informations servent uniquement à prouver que ce compte vous appartient. <strong>Vous ne pouvez les modifier que 3 fois maximum.</strong>
+          </p>
           
           <div className="flex gap-4 mb-4">
             <div className="flex-1">
               <label className="block text-xs font-bold text-[#2D6A9E] mb-1 font-mono">Prénom</label>
-              <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className="w-full border-2 border-[#C9D8E8] p-3 rounded-xl bg-white focus:border-[#4A90C2] outline-none" />
+              <input type="text" disabled={identityCount >= 3} value={firstName} onChange={e => setFirstName(e.target.value)} className="w-full border-2 border-[#C9D8E8] p-3 rounded-xl bg-white focus:border-[#4A90C2] outline-none disabled:opacity-50 disabled:bg-gray-100" />
             </div>
             <div className="flex-1">
               <label className="block text-xs font-bold text-[#2D6A9E] mb-1 font-mono">Nom</label>
-              <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className="w-full border-2 border-[#C9D8E8] p-3 rounded-xl bg-white focus:border-[#4A90C2] outline-none" />
+              <input type="text" disabled={identityCount >= 3} value={lastName} onChange={e => setLastName(e.target.value)} className="w-full border-2 border-[#C9D8E8] p-3 rounded-xl bg-white focus:border-[#4A90C2] outline-none disabled:opacity-50 disabled:bg-gray-100" />
             </div>
           </div>
           
           <label className="block text-xs font-bold text-[#2D6A9E] mb-1 font-mono">Date de naissance</label>
-          <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="w-full border-2 border-[#C9D8E8] p-3 rounded-xl bg-white focus:border-[#4A90C2] outline-none" />
+          <input type="date" disabled={identityCount >= 3} value={birthDate} onChange={e => setBirthDate(e.target.value)} className="w-full border-2 border-[#C9D8E8] p-3 rounded-xl bg-white focus:border-[#4A90C2] outline-none disabled:opacity-50 disabled:bg-gray-100" />
         </div>
 
         <div className="bg-[#FDF8F0] p-6 rounded-2xl border border-[#EFE0CA]">

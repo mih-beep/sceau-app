@@ -16,11 +16,17 @@
   }
   
   .dark {
-    --bg-main: #121212;
-    --bg-surface: #1E1E1E;
-    --text-main: #F5E9D8;
-    --text-muted: #888;
-    --border-color: #333;
+    --bg-main: #0F0F0F; /* Noir très profond */
+    --bg-surface: #1A1A1A; /* Gris foncé pour les cartes */
+    --text-main: #EDEDED;
+    --text-muted: #A0A0A0;
+    --border-color: #2A2A2A;
+  }
+  
+  /* On force la Sidebar à rester sombre même en mode clair */
+  .dark aside, .dark .Cockpit {
+    background-color: #050505 !important;
+    border-color: #2A2A2A !important;
   }
 
   body {
