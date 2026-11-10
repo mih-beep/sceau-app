@@ -25,7 +25,7 @@ function SealContent() {
   const [visibility, setVisibility] = useState('public');
   const [isHosted, setIsHosted] = useState(true);
   const [isMystery, setIsMystery] = useState(false);
-  const [isEphemeral, setIsEphemeral] = useState(false);
+  
   const [unlockLikes, setUnlockLikes] = useState(10);
   const [revealAt, setRevealAt] = useState('');
   const [requiredSignatures, setRequiredSignatures] = useState(2);
@@ -143,7 +143,7 @@ function SealContent() {
       formData.append('isFlash', isFlashMode.toString());
       formData.append('visibility', visibility);
       formData.append('isMystery', isMystery.toString());
-      formData.append('isEphemeral', isEphemeral.toString());
+      formData.append('isEphemeral', 'false');
       formData.append('unlockLikes', unlockLikes.toString());
       formData.append('reveal_at', revealAt);
       formData.append('isHosted', isHosted.toString());
@@ -349,7 +349,13 @@ function SealContent() {
 
             <div className="pt-2 border-t border-[var(--border-color)]">
               <label className="text-xs font-mono font-bold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>Capsule Temporelle</label>
-              <input type="date" value={revealAt} onChange={e => setRevealAt(e.target.value)} className="w-full border-2 border-[var(--border-color)] p-2 rounded-lg bg-transparent text-sm" style={{ color: 'var(--text-main)' }} />
+              <input 
+                type="date" 
+                value={revealAt} 
+                onChange={e => setRevealAt(e.target.value)} 
+                className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl bg-[var(--bg-surface)] text-sm focus:border-[#E76F51] outline-none transition cursor-pointer [color-scheme:dark]" 
+                style={{ color: 'var(--text-main)' }} 
+              />
             </div>
           </div>
         )}
