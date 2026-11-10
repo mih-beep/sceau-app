@@ -87,7 +87,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="h-screen overflow-hidden flex bg-[var(--bg-main)] font-sans">
         
         {/* SIDEBAR GAUCHE - Desktop */}
-        <aside className="hidden md:flex flex-col w-64 bg-[#1A1513] text-[#EADFD4] border-r border-[#332824] shrink-0">
+        <aside className="hidden md:flex flex-col w-64 bg-[#2C1810] text-[#F5E9D8] border-r border-[#3D2F28] shrink-0">
           <div className="p-8 pb-4">
             <Link href="/feed" className="text-3xl font-bold font-serif text-white tracking-wide">SCEAU<span className="text-[#E76F51]">.</span></Link>
             <div className="text-[0.6rem] font-mono tracking-widest uppercase mt-2 text-[#8A7A72]">Notaire de Poche</div>
@@ -96,9 +96,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="flex-1 overflow-y-auto py-6 px-4">
             {navSections.map(section => (
               <div key={section.title} className="mb-8">
-                <div className="px-4 text-[0.65rem] font-bold uppercase tracking-wider text-[#8A7A72] mb-3">{section.title}</div>
+                <div className="px-4 text-[0.65rem] font-bold uppercase tracking-wider text-[#A89070] mb-3">{section.title}</div>
                 {section.links.map(link => (
-                  <Link key={link.path} href={link.path} className={`flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-colors border-l-2 mb-1 ${isActive(link.path) ? 'bg-white/5 text-white border-[#E76F51]' : 'border-transparent text-[#EADFD4] hover:bg-white/5 hover:text-white'}`}>
+                  <Link key={link.path} href={link.path} className={`flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-colors border-l-2 mb-1 ${isActive(link.path) ? 'bg-white/10 text-white border-[#E76F51]' : 'border-transparent text-[#EADFD4] hover:bg-white/5 hover:text-white'}`}>
                     {link.name}
                   </Link>
                 ))}

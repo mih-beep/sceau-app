@@ -193,7 +193,7 @@ function SealContent() {
           {sealedResult.ots && <p className="text-xs mt-2 text-[#5D7A3A] font-bold"> Preuve horodatée</p>}
         </div>
         <button onClick={() => window.location.reload()} className="mt-8 bg-[#2C1810] text-white p-3 rounded-xl font-bold w-full">Sceller une autre œuvre</button>
-        <Link href="/feed" className="mt-3 border-2 border-[var(--border-color)] text-[var(--text-main)] p-3 rounded-xl font-bold w-full text-center">Voir le Feed</Link>
+        <Link href="/feed" className="mt-3 border border-[var(--border-soft)] text-[var(--text-main)] p-3 rounded-xl font-bold w-full text-center">Voir le Feed</Link>
       </div>
     );
   }
@@ -243,7 +243,7 @@ function SealContent() {
           <label className="text-xs font-mono font-bold uppercase" style={{ color: 'var(--text-muted)' }}>Titre</label>
           <input
             type="text"
-            className="w-full border-2 border-[var(--border-color)] focus:border-[#E76F51] rounded-xl p-3 outline-none bg-transparent mt-1"
+            className="w-full border border-[var(--border-soft)] focus:border-[#E76F51] rounded-xl p-3 outline-none bg-transparent mt-1"
             style={{ color: 'var(--text-main)' }}
             value={title}
             onChange={e => setTitle(e.target.value)}
@@ -264,7 +264,7 @@ function SealContent() {
         {!isPactMode && mode !== 'text' && (
           <div>
             <label className="text-xs font-mono font-bold uppercase" style={{ color: 'var(--text-muted)' }}>Description</label>
-            <textarea className="w-full border-2 border-[var(--border-color)] focus:border-[#E76F51] rounded-xl p-3 outline-none bg-transparent mt-1" rows={2} value={desc} onChange={e => setDesc(e.target.value)} />
+            <textarea className="w-full border border-[var(--border-soft)] focus:border-[#E76F51] rounded-xl p-3 outline-none bg-transparent mt-1" rows={2} value={desc} onChange={e => setDesc(e.target.value)} />
           </div>
         )}
 
@@ -272,7 +272,7 @@ function SealContent() {
         {mode === 'text' && !isPactMode && (
           <div>
             <label className="text-xs font-mono font-bold uppercase" style={{ color: 'var(--text-muted)' }}>Texte à sceller</label>
-            <textarea className="w-full border-2 border-[var(--border-color)] focus:border-[#E76F51] rounded-xl p-4 outline-none bg-transparent min-h-[100px] font-mono text-sm mt-1" value={textContent} onChange={e => setTextContent(e.target.value)} placeholder="Écris ton texte ici..." />
+            <textarea className="w-full border border-[var(--border-soft)] focus:border-[#E76F51] rounded-xl p-4 outline-none bg-transparent min-h-[100px] font-mono text-sm mt-1" value={textContent} onChange={e => setTextContent(e.target.value)} placeholder="Écris ton texte ici..." />
           </div>
         )}
 
@@ -354,7 +354,7 @@ function SealContent() {
                 type="date" 
                 value={revealAt} 
                 onChange={e => setRevealAt(e.target.value)} 
-                className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl bg-[var(--bg-surface)] text-sm focus:border-[#E76F51] outline-none transition cursor-pointer [color-scheme:dark]" 
+                className="w-full border border-[var(--border-soft)] p-3 rounded-xl bg-[var(--bg-surface)] text-sm focus:border-[#E76F51] outline-none transition cursor-pointer [color-scheme:dark]" 
                 style={{ color: 'var(--text-main)' }} 
               />
             </div>
@@ -376,7 +376,7 @@ function SealContent() {
             
             <div>
               <label className="text-xs font-mono font-bold uppercase" style={{ color: 'var(--text-muted)' }}>Signatures requises</label>
-            <input type="number" min="2" value={requiredSignatures} onChange={e => setRequiredSignatures(parseInt(e.target.value) || 2)} className="w-full border-2 border-[var(--border-color)] p-2 rounded-lg text-center font-bold text-lg bg-transparent mt-1" style={{ color: 'var(--text-main)' }} />
+            <input type="number" min="2" value={requiredSignatures} onChange={e => setRequiredSignatures(parseInt(e.target.value) || 2)} className="w-full border border-[var(--border-soft)] p-2 rounded-lg text-center font-bold text-lg bg-transparent mt-1" style={{ color: 'var(--text-main)' }} />
           </div>
         </div>
         )}

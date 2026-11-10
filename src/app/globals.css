@@ -8,11 +8,16 @@
 
 @layer base {
   :root {
-    --bg-main: #F9F6F0; /* Crème plus doux, moins jaune */
+    --bg-main: #F9F6F0;
     --bg-surface: #FFFFFF;
+    --bg-soft: #FDF8F0;
     --text-main: #2C1810;
     --text-muted: #8A7A72;
     --border-color: #EFE0CA;
+    --border-soft: #F5E9D8;
+    --shadow-sm: 0 1px 2px rgba(44,24,16,0.04);
+    --shadow-md: 0 4px 12px rgba(44,24,16,0.06);
+    --radius-card: 16px;
   }
   
   .dark {

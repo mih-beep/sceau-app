@@ -139,13 +139,13 @@ export default function Settings() {
           <h2 className="text-lg font-bold mb-4" style={{color: 'var(--text-main)'}}>👤 Identité publique</h2>
 
           <label className="block text-xs font-bold text-[var(--text-muted)] mb-1 font-mono">Pseudo</label>
-          <input type="text" value={newHandle} onChange={e => setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))} className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} />
+          <input type="text" value={newHandle} onChange={e => setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))} className="w-full border border-[var(--border-soft)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} />
 
           <label className="block text-xs font-bold text-[var(--text-muted)] mb-1 font-mono">Bio / Description</label>
-          <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} placeholder="Parle de toi en quelques mots..." />
+          <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full border border-[var(--border-soft)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} placeholder="Parle de toi en quelques mots..." />
 
           <label className="block text-xs font-bold text-[var(--text-muted)] mb-1 font-mono">Ton rôle</label>
-          <select value={role} onChange={e => setRole(e.target.value)} className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl bg-transparent mb-4" style={{color: 'var(--text-main)'}}>
+          <select value={role} onChange={e => setRole(e.target.value)} className="w-full border border-[var(--border-soft)] p-3 rounded-xl bg-transparent mb-4" style={{color: 'var(--text-main)'}}>
             <option value="createur">Créateur / Artiste</option>
             <option value="freelance">Freelance</option>
             <option value="entreprise">Entreprise / Agence</option>

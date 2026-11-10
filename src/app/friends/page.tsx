@@ -147,7 +147,7 @@ export default function Friends() {
                 <input 
                   type="text" 
                   placeholder="🔍 Chercher un créateur par pseudo..." 
-                  className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl outline-none bg-[var(--bg-surface)]"
+                  className="w-full border border-[var(--border-soft)] p-3 rounded-xl outline-none bg-[var(--bg-surface)]"
                   style={{color: 'var(--text-main)'}}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
@@ -244,8 +244,8 @@ export default function Friends() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-[var(--bg-surface)] w-full max-w-md rounded-3xl p-6">
             <h2 className="text-2xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Créer un Défi</h2>
-            <input type="text" placeholder="Titre (ex: Meilleur design de l'été)" className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={challengeTitle} onChange={e => setChallengeTitle(e.target.value)} />
-            <textarea placeholder="Description du défi..." className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={challengeDesc} onChange={e => setChallengeDesc(e.target.value)} />
+            <input type="text" placeholder="Titre (ex: Meilleur design de l'été)" className="w-full border border-[var(--border-soft)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={challengeTitle} onChange={e => setChallengeTitle(e.target.value)} />
+            <textarea placeholder="Description du défi..." className="w-full border border-[var(--border-soft)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={challengeDesc} onChange={e => setChallengeDesc(e.target.value)} />
             <label className="flex items-center gap-3 mb-6 cursor-pointer">
               <input type="checkbox" checked={challengeAnon} onChange={e => setChallengeAnon(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
               <span className="text-sm font-bold" style={{color: 'var(--text-main)'}}>Cacher les noms (Vote à l'aveugle)</span>

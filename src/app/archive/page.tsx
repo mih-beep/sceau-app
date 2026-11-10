@@ -91,7 +91,7 @@ export default function ArchivePage() {
           <input 
             type="url" 
             placeholder="https://www.concurrent.com" 
-            className="flex-1 border-2 border-[var(--border-color)] p-3 rounded-xl bg-transparent outline-none focus:border-[#4A90C2]"
+            className="flex-1 border border-[var(--border-soft)] p-3 rounded-xl bg-transparent outline-none focus:border-[#4A90C2]"
             style={{color: 'var(--text-main)'}}
             value={url}
             onChange={e => setUrl(e.target.value)}
@@ -137,13 +137,12 @@ export default function ArchivePage() {
                 <span className="text-[0.65rem] font-mono text-[var(--text-muted)] mr-2 hidden sm:block">
                   Vérifié le {new Date(a.last_checked_at).toLocaleDateString('fr-FR')}
                 </span>
-                <button 
-                  onClick={() => checkUrl(a.id)} 
-                  disabled={checking === a.id}
-                  className="bg-[#F0F6FC] text-[#2D6A9E] border border-[#C9D8E8] px-4 py-2 rounded-lg text-xs font-bold hover:bg-[#E0EDF8] transition"
+                <Link
+                  href={`/archive/${a.id}`}
+                  className="bg-[#1A1513] text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-black transition"
                 >
-                  {checking === a.id ? 'Scan...' : 'Vérifier'}
-                </button>
+                  Voir le détail →
+                </Link>
                 <button onClick={() => deleteUrl(a.id)} className="text-red-400 hover:text-red-600 px-2 text-lg">✕</button>
               </div>
             </div>

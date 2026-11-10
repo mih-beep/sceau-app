@@ -42,7 +42,7 @@ export default function Home() {
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
           <Link href="/signup" className="bg-[#1A1513] text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-black transition">Sceller mon premier fichier</Link>
-          <Link href="/verify" className="bg-[var(--bg-surface)] border-2 border-[var(--border-color)] text-[var(--text-main)] px-8 py-4 rounded-xl font-bold text-lg hover:border-[#E76F51] transition">Vérifier une preuve</Link>
+          <Link href="/verify" className="bg-[var(--bg-surface)] border border-[var(--border-soft)] text-[var(--text-main)] px-8 py-4 rounded-xl font-bold text-lg hover:border-[#E76F51] transition">Vérifier une preuve</Link>
         </div>
       </section>
 

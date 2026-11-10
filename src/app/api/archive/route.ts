@@ -5,38 +5,75 @@ import { sha256 } from '@noble/hashes/sha256';
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
-// === SÉCURITÉ SSRF ===
+const MAX_PAGES = 10;
+
 function isSafeUrl(urlString: string): boolean {
   try {
     const url = new URL(urlString);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
-    
-    const hostname = url.hostname.toLowerCase();
-    // Blocage des localhost et IPs privées
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return false;
-    if (/^10\./.test(hostname)) return false;
-    if (/^192\.168\./.test(hostname)) return false;
-    if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)) return false;
-    if (/^169\.254\./.test(hostname)) return false;
-    
+    const h = url.hostname.toLowerCase();
+    if (h === 'localhost' || h === '127.0.0.1' || h === '::1') return false;
+    if (/^10\./.test(h)) return false;
+    if (/^192\.168\./.test(h)) return false;
+    if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(h)) return false;
+    if (/^169\.254\./.test(h)) return false;
     return true;
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
 
-// === FONCTION DE NETTOYAGE UNIFIÉE ===
 function cleanHtmlToText(html: string): string {
   return html
-    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, '') // Supprime JS
-    .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gim, '') // Supprime CSS
-    .replace(/<[^>]*>/g, '\n') // Supprime les balises HTML
-    .replace(/\n\s*\n/g, '\n') // Supprime les lignes vides
+    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, '')
+    .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gim, '')
+    .replace(/<[^>]*>/g, '\n')
+    .replace(/\n\s*\n/g, '\n')
     .trim();
 }
 
-function hashContent(content: string): string {
-  return Buffer.from(sha256(new TextEncoder().encode(content))).toString('hex');
+function extractInternalLinks(html: string, baseUrl: string): string[] {
+  const links: Set<string> = new Set();
+  const regex = /<a[^>]+href=["']([^"']+)["']/gi;
+  let match;
+  const base = new URL(baseUrl);
+  while ((match = regex.exec(html)) !== null) {
+    try {
+      const url = new URL(match[1], baseUrl);
+      if (url.hostname === base.hostname && url.protocol.startsWith('http')) {
+        url.hash = '';
+        links.add(url.toString());
+      }
+    } catch { /* ignore */ }
+  }
+  return Array.from(links);
+}
+
+async function fetchSitemap(siteRoot: string): Promise<string[]> {
+  try {
+    const res = await fetch(`${siteRoot}/sitemap.xml`, {
+      headers: { 'User-Agent': 'SCEAU-Bot/1.0' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return [];
+    const xml = await res.text();
+    const matches = xml.match(/<loc>([^<]+)<\/loc>/g) || [];
+    return matches.map(m => m.replace(/<\/?loc>/g, '').trim()).slice(0, MAX_PAGES);
+  } catch { return []; }
+}
+
+async function scanPage(url: string): Promise<{ text: string; hash: string } | null> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'SCEAU-Bot/1.0' },
+      signal: AbortSignal.timeout(8000),
+      redirect: 'follow',
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    if (html.length > 5 * 1024 * 1024) return null;
+    const text = cleanHtmlToText(html);
+    const hash = Buffer.from(sha256(new TextEncoder().encode(text))).toString('hex');
+    return { text, hash };
+  } catch { return null; }
 }
 
 function generateDiff(oldText: string, newText: string) {
@@ -45,16 +82,15 @@ function generateDiff(oldText: string, newText: string) {
   const diff = [];
   const maxLines = Math.max(oldLines.length, newLines.length);
   let changesCount = 0;
-
   for (let i = 0; i < maxLines; i++) {
-    const oldLine = oldLines[i] || '';
-    const newLine = newLines[i] || '';
-    if (oldLine !== newLine) {
-      diff.push({ type: 'removed', text: oldLine.trim() });
-      diff.push({ type: 'added', text: newLine.trim() });
+    const o = oldLines[i] || '';
+    const n = newLines[i] || '';
+    if (o !== n) {
+      diff.push({ type: 'removed', text: o.trim() });
+      diff.push({ type: 'added', text: n.trim() });
       changesCount++;
-    } else if (oldLine.trim() !== '') {
-      diff.push({ type: 'unchanged', text: oldLine.trim() });
+    } else if (o.trim() !== '') {
+      diff.push({ type: 'unchanged', text: o.trim() });
     }
   }
   return { changesCount, details: diff.slice(0, 100) };
@@ -70,7 +106,7 @@ export async function GET(req: Request) {
     if (user.rows.length === 0) return NextResponse.json({ error: 'Inconnu' }, { status: 401 });
     
     const result = await pool.query(`
-      SELECT id, url, title, last_status, last_checked_at, created_at, diff_data
+      SELECT id, url, site_root, title, last_status, last_checked_at, created_at, diff_data, pages_scanned, scan_count, ai_summary
       FROM web_archives WHERE user_id = $1 ORDER BY created_at DESC
     `, [user.rows[0].id]);
     
@@ -100,81 +136,103 @@ export async function POST(req: Request) {
     const maxLimit = isPro ? 50 : 3;
 
     if (currentCount >= maxLimit && action !== 'check') {
-      return NextResponse.json({ error: `Quota atteint (${maxLimit} URLs max).` }, { status: 403 });
+      return NextResponse.json({ error: `Quota atteint (${maxLimit} sites max).` }, { status: 403 });
     }
 
-    // === VÉRIFICATION (Le Scan Manuel) ===
+    // === VÉRIFICATION (scan manuel) ===
     if (action === 'check') {
-      const archive = await pool.query("SELECT id, url, last_hash, last_content FROM web_archives WHERE id = $1 AND user_id = $2", [url, userId]);
+      const archive = await pool.query(
+        "SELECT id, url, site_root, last_hash, last_content FROM web_archives WHERE id = $1 AND user_id = $2",
+        [url, userId]
+      );
       if (archive.rows.length === 0) return NextResponse.json({ error: 'Archive introuvable' }, { status: 404 });
       
       const targetUrl = archive.rows[0].url;
+      const siteRoot = archive.rows[0].site_root || new URL(targetUrl).origin;
       const oldHash = archive.rows[0].last_hash;
       const oldContent = archive.rows[0].last_content || '';
 
-      try {
-        const res = await fetch(targetUrl, { 
-          headers: { 'User-Agent': 'SCEAU-Archive-Bot/1.0' },
-          signal: AbortSignal.timeout(10000) // 10 secondes max
-        });
-        
-        if (!res.ok) throw new Error('Site inaccessible');
-        
-        const html = await res.text();
-        if (html.length > 5 * 1024 * 1024) throw new Error('Contenu trop lourd'); // 5 Mo max
-        
-        const newText = cleanHtmlToText(html);
-        const newHash = hashContent(newText);
+      const scan = await scanPage(targetUrl);
+      if (!scan) {
+        await pool.query(
+          "UPDATE web_archives SET last_status = 'error', last_checked_at = NOW(), scan_count = scan_count + 1 WHERE id = $1",
+          [url]
+        );
+        return NextResponse.json({ status: 'error', message: 'Impossible de vérifier le site.' });
+      }
 
-        if (oldHash !== newHash) {
-          const diffResult = generateDiff(oldContent, newText);
-          await pool.query(
-            "UPDATE web_archives SET last_status = 'modified', last_checked_at = NOW(), diff_data = $1 WHERE id = $2", 
-            [JSON.stringify(diffResult), url]
-          );
-          return NextResponse.json({ status: 'modified', changes: diffResult.changesCount });
-        } else {
-          await pool.query("UPDATE web_archives SET last_status = 'intact', last_checked_at = NOW(), diff_data = NULL WHERE id = $1", [url]);
-          return NextResponse.json({ status: 'intact' });
-        }
-      } catch (e) {
-        // En cas d'erreur (timeout, 404, SSRF), on marque l'archive en erreur
-        await pool.query("UPDATE web_archives SET last_status = 'error', last_checked_at = NOW() WHERE id = $1", [url]);
-        return NextResponse.json({ status: 'error', error: 'Impossible de vérifier le site.' });
+      if (oldHash !== scan.hash) {
+        const diffResult = generateDiff(oldContent, scan.text);
+        await pool.query(
+          `UPDATE web_archives 
+           SET last_status = 'modified', last_checked_at = NOW(), diff_data = $1, 
+               last_hash = $2, last_content = $3, scan_count = scan_count + 1 
+           WHERE id = $4`,
+          [JSON.stringify(diffResult), scan.hash, scan.text, url]
+        );
+        return NextResponse.json({ status: 'modified', changes: diffResult.changesCount });
+      } else {
+        await pool.query(
+          "UPDATE web_archives SET last_status = 'intact', last_checked_at = NOW(), scan_count = scan_count + 1 WHERE id = $1",
+          [url]
+        );
+        return NextResponse.json({ status: 'intact' });
       }
     }
 
-    // === AJOUT D'UNE NOUVELLE URL ===
+    // === AJOUT D'UN SITE (crawl complet) ===
     if (!isSafeUrl(url)) {
-      return NextResponse.json({ error: 'URL invalide ou non autorisée (sécurité).' }, { status: 400 });
+      return NextResponse.json({ error: 'URL invalide ou non autorisée.' }, { status: 400 });
     }
 
-    try {
-      const res = await fetch(url, { 
-        headers: { 'User-Agent': 'SCEAU-Archive-Bot/1.0' },
-        signal: AbortSignal.timeout(10000)
-      });
-      
-      if (!res.ok) throw new Error('Site inaccessible');
-      
-      const html = await res.text();
-      if (html.length > 5 * 1024 * 1024) throw new Error('Contenu trop lourd');
-      
-      const cleanText = cleanHtmlToText(html);
-      const newHash = hashContent(cleanText);
-      const title = new URL(url).hostname;
+    const urlObj = new URL(url);
+    const siteRoot = `${urlObj.protocol}//${urlObj.hostname}`;
 
+    // Découvre les pages à scanner
+    let pages: string[] = [];
+    const sitemapPages = await fetchSitemap(siteRoot);
+    if (sitemapPages.length > 0) {
+      pages = sitemapPages;
+    } else {
+      const rootHtml = await fetch(url, {
+        headers: { 'User-Agent': 'SCEAU-Bot/1.0' },
+        signal: AbortSignal.timeout(8000),
+      }).then(r => r.ok ? r.text() : null).catch(() => null);
+
+      if (!rootHtml) {
+        return NextResponse.json({ error: 'Impossible de joindre le site.' }, { status: 400 });
+      }
+      const internalLinks = extractInternalLinks(rootHtml, url);
+      pages = [url, ...internalLinks.filter(l => l !== url)].slice(0, MAX_PAGES);
+    }
+
+    // Scanne les pages en parallèle
+    const scanResults = await Promise.all(pages.map(p => scanPage(p)));
+    const validResults = scanResults.filter((r, i): r is { text: string; hash: string } => r !== null);
+    
+    if (validResults.length === 0) {
+      return NextResponse.json({ error: 'Aucune page n\'a pu être scannée.' }, { status: 400 });
+    }
+
+    // Crée une entrée par page
+    for (let i = 0; i < validResults.length; i++) {
+      const pageUrl = pages[i];
+      const pageData = validResults[i];
+      const title = new URL(pageUrl).pathname || '/';
+      
       await pool.query(`
-        INSERT INTO web_archives (user_id, url, title, last_hash, last_content, last_status) 
-        VALUES ($1, $2, $3, $4, $5, 'intact')
-      `, [userId, url, title, newHash, cleanText]);
-
-      return NextResponse.json({ success: true });
-    } catch (e: any) {
-      return NextResponse.json({ error: 'Impossible de joindre le site web.' }, { status: 400 });
+        INSERT INTO web_archives (user_id, url, site_root, title, last_hash, last_content, last_status, pages_scanned, scan_count)
+        VALUES ($1, $2, $3, $4, $5, $6, 'intact', $7, 1)
+      `, [userId, pageUrl, siteRoot, title, pageData.hash, pageData.text, validResults.length]);
     }
 
+    return NextResponse.json({ 
+      success: true, 
+      pages_scanned: validResults.length,
+      site_root: siteRoot,
+    });
   } catch (e: any) {
+    console.error('[archive POST]', e);
     return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 });
   }
 }

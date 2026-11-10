@@ -237,7 +237,7 @@ export default function Feed() {
         <input 
           type="text" 
           placeholder="Rechercher une œuvre ou un créateur..." 
-          className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl outline-none bg-[var(--bg-surface)]"
+          className="w-full border border-[var(--border-soft)] p-3 rounded-xl outline-none bg-[var(--bg-surface)]"
           style={{color: 'var(--text-main)'}}
           value={searchQuery}
           onChange={async (e) => {
@@ -353,7 +353,7 @@ export default function Feed() {
       {/* === LE CADRAN CARRE === */}
       {selectedSeal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedSeal(null)}>
-          <div className="bg-[var(--bg-main)] w-full max-w-lg rounded-2xl relative max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border-2 border-[var(--border-color)]" onClick={e => e.stopPropagation()}>
+          <div className="bg-[var(--bg-main)] w-full max-w-lg rounded-2xl relative max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-[var(--border-soft)]" onClick={e => e.stopPropagation()}>
             
             {/* En-tête du Cadran */}
             <div className="p-5 border-b border-[var(--border-color)] flex justify-between items-start bg-[var(--bg-surface)] z-10">
@@ -453,7 +453,7 @@ export default function Feed() {
             </div>
             
             <textarea 
-              className="w-full border-2 border-[var(--border-color)] rounded-xl p-3 outline-none bg-transparent mb-4" 
+              className="w-full border border-[var(--border-soft)] rounded-xl p-3 outline-none bg-transparent mb-4" 
               rows={3} 
               placeholder="Description de ton média..."
               value={createContent}

@@ -21,7 +21,7 @@ export default function ProjetDetail() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto font-sans">
-      <Link href="/profil" className="text-sm font-bold text-gray-500 hover:underline mb-4 inline-block">← Retour au profil</Link>
+      <Link href="/projets" className="text-sm font-bold text-gray-500 hover:underline mb-4 inline-block">← Retour aux projets</Link>
       
       <div className="bg-white rounded-2xl border shadow-sm overflow-hidden mb-6">
         <div className="bg-[#1E1E1E] p-6 text-white flex justify-between items-center">
