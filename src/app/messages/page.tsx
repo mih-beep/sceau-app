@@ -241,7 +241,10 @@ function MessagesInner() {
       <div className={`bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-4 overflow-y-auto ${activeChat ? 'hidden md:block md:w-1/3' : 'w-full md:w-1/3'}`}>
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-xl font-bold" style={{color: 'var(--text-main)'}}>Messages</h1>
-          <button onClick={() => setShowGroupModal(true)} className="bg-[#E76F51] text-white text-xs font-bold px-2 py-1 rounded-lg">+ Groupe</button>
+          <div className="flex gap-2">
+            <button onClick={() => setShowGroupModal(true)} className="bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border-color)] text-xs font-bold px-2 py-1 rounded-lg hover:border-[#E76F51] transition">Groupe</button>
+            <button onClick={() => setActiveChat({ type: 'dm', id: 'nouveau', name: 'Nouveau contact' })} className="bg-[#1A1513] text-white text-xs font-bold px-2 py-1 rounded-lg hover:bg-black transition">+ Pacte</button>
+          </div>
         </div>
 
         {groups.length > 0 && (
