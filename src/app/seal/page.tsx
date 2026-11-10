@@ -343,7 +343,6 @@ function SealContent() {
             )}
 
             <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={isEphemeral} onChange={e => setIsEphemeral(e.target.checked)} className="w-4 h-4 accent-[#E76F51]" />
               <span className="text-sm font-bold" style={{ color: 'var(--text-main)' }}>Éphémère (24h)</span>
             </label>
 
