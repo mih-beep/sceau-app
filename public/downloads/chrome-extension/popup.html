@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { width: 300px; padding: 16px; font-family: system-ui, sans-serif; text-align: center; background: #F9F6F0; margin: 0; }
+    h2 { font-family: serif; color: #1A1513; margin-top: 0; font-size: 20px; }
+    p { font-size: 12px; color: #666; line-height: 1.4; }
+    input { width: 100%; box-sizing: border-box; padding: 8px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; }
+    button { width: 100%; background: #E76F51; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
+    button:hover { background: #C75A22; }
+    #status { margin-top: 12px; font-size: 12px; font-weight: bold; color: green; display: none; }
+  </style>
+</head>
+<body>
+  <h2>SCEAU Archive</h2>
+  <p>Entrez votre clé publique (pubkey) pour lier cette action à votre compte.</p>
+  <input type="text" id="pubkey" placeholder="Votre Pubkey (base64)" />
+  <button id="sealBtn">Sceller cette page</button>
+  <div id="status">✅ Page envoyée à SCEAU !</div>
+  <script src="popup.js"></script>
+</body>
+</html>

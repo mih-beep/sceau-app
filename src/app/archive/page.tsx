@@ -73,6 +73,9 @@ export default function ArchivePage() {
           <h1 className="text-3xl font-bold font-serif mb-2" style={{color: 'var(--text-main)'}}>SCEAU Archive</h1>
           <p className="text-sm text-[var(--text-muted)]">Surveillez l'intégrité des sites web. Détectez les modifications en un clic.</p>
         </div>
+        <a href="/downloads/sceau-extension.zip" download className="bg-white border-2 border-gray-200 text-gray-800 px-4 py-2 rounded-xl font-bold text-xs hover:border-[#E76F51] transition shadow-sm hidden md:block">
+          Télécharger l'Extension Chrome
+        </a>
         {!isPro && (
           <div className="bg-[#FDF4F0] border border-[#FCE0D6] px-4 py-2 rounded-lg text-right hidden md:block">
             <p className="text-xs font-bold text-[#C44A2E]">Quota Gratuit</p>
