@@ -33,8 +33,9 @@ export default function Profil() {
     setError('');
 
     try {
+      const pubkey = localStorage.getItem('sceau_pubkey');
       const res = await fetch(
-        `/api/profil?handle=${encodeURIComponent(handle.trim())}`,
+        `/api/profil?handle=${encodeURIComponent(handle.trim())}${pubkey ? `&pubkey=${encodeURIComponent(pubkey)}` : ''}`,
         { cache: 'no-store' }
       );
 

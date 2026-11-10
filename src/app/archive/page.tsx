@@ -122,14 +122,14 @@ export default function ArchivePage() {
       ) : (
         <div className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl overflow-hidden shadow-sm">
           {archives.map((a, i) => (
-            <div key={a.id} className={`flex flex-col md:flex-row md:items-center justify-between p-4 ${i !== archives.length - 1 ? 'border-b border-[var(--border-color)]' : ''} ${a.status === 'modified' ? 'bg-[#FDF4F0]' : ''}`}>
+            <div key={a.id} className={`flex flex-col md:flex-row md:items-center justify-between p-4 ${i !== archives.length - 1 ? 'border-b border-[var(--border-color)]' : ''} ${a.last_status === 'modified' ? 'bg-[#FDF4F0]' : ''}`}>
               
               <div className="flex items-center gap-3 mb-3 md:mb-0">
-                <div className={`w-2 h-2 rounded-full ${a.status === 'modified' ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                <div className={`w-2 h-2 rounded-full ${a.last_status === 'modified' ? 'bg-red-500' : 'bg-green-500'}`}></div>
                 <div>
                   <p className="font-bold text-sm" style={{color: 'var(--text-main)'}}>{a.title || a.url}</p>
                   <p className="text-xs text-[var(--text-muted)] truncate max-w-[300px]">{a.url}</p>
-                  {a.status === 'modified' && <p className="text-[0.65rem] text-red-600 font-bold uppercase mt-1">Modification détectée</p>}
+                  {a.last_status === 'modified' && <p className="text-[0.65rem] text-red-600 font-bold uppercase mt-1">Modification détectée</p>}
                 </div>
               </div>
 

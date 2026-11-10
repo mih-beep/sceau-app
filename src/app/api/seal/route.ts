@@ -90,7 +90,7 @@ export async function POST(req: Request) {
             projectId = ref.rows[0].project_id;
           } else {
             const np = await client.query(
-              "INSERT INTO projects (author_id, name) VALUES ($1, $2) RETURNING id",
+              "INSERT INTO projects (author_id, title) VALUES ($1, $2) RETURNING id",
               [authorId, title]
             );
             projectId = np.rows[0].id;

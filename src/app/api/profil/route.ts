@@ -4,16 +4,29 @@ import { pool } from '@/db/pool';
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const handle = searchParams.get('handle')?.trim();
+  const pubkey = searchParams.get('pubkey')?.trim();
 
-  if (!handle) {
-    return NextResponse.json({ error: 'Pseudo manquant' }, { status: 400 });
+  if (!handle && !pubkey) {
+    return NextResponse.json({ error: 'Pseudo ou clé manquant' }, { status: 400 });
   }
 
   try {
-    const user = await pool.query(
-      "SELECT id, handle, bio, role, is_pro, open_to_collaboration, first_name, last_name, birth_date FROM users WHERE LOWER(handle) = LOWER($1) LIMIT 1",
-      [handle]
-    );
+    let isOwner = false;
+    let user;
+    
+    if (pubkey) {
+      user = await pool.query(
+        "SELECT id, handle, bio, role, is_pro, open_to_collaboration, first_name, last_name, birth_date FROM users WHERE encode(pubkey, 'base64') = $1 LIMIT 1",
+        [pubkey]
+      );
+      isOwner = user.rows.length > 0;
+    } else {
+      user = await pool.query(
+        "SELECT id, handle, bio, role, is_pro, open_to_collaboration, first_name, last_name, birth_date FROM users WHERE LOWER(handle) = LOWER($1) LIMIT 1",
+        [handle]
+      );
+    }
+    
     if (user.rows.length === 0) return NextResponse.json({ error: 'Inconnu' }, { status: 404 });
     
     const userId = user.rows[0].id;
@@ -33,7 +46,7 @@ export async function GET(req: Request) {
         SELECT s.id, s.title, s.description, s.timestamp, s.visibility, s.is_flash, s.is_hosted, s.file_path, s.category, encode(s.hash, 'base64') as hash,
         (SELECT COUNT(*) FROM likes WHERE seal_id = s.id) as likes_count,
         (SELECT COUNT(*) FROM comments WHERE seal_id = s.id) as comments_count
-        FROM seals s WHERE s.author_id = $1 ORDER BY s.created_at DESC
+        FROM seals s WHERE s.author_id = $1 ${isOwner ? '' : "AND s.visibility = 'public'"} ORDER BY s.created_at DESC
       `, [userId]);
       seals = sealsQuery.rows;
     } catch (e: any) { console.warn('Seals error:', e.message); }
@@ -52,7 +65,7 @@ export async function GET(req: Request) {
 
     let projects = [];
     try {
-      const projectsQuery = await pool.query(`
+      const projectsQuery = !isOwner ? { rows: [] } : await pool.query(`
         SELECT p.id, p.title, p.description, p.merkle_root, p.created_at, p.ots_proof,
                (SELECT COUNT(*) FROM project_files WHERE project_id = p.id) as files_count
         FROM projects p WHERE p.author_id = $1 ORDER BY p.created_at DESC
@@ -62,7 +75,7 @@ export async function GET(req: Request) {
 
     let favorites = [];
     try {
-      const favoritesQuery = await pool.query(`
+      const favoritesQuery = !isOwner ? { rows: [] } : await pool.query(`
         SELECT s.id, s.title, s.category, s.timestamp, u.handle as author
         FROM favorites f JOIN seals s ON f.seal_id = s.id JOIN users u ON s.author_id = u.id
         WHERE f.user_id = $1 ORDER BY f.created_at DESC
@@ -77,7 +90,7 @@ export async function GET(req: Request) {
       cursor.setUTCHours(0, 0, 0, 0);
       if (!uniqueDatesSet.has(cursor.toISOString().split('T')[0])) cursor.setDate(cursor.getDate() - 1);
       while (uniqueDatesSet.has(cursor.toISOString().split('T')[0])) { streak++; cursor.setDate(cursor.getDate() - 1); }
-    } catch (e) { /* ignore */ }
+    } catch (e) {}
 
     const badges = [];
     if (totalSealed >= 1) badges.push({ icon: '🌱', name: 'Apprenti', desc: 'Première œuvre scellée' });
@@ -90,13 +103,15 @@ export async function GET(req: Request) {
     return NextResponse.json({
       handle: user.rows[0].handle, bio: user.rows[0].bio,
       open_to_collaboration: user.rows[0].open_to_collaboration || false,
-      first_name: user.rows[0].first_name, last_name: user.rows[0].last_name, birth_date: user.rows[0].birth_date,
+      first_name: isOwner ? user.rows[0].first_name : null, 
+      last_name: isOwner ? user.rows[0].last_name : null, 
+      birth_date: isOwner ? user.rows[0].birth_date : null,
       role: user.rows[0].role, is_pro: isPro, streak: streak, favorites: favorites,
       sealed: totalSealed, hosted: totalHosted, used_bytes: totalSize,
       friends_count: friendsCount, pacts: totalPacts, badges: badges, seals: seals, projects: projects
     });
   } catch (error: any) { 
     console.error("[api/profil]", error);
-    return NextResponse.json({ error: error.message || 'Erreur serveur' }, { status: 500 }); 
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 }); 
   }
 }
