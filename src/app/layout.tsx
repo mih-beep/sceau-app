@@ -62,6 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       links: [
         { name: 'SCEAU Projets', path: '/projets' },
         { name: 'SCEAU Archive', path: '/archive' },
+        { name: 'SCEAU Oracle', path: '/oracle' },
         { name: 'Mon Profil', path: '/profil' },
         { name: 'Vérification', path: '/verify' },
         { name: 'Messagerie & Pactes', path: '/messages' },
