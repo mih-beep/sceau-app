@@ -57,6 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       title: 'Espace Pro',
       links: [
         { name: 'Projets & Preuves', path: '/profil' },
+        { name: 'SCEAU Archive', path: '/archive' },
         { name: 'Vérification', path: '/verify' },
         { name: 'Messagerie & Pactes', path: '/messages' },
       ]
