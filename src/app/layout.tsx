@@ -11,16 +11,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const [isDark, setIsDark] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unread, setUnread] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    // Enregistrement PWA
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed:', err));
     }
-
     setHandle(localStorage.getItem('sceau_handle'));
     const theme = localStorage.getItem('sceau_theme');
     if (theme === 'dark') { setIsDark(true); document.documentElement.classList.add('dark'); }
+  }, [pathname]);
+
+  // Fermer le menu mobile au changement de page
+  useEffect(() => {
+    setMobileMenuOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -43,8 +47,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   };
 
   const isActive = (path: string) => pathname === path;
+  const isToolsActive = pathname === '/seal' || pathname === '/verify';
 
-  // Structure professionnelle de la navigation
   const navSections = [
     {
       title: 'Espace Public',
@@ -56,8 +60,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     {
       title: 'Espace Pro',
       links: [
-        { name: 'Projets & Preuves', path: '/profil' },
+        { name: 'SCEAU Projets', path: '/projets' },
         { name: 'SCEAU Archive', path: '/archive' },
+        { name: 'Mon Profil', path: '/profil' },
         { name: 'Vérification', path: '/verify' },
         { name: 'Messagerie & Pactes', path: '/messages' },
       ]
@@ -66,6 +71,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       title: 'Réseau',
       links: [
         { name: 'Communauté', path: '/friends' },
+        { name: 'Paramètres', path: '/settings' },
       ]
     }
   ];
@@ -80,7 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       
       <body className="h-screen overflow-hidden flex bg-[var(--bg-main)] font-sans">
         
-        {/* SIDEBAR GAUCHE - DESIGN CABINET B2B */}
+        {/* SIDEBAR GAUCHE - Desktop */}
         <aside className="hidden md:flex flex-col w-64 bg-[#1A1513] text-[#EADFD4] border-r border-[#332824] shrink-0">
           <div className="p-8 pb-4">
             <Link href="/feed" className="text-3xl font-bold font-serif text-white tracking-wide">SCEAU<span className="text-[#E76F51]">.</span></Link>
@@ -117,38 +123,107 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="flex-1 flex flex-col h-full overflow-hidden relative">
           
           {/* NAV TOP MOBILE */}
-          <nav className="md:hidden bg-[var(--bg-surface)] border-b border-[var(--border-color)] px-6 py-4 flex justify-between items-center shrink-0">
+          <nav className="md:hidden bg-[var(--bg-surface)] border-b border-[var(--border-color)] px-4 py-3 flex justify-between items-center shrink-0">
             <Link href="/feed" className="text-2xl font-bold font-serif" style={{color: 'var(--text-main)'}}>SCEAU<span className="text-[#E76F51]">.</span></Link>
-            <div className="flex items-center gap-4">
-              <button onClick={toggleTheme} className="text-sm font-bold text-[var(--text-muted)]">{isDark ? 'Mode Clair' : 'Mode Sombre'}</button>
-              {!handle ? (
-                <Link href="/signup" className="text-sm font-bold bg-[#E76F51] text-white px-4 py-2 rounded-lg">S'inscrire</Link>
-              ) : (
-                <Link href="/profil" className="text-sm font-bold" style={{color: 'var(--text-main)'}}>@{handle}</Link>
-              )}
+            <div className="flex items-center gap-3">
+              <button onClick={toggleTheme} className="text-lg" title="Thème">{isDark ? '☀️' : '🌙'}</button>
+              <button onClick={() => setMobileMenuOpen(true)} className="text-2xl font-bold" style={{color: 'var(--text-main)'}} title="Menu">☰</button>
             </div>
           </nav>
 
           {/* ZONE DE CONTENU */}
-          <main className="flex-1 overflow-y-auto w-full pb-24 md:pb-0">
+          <main className="flex-1 overflow-y-auto w-full pb-32 md:pb-0">
              <div className="w-full h-full">
                {children}
              </div>
           </main>
 
-          {/* NAV BOTTOM MOBILE */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--bg-surface)] border-t border-[var(--border-color)] flex justify-around py-3 z-50 text-[0.65rem] font-bold font-mono">
-            <Link href="/feed" className={isActive('/feed') ? 'text-[#E76F51]' : 'text-[var(--text-muted)]'}>Flux</Link>
-            <Link href="/friends" className={isActive('/friends') ? 'text-[#E76F51]' : 'text-[var(--text-muted)]'}>Réseau</Link>
-            <Link href="/seal" className={isActive('/seal') ? 'text-[#E76F51]' : 'text-[var(--text-muted)]'}>Atelier</Link>
-            <Link href="/messages" className={isActive('/messages') ? 'text-[#E76F51]' : 'text-[var(--text-muted)]'}>Messages</Link>
-            <Link href="/profil" className={isActive('/profil') ? 'text-[#E76F51]' : 'text-[var(--text-muted)]'}>Profil</Link>
+          {/* NAV BOTTOM MOBILE - LES 5 ESSENTIELS */}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--bg-surface)] border-t border-[var(--border-color)] flex justify-around py-2 z-50 text-[0.6rem] font-bold font-mono">
+            <Link href="/feed" className={`flex flex-col items-center px-2 py-1 ${isActive('/feed') ? 'text-[#E76F51]' : 'text-[var(--text-muted)]'}`}>
+              <span className="text-lg">🌐</span>
+              <span className="mt-0.5">Flux</span>
+            </Link>
+            <Link href="/projets" className={`flex flex-col items-center px-2 py-1 ${isActive('/projets') || pathname?.startsWith('/projets/') ? 'text-[#E76F51]' : 'text-[var(--text-muted)]'}`}>
+              <span className="text-lg">📁</span>
+              <span className="mt-0.5">Projets</span>
+            </Link>
+            <Link href="/seal" className={`flex flex-col items-center px-2 py-1 ${isToolsActive ? 'text-[#E76F51]' : 'text-[var(--text-muted)]'}`}>
+              <span className="text-lg">✍️</span>
+              <span className="mt-0.5">Atelier</span>
+            </Link>
+            <Link href="/archive" className={`flex flex-col items-center px-2 py-1 ${isActive('/archive') ? 'text-[#E76F51]' : 'text-[var(--text-muted)]'}`}>
+              <span className="text-lg">📡</span>
+              <span className="mt-0.5">Archive</span>
+            </Link>
+            <Link href="/profil" className={`flex flex-col items-center px-2 py-1 ${isActive('/profil') ? 'text-[#E76F51]' : 'text-[var(--text-muted)]'}`}>
+              <span className="text-lg">👤</span>
+              <span className="mt-0.5">Profil</span>
+            </Link>
           </div>
         </div>
 
-        {/* COCKPIT - Toujours visible sur Desktop */}
+        {/* COCKPIT - Desktop seulement */}
         <Cockpit />
 
+        {/* DRAWER MOBILE - Menu burger */}
+        {mobileMenuOpen && (
+          <div className="md:hidden fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}>
+            <div 
+              className="bg-[var(--bg-surface)] w-80 max-w-[85vw] h-full p-6 flex flex-col shadow-2xl animate-slide-in" 
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-6 pb-4 border-b border-[var(--border-color)]">
+                <Link href="/feed" className="text-2xl font-bold font-serif" style={{color: 'var(--text-main)'}}>SCEAU<span className="text-[#E76F51]">.</span></Link>
+                <button onClick={() => setMobileMenuOpen(false)} className="text-2xl opacity-60" title="Fermer">✕</button>
+              </div>
+
+              {handle && (
+                <Link 
+                  href="/profil" 
+                  onClick={() => setMobileMenuOpen(false)} 
+                  className="flex items-center gap-3 mb-6 p-3 bg-[var(--bg-main)] rounded-xl border border-[var(--border-color)]"
+                >
+                  <div className="w-10 h-10 rounded-full bg-[#E76F51] text-white flex items-center justify-center font-bold">
+                    {handle[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold truncate" style={{color: 'var(--text-main)'}}>@{handle}</p>
+                    <p className="text-[0.65rem] text-[var(--text-muted)]">Voir mon profil</p>
+                  </div>
+                  <span className="text-[var(--text-muted)]">→</span>
+                </Link>
+              )}
+
+              <nav className="flex-1 overflow-y-auto -mx-2 px-2">
+                {navSections.map(section => (
+                  <div key={section.title} className="mb-4">
+                    <p className="text-[0.6rem] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2 px-3">{section.title}</p>
+                    {section.links.map(link => (
+                      <Link 
+                        key={link.path} 
+                        href={link.path}
+                        className={`block py-2.5 px-3 rounded-lg mb-0.5 transition ${isActive(link.path) ? 'bg-[#FDF4F0] text-[#C44A2E] font-bold' : 'hover:bg-[var(--bg-main)]'}`}
+                        style={{color: isActive(link.path) ? '#C44A2E' : 'var(--text-main)'}}
+                      >
+                        {link.name}
+                      </Link>
+                    ))}
+                  </div>
+                ))}
+              </nav>
+
+              <div className="pt-4 border-t border-[var(--border-color)] space-y-2">
+                <button 
+                  onClick={() => { localStorage.clear(); window.location.href = '/login'; }}
+                  className="w-full py-2.5 px-3 rounded-lg border border-[#D64545] text-[#D64545] font-bold text-sm hover:bg-[#FDF4F0] transition"
+                >
+                  Se déconnecter
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </body>
     </html>
   )

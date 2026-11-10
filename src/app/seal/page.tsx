@@ -13,7 +13,9 @@ function SealContent() {
   const challengeIdParam = searchParams.get('challenge_id');
 
   const [isFlashMode, setIsFlashMode] = useState(false);
-  const [mode, setMode] = useState<'file' | 'text' | 'media' | 'audio' | 'project'>('file');
+  const [mode, setMode] = useState<'file' | 'text' | 'media' | 'audio' | 'project'>(
+    (searchParams.get('mode') === 'project' ? 'project' : 'file') as any
+  );
   const [projectFiles, setProjectFiles] = useState<File[]>([]);
 
   const [title, setTitle] = useState('');
