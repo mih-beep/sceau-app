@@ -227,8 +227,8 @@ export default function Feed() {
           <Link href="/messages?pact=true" className="bg-[#1A1513] text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md hover:bg-black transition">
             + Pacte
           </Link>
-          <Link href="/seal" className="bg-[#E76F51] text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md">
-            + Sceller
+          <Link href="/oracle" className="bg-[#E76F51] text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md">
+            + Oracle
           </Link>
         </div>
       </div>
