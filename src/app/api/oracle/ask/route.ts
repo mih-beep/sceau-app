@@ -107,7 +107,7 @@ export async function POST(req: Request) {
     if (!groqRes.ok) {
       const err = await groqRes.text();
       console.error('[oracle] Groq error:', err);
-      return NextResponse.json({ error: 'Erreur de l\'IA' }, { status: 500 });
+      return NextResponse.json({ error: "Groq: " + err }, { status: 500 });
     }
 
     const groqData = await groqRes.json();
