@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { pool } from '@/db/pool';
 import { sha256 } from '@noble/hashes/sha256';
 import { summarizeChange } from '@/lib/oracle-summary';
+import { cleanHtmlToText as cleanHtmlToTextNew, isSignificantChange } from '@/lib/html-cleaner';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -25,12 +26,7 @@ function isSafeUrl(urlString: string): boolean {
 }
 
 function cleanHtmlToText(html: string): string {
-  return html
-    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, '')
-    .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gim, '')
-    .replace(/<[^>]*>/g, '\n')
-    .replace(/\n\s*\n/g, '\n')
-    .trim();
+  return cleanHtmlToTextNew(html);
 }
 
 function extractPageTitle(html: string, fallbackUrl: string): string {
@@ -134,77 +130,73 @@ export async function GET(req: Request) {
     const userId = user.rows[0].id;
     const isPro = user.rows[0].is_pro || false;
 
-    // Récupère toutes les pages, puis regroupe par site_root côté serveur
-    let pages;
-    try {
-      pages = await pool.query(`
-        SELECT id, url, site_root, title, last_status, last_checked_at, created_at, diff_data, pages_scanned, scan_count, ai_summary
-        FROM web_archives WHERE user_id = $1 ORDER BY created_at DESC
-      `, [userId]);
-    } catch (colErr) {
-      // Fallback si colonnes manquantes
-      pages = await pool.query(`
-        SELECT id, url, title, last_status, last_checked_at, created_at, diff_data
-        FROM web_archives WHERE user_id = $1 ORDER BY created_at DESC
-      `, [userId]);
-    }
+    const pages = await pool.query(`
+      SELECT id, url, site_root, title, last_status, last_checked_at, created_at,
+             diff_data, pages_scanned, scan_count, ai_summary
+      FROM web_archives WHERE user_id = $1 ORDER BY created_at ASC
+    `, [userId]);
 
-    // Regroupement par site_root (site principal)
+    // Regroupement par site_root
     const sitesMap = new Map<string, any>();
     for (const page of pages.rows) {
       const siteRoot = page.site_root || (() => {
         try { return new URL(page.url).origin; } catch { return page.url; }
       })();
-      
+
       if (!sitesMap.has(siteRoot)) {
         sitesMap.set(siteRoot, {
           site_root: siteRoot,
-          main_id: page.id,          // la page principale (première = l'URL ajoutée)
-          main_title: page.site_root === null ? page.title : null, // à remplir
+          root_id: page.id,
           main_url: page.url,
-          pages_count: 0,
+          main_title: page.title || siteRoot,
+          children_count: 0,
+          children_modified: 0,
           last_checked_at: page.last_checked_at,
           created_at: page.created_at,
           scan_count: page.scan_count || 1,
-          has_modifications: false,
           pages: [],
+          recent_changes: [],
         });
       }
-      
+
       const site = sitesMap.get(siteRoot);
-      site.pages_count++;
       site.pages.push(page);
-      
-      // Le main_id doit être celui de la page racine (pathname === '/')
-      try {
-        const u = new URL(page.url);
-        if (u.pathname === '/' || u.pathname === '') {
-          site.main_id = page.id;
-          site.main_title = page.title;
-          site.main_url = page.url;
+      if (page.site_root === null || page.url === siteRoot || page.url === `${siteRoot}/`) {
+        site.root_id = page.id;
+        site.main_title = page.title || site.main_title;
+      }
+      if (page.last_status === 'modified') {
+        site.children_modified++;
+        if (page.ai_summary) {
+          site.recent_changes.push({
+            page_id: page.id,
+            page_title: page.title,
+            page_url: page.url,
+            ai_summary: page.ai_summary,
+            changed_at: page.last_checked_at,
+          });
         }
-      } catch { /* ignore */ }
-      
-      if (page.last_status === 'modified') site.has_modifications = true;
+      }
       if (new Date(page.last_checked_at) > new Date(site.last_checked_at)) {
         site.last_checked_at = page.last_checked_at;
       }
     }
 
-    // Si le titre principal n'a pas été trouvé, fallback sur le hostname
-    for (const site of sitesMap.values()) {
-      if (!site.main_title) {
-        try { site.main_title = new URL(site.site_root).hostname; }
-        catch { site.main_title = site.site_root; }
-      }
-    }
+    // Trier les changements récents par date desc
+    const sitesArray = Array.from(sitesMap.values()).map((site) => {
+      site.recent_changes.sort((a: any, b: any) =>
+        new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime()
+      );
+      site.recent_changes = site.recent_changes.slice(0, 5);
+      site.children_count = site.pages.length - 1;
+      delete site.pages;
+      return site;
+    });
 
-    const sitesArray = Array.from(sitesMap.values());
-
-    return NextResponse.json({ 
-      archives: sitesArray, 
+    return NextResponse.json({
+      sites: sitesArray,
       is_pro: isPro,
-      limit: isPro ? PRO_LIMIT : FREE_LIMIT,
+      limit: isPro ? 50 : 5,
       total_sites: sitesArray.length,
     });
   } catch (e) {

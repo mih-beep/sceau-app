@@ -3,17 +3,13 @@ import { pool } from '@/db/pool';
 import { sha256 } from '@noble/hashes/sha256';
 import { Resend } from 'resend';
 import { summarizeChange } from '@/lib/oracle-summary';
+import { cleanHtmlToText as cleanNew, isSignificantChange } from '@/lib/html-cleaner';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 function cleanHtmlToText(html: string): string {
-  return html
-    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, '')
-    .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gim, '')
-    .replace(/<[^>]*>/g, '\n')
-    .replace(/\n\s*\n/g, '\n')
-    .trim();
+  return cleanNew(html);
 }
 
 function hashContent(content: string): string {
@@ -73,11 +69,17 @@ export async function GET(req: Request) {
         const newText = cleanHtmlToText(html);
         const newHash = hashContent(newText);
 
-        if (archive.last_hash !== newHash) {
+        // Vérifie si le changement est significatif (ignore les micro-modifs de date)
+        const isSignificant = isSignificantChange(archive.last_content || '', newText);
+
+        if (archive.last_hash !== newHash && isSignificant) {
           const diffResult = generateDiff(archive.last_content || '', newText);
+          
+          console.log(`[cron] 📝 Changement significatif : ${archive.url}`);
           
           // 🧠 Résumé IA du changement
           const aiSummary = await summarizeChange(archive.last_content || '', newText, archive.url);
+          console.log(`[cron] 🧠 Résumé : ${aiSummary || '(pas de résumé)'}`);
           
           await pool.query(
             "UPDATE web_archives SET last_status = 'modified', last_checked_at = NOW(), diff_data = $1, last_hash = $2, last_content = $3, ai_summary = $5 WHERE id = $4",
