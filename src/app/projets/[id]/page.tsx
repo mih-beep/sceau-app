@@ -116,6 +116,19 @@ export default function ProjetDetail() {
 
         <div className="p-6">
           <div className="flex flex-wrap gap-2 mb-6">
+            {amIOwner && (
+              <button 
+                onClick={async () => {
+                  if (!confirm("⚠️ Supprimer définitivement ce projet et TOUS ses fichiers ? Cette action est irréversible.")) return;
+                  const res = await fetch(`/api/projects/${project.id}?pubkey=${encodeURIComponent(pubkey!)}`, { method: 'DELETE' });
+                  if (res.ok) router.push('/projets');
+                  else alert("Erreur lors de la suppression");
+                }} 
+                className="bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-xl font-bold text-sm hover:bg-red-100 transition"
+              >
+                🗑️ Supprimer
+              </button>
+            )}
             {project.is_latest && (amIOwner || amIMember) && (
               <button onClick={() => setShowUpdate(true)} className="bg-[#4A90C2] text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-[#2D6A9E]">✏️ Mettre à jour</button>
             )}
@@ -184,6 +197,15 @@ export default function ProjetDetail() {
             </div>
             <h3 className="text-sm font-bold mb-2">Ajouter des fichiers</h3>
             <input type="file" multiple onChange={e => setNewFiles(Array.from(e.target.files || []))} className="w-full text-sm mb-2" />
+            <button 
+              onClick={() => {
+                const emptyFile = new File([""], `dossier_vide_${Date.now()}.txt`, { type: "text/plain" });
+                setNewFiles([...newFiles, emptyFile]);
+              }} 
+              className="w-full border-2 border-dashed border-gray-300 text-gray-500 py-2 rounded-lg text-xs font-bold hover:border-[#4A90C2] hover:text-[#4A90C2] transition mb-2"
+            >
+              + Ajouter un fichier vide (marqueur)
+            </button>
             {newFiles.length > 0 && <p className="text-xs text-green-600 font-bold mb-4">+{newFiles.length} nouveau(x)</p>}
             <div className="flex gap-2 mt-4">
               <button onClick={() => setShowUpdate(false)} className="flex-1 py-2 rounded-lg bg-gray-100 font-bold">Annuler</button>

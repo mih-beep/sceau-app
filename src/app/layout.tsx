@@ -133,14 +133,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </nav>
 
           {/* ZONE DE CONTENU */}
-          <main className="flex-1 overflow-y-auto w-full pb-32 md:pb-0">
+          <main className="flex-1 overflow-y-auto w-full pb-24 md:pb-0 scroll-smooth">
              <div className="w-full h-full">
                {children}
              </div>
           </main>
 
           {/* NAV BOTTOM MOBILE - LES 5 ESSENTIELS */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--bg-surface)] border-t border-[var(--border-color)] flex justify-around py-2 z-50 text-[0.6rem] font-bold font-mono">
+          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--bg-surface)] border-t border-[var(--border-color)] flex justify-around py-2 z-[9000] text-[0.6rem] font-bold font-mono shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
             <Link href="/feed" className={`flex flex-col items-center px-2 py-1 ${isActive('/feed') ? 'text-[#E76F51]' : 'text-[var(--text-muted)]'}`}>
               <span className="text-lg">🌐</span>
               <span className="mt-0.5">Flux</span>
@@ -169,7 +169,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         {/* DRAWER MOBILE - Menu burger */}
         {mobileMenuOpen && (
-          <div className="md:hidden fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}>
+          <div className="md:hidden fixed inset-0 bg-black/60 z-[9999] backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}>
             <div 
               className="bg-[var(--bg-surface)] w-80 max-w-[85vw] h-full p-6 flex flex-col shadow-2xl animate-slide-in" 
               onClick={e => e.stopPropagation()}

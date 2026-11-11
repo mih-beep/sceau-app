@@ -64,3 +64,37 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     }, { status: 500 });
   }
 }
+
+
+// =====================================================
+// SUPPRESSION D'UN PROJET
+// =====================================================
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { searchParams } = new URL(req.url);
+  const pubkey = searchParams.get('pubkey');
+
+  if (!pubkey) return NextResponse.json({ error: 'Clé manquante' }, { status: 401 });
+  if (!isValidUUID(id)) return NextResponse.json({ error: 'ID invalide' }, { status: 400 });
+
+  try {
+    // Vérifier que l'utilisateur est bien le propriétaire
+    const user = await pool.query("SELECT id FROM users WHERE encode(pubkey, 'base64') = $1", [pubkey]);
+    if (user.rows.length === 0) return NextResponse.json({ error: 'Inconnu' }, { status: 401 });
+
+    const proj = await pool.query("SELECT author_id FROM projects WHERE id = $1", [id]);
+    if (proj.rows.length === 0) return NextResponse.json({ error: 'Introuvable' }, { status: 404 });
+    
+    if (proj.rows[0].author_id !== user.rows[0].id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+    }
+
+    // La suppression en cascade est gérée par la base de données (ON DELETE CASCADE sur project_files)
+    await pool.query("DELETE FROM projects WHERE id = $1", [id]);
+    
+    return NextResponse.json({ success: true });
+  } catch (e: any) {
+    console.error('[projects DELETE]', e);
+    return NextResponse.json({ error: 'Erreur lors de la suppression' }, { status: 500 });
+  }
+}
