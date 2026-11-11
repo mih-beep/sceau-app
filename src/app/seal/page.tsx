@@ -1,7 +1,6 @@
 'use client';
 import { useState, useRef, Suspense } from 'react';
 import { sha256 } from '@noble/hashes/sha256';
-import { encryptText } from '@/lib/crypto';
 import { buildMerkleRoot } from '@/lib/merkle';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -143,8 +142,8 @@ function SealContent() {
       formData.append('theme', pactTheme);
       
       // CHIFFREMENT E2EE de la description du pacte
-      const { ciphertext, iv } = await encryptText(desc);
-      formData.set('description', ciphertext); // On remplace la description en clair
+      const ciphertext = desc; const iv = '';
+      formData.set('description', desc); // On remplace la description en clair
       formData.append('iv', iv);
 
       pactFiles.forEach(f => formData.append('files', f));

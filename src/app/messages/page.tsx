@@ -25,40 +25,6 @@ function fireConfetti() {
   }
 }
 
-// Composant pour déchiffrer les messages à la volée
-function DecryptedMessage({ message, myHandle, activeChat, getHandleColor }: any) {
-  const [decrypted, setDecrypted] = useState<string>('🔒 Déchiffrement...');
-
-  useEffect(() => {
-    let isMounted = true;
-    if (message.isTemp) {
-      setDecrypted(message.content); // Message local, déjà en clair
-      return;
-    }
-
-    if (message.iv && message.content) {
-      decryptText(message.content, message.iv).then(txt => {
-        if (isMounted) setDecrypted(txt);
-      });
-    } else {
-      setDecrypted(message.content); // Ancien message non chiffré
-    }
-    return () => { isMounted = false; };
-  }, [message]);
-
-  const isAudio = decrypted.startsWith('[AUDIO]');
-  const audioSrc = isAudio ? decrypted.replace('[AUDIO]', '') : null;
-
-  return (
-    <div className={`max-w-[80%] p-3 rounded-xl text-sm ${message.sender === myHandle ? 'bg-[#E76F51] text-white ml-auto rounded-br-none' : 'bg-[var(--bg-main)] border border-[var(--border-color)] rounded-bl-none'} ${message.isTemp ? 'opacity-60' : ''}`}>
-      {activeChat.type === 'group' && message.sender !== myHandle && (
-        <div className="text-[0.6rem] font-bold mb-1" style={{ color: getHandleColor(message.sender) }}>@{message.sender}</div>
-      )}
-      {isAudio ? <audio controls src={audioSrc!} className="h-10 w-56" /> : decrypted}
-    </div>
-  );
-}
-
 function PactMessage({ pactId, onOpen }: { pactId: string, onOpen: (id: string) => void }) {
   const [pact, setPact] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -66,49 +32,22 @@ function PactMessage({ pactId, onOpen }: { pactId: string, onOpen: (id: string) 
   useEffect(() => {
     let isMounted = true;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // Timeout de 8s
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     fetch(`/api/pacts/${pactId}`, { signal: controller.signal })
       .then(async (r) => {
         const data = await r.json();
-        if (!r.ok) throw new Error(data.error || 'Erreur de chargement');
+        if (!r.ok) throw new Error(data.error || 'Erreur');
         return data;
       })
-      .then(d => {
-        if (isMounted) {
-          setPact(d);
-          clearTimeout(timeoutId);
-        }
-      })
-      .catch(err => {
-        if (isMounted) {
-          console.error('[PactMessage] Erreur:', err);
-          setError(err.name === 'AbortError' ? 'Délai dépassé' : err.message);
-          clearTimeout(timeoutId);
-        }
-      });
+      .then(d => { if (isMounted) { setPact(d); clearTimeout(timeoutId); } })
+      .catch(err => { if (isMounted) { setError(err.name === 'AbortError' ? 'Délai dépassé' : err.message); clearTimeout(timeoutId); } });
 
-    return () => {
-      isMounted = false;
-      controller.abort();
-      clearTimeout(timeoutId);
-    };
+    return () => { isMounted = false; controller.abort(); clearTimeout(timeoutId); };
   }, [pactId]);
 
-  if (error) return (
-    <div className="p-4 bg-[#FDF4F0] rounded-xl text-center text-xs font-mono my-2 border border-[#FCE0D6] text-[#C44A2E]">
-      ❌ Impossible de charger le pacte ({error}).
-      <br/>
-      <span className="opacity-70 text-[0.65rem]">ID: {pactId}</span>
-    </div>
-  );
-
-  if (!pact) return (
-    <div className="p-4 bg-[var(--bg-main)] rounded-xl text-center text-xs font-mono my-2 border border-[var(--border-color)] flex items-center justify-center gap-2" style={{ color: 'var(--text-muted)' }}>
-      <span className="w-3 h-3 border-2 border-t-transparent border-[var(--text-muted)] rounded-full animate-spin"></span>
-      Chargement du pacte...
-    </div>
-  );
+  if (error) return <div className="p-4 bg-[#FDF4F0] rounded-xl text-center text-xs font-mono my-2 border border-[#FCE0D6] text-[#C44A2E]">❌ Impossible de charger le pacte ({error}).</div>;
+  if (!pact) return <div className="p-4 bg-[var(--bg-main)] rounded-xl text-center text-xs font-mono my-2 border border-[var(--border-color)]">Chargement du pacte...</div>;
 
   const isSealed = pact.status === 'scelle';
   const progress = Math.min(100, ((pact.signataires?.length || 0) / pact.required_signatures) * 100);
@@ -125,7 +64,6 @@ function PactMessage({ pactId, onOpen }: { pactId: string, onOpen: (id: string) 
       
       {pact.description && <p className="text-sm mb-3 italic" style={{ color: 'var(--text-main)' }}>"{pact.description}"</p>}
 
-      {/* Fichiers */}
       {pact.media_urls && pact.media_urls.length > 0 && (
         <div className="mb-4 space-y-1">
           <p className="text-[0.65rem] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Documents joints</p>
@@ -137,7 +75,6 @@ function PactMessage({ pactId, onOpen }: { pactId: string, onOpen: (id: string) 
         </div>
       )}
 
-      {/* Signatures */}
       <div className="mb-4">
          <div className="flex justify-between text-[0.65rem] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
            <span>Signatures</span>
@@ -177,17 +114,16 @@ function MessagesInner() {
 
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [groupName, setGroupName] = useState('');
+  const [activePact, setActivePact] = useState<string | null>(null);
+  const [isSealingChat, setIsSealingChat] = useState(false);
+  const [showSharedVault, setShowSharedVault] = useState(false);
+
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [memberSearchResults, setMemberSearchResults] = useState<any[]>([]);
-  const [showMembersList, setShowMembersList] = useState(false);
-  const [groupMembers, setGroupMembers] = useState<any[]>([]);
-  const [activePact, setActivePact] = useState<string | null>(null);
-  const [isSealingChat, setIsSealingChat] = useState(false);
-  const [showSharedVault, setShowSharedVault] = useState(false);
 
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -216,17 +152,7 @@ function MessagesInner() {
     if (targetUser) setActiveChat({ type: 'dm', id: targetUser, name: targetUser });
   }, [targetUser]);
 
-  useEffect(() => {
-    if (!searchQuery || searchQuery.length < 2) { setSearchResults([]); return; }
-    const delay = setTimeout(async () => {
-      const res = await fetch(`/api/users/search?q=${searchQuery}&me=${myHandle}`);
-      const d = await res.json();
-      setSearchResults(d.users || []);
-    }, 400);
-    return () => clearTimeout(delay);
-  }, [searchQuery, myHandle]);
-
-  // Recherche de profils pour l'invitation
+  // Recherche pour l'invitation au groupe
   useEffect(() => {
     if (!memberSearchQuery || memberSearchQuery.length < 2) { setMemberSearchResults([]); return; }
     const delay = setTimeout(async () => {
@@ -237,23 +163,10 @@ function MessagesInner() {
     return () => clearTimeout(delay);
   }, [memberSearchQuery]);
 
-  // Charger les membres quand on ouvre un groupe
-  useEffect(() => {
-    if (activeChat?.type === 'group') {
-      fetch(`/api/groups/${activeChat.id}/members`)
-        .then(r => r.json())
-        .then(d => setGroupMembers(d.members || []))
-        .catch(() => {});
-    }
-  }, [activeChat, showMembersList]);
-
   useEffect(() => {
     if (!activeChat || !myHandle) return;
     const load = () => {
-      const endpoint = activeChat.type === 'dm'
-        ? `/api/messages/${activeChat.id}?me=${myHandle}`
-        : `/api/groups/messages?id=${activeChat.id}`;
-
+      const endpoint = activeChat.type === 'dm' ? `/api/messages/${activeChat.id}?me=${myHandle}` : `/api/groups/messages?id=${activeChat.id}`;
       fetch(endpoint).then(r => r.json()).then(data => {
         const serverMessages = data.messages || [];
         setMessages(prev => {
@@ -279,65 +192,24 @@ function MessagesInner() {
     }
   }, [messages]);
 
-  async function addFriend(targetHandle: string) {
-    await fetch('/api/friends', { method: 'POST', body: JSON.stringify({ me: myHandle, target: targetHandle }) });
-    alert(`Demande d'ami envoyée à @${targetHandle} !`);
-  }
-
-  async function addMemberToGroup(targetHandle: string) {
-    if (!myPubkey || !activeChat) return;
-    const res = await fetch(`/api/groups/${activeChat.id}/members`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pubkey: myPubkey, targetHandle })
-    });
-    const d = await res.json();
-    if (res.ok) { 
-      alert(`@${targetHandle} ajouté au groupe !`); 
-      setMemberSearchQuery(''); 
-      setMemberSearchResults([]); 
-      setShowMembersList(true); // Rafraîchir la liste
-    }
-    else alert(d.error);
-  }
-
-  async function removeMember(targetHandle: string) {
-    if (!myPubkey || !activeChat) return;
-    if (!confirm(`Retirer @${targetHandle} du groupe ?`)) return;
-    const res = await fetch(`/api/groups/${activeChat.id}/members?pubkey=${encodeURIComponent(myPubkey)}&target=${targetHandle}`, { method: 'DELETE' });
-    if (res.ok) {
-      setGroupMembers(groupMembers.filter(m => m.handle !== targetHandle));
-    } else {
-      const d = await res.json();
-      alert(d.error);
-    }
-  }
-
   async function sendMessage() {
     if (!newMessage.trim() || !activeChat) return;
     const msg = newMessage;
     setNewMessage('');
     const tempId = `temp-${Date.now()}`;
     
-    // 1. On affiche le message en clair (pour l'expéditeur)
     setMessages(prev => [...prev, { content: msg, sender: myHandle, created_at: new Date().toISOString(), isTemp: true, id: tempId }]);
 
     try {
-      // 2. On chiffre le message
-      const { ciphertext, iv } = await encryptText(msg);
-
       if (activeChat.type === 'dm') {
-        await fetch('/api/messages', { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' }, 
-          body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeChat.id, content: ciphertext, iv }) 
-        });
+        const myPriv = localStorage.getItem('sceau_secret');
+        const targetUser = await fetch(`/api/user-profile/${activeChat.id}`).then(r => r.json());
+        const theirPub = targetUser.pubkey;
+        if (!myPriv || !theirPub) throw new Error("Clés manquantes");
+        const { ciphertext, iv } = await encryptForRecipient(msg, myPriv, theirPub);
+        await fetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeChat.id, content: ciphertext, iv }) });
       } else {
-        await fetch('/api/groups/messages', { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' }, 
-          body: JSON.stringify({ group_id: activeChat.id, sender_handle: myHandle, content: ciphertext, iv }) 
-        });
+        await fetch('/api/groups/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ group_id: activeChat.id, sender_handle: myHandle, content: msg }) });
       }
       setTimeout(() => setMessages(prev => prev.filter(m => m.id !== tempId)), 500);
     } catch (e) { console.error(e); }
@@ -352,24 +224,18 @@ function MessagesInner() {
       setRecordingTime(0);
       recordingIntervalRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
-      };
-
+      mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunksRef.current.push(event.data); };
       mediaRecorder.onstop = async () => {
         clearInterval(recordingIntervalRef.current);
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         if (audioBlob.size > 2 * 1024 * 1024) return alert("Audio trop lourd (max 2 Mo).");
         if (!myPubkey) return;
-
         const formData = new FormData();
         formData.append('pubkey', myPubkey);
         formData.append('audio', new File([audioBlob], `voice-${Date.now()}.webm`, { type: 'audio/webm' }));
-
         const res = await fetch('/api/messages/upload-audio', { method: 'POST', body: formData });
         const data = await res.json();
         if (!res.ok || !data.url) return alert('Erreur upload audio');
-
         const msg = `[AUDIO]${data.url}`;
         if (activeChat.type === 'dm') {
           await fetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeChat.id, content: msg, is_audio: true }) });
@@ -377,7 +243,6 @@ function MessagesInner() {
           await fetch('/api/groups/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ group_id: activeChat.id, sender_handle: myHandle, content: msg, is_audio: true }) });
         }
       };
-
       mediaRecorder.start();
       setIsRecording(true);
     } catch (err) { alert("Impossible d'accéder au micro."); }
@@ -411,8 +276,6 @@ function MessagesInner() {
     formData.append('pubkey', myPubkey);
     formData.append('visibility', 'private');
     formData.append('isHosted', 'false');
-    formData.append('isFlash', 'false');
-    formData.append('isMystery', 'false');
 
     const res = await fetch('/api/seal', { method: 'POST', body: formData });
     if (res.ok) alert("✅ Discussion scellée ! Retrouve-la dans ton Coffre Privé.");
@@ -426,6 +289,19 @@ function MessagesInner() {
     if (res.ok) { alert("Groupe créé !"); setShowGroupModal(false); window.location.reload(); }
   }
 
+  async function addFriend(targetHandle: string) {
+    await fetch('/api/friends', { method: 'POST', body: JSON.stringify({ me: myHandle, target: targetHandle }) });
+    alert(`Demande d'ami envoyée à @${targetHandle} !`);
+  }
+
+  async function addMemberToGroup(targetHandle: string) {
+    if (!myPubkey || !activeChat) return;
+    const res = await fetch(`/api/groups/${activeChat.id}/members`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pubkey: myPubkey, targetHandle }) });
+    const d = await res.json();
+    if (res.ok) { alert('Membre ajouté !'); setMemberSearchQuery(''); setMemberSearchResults([]); }
+    else alert(d.error);
+  }
+
   const startPact = () => router.push(`/seal?pact=true&chat_id=${activeChat.id}&chat_type=${activeChat.type}`);
 
   const getHandleColor = (handle: string) => {
@@ -434,14 +310,10 @@ function MessagesInner() {
   };
 
   const sharedPacts = Array.from(
-    new Map(
-      messages
-        .filter(m => m.content.startsWith('[PACTE]'))
-        .map(m => {
+    new Map(messages.filter(m => m.content.startsWith('[PACTE]')).map(m => {
           const [id, title] = m.content.replace('[PACTE]', '').split('|');
           return [id, { id, title }];
-        })
-    ).values()
+    })).values()
   );
 
   const activeContacts = contacts.filter(c => c.has_chat);
@@ -454,17 +326,29 @@ function MessagesInner() {
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-xl font-bold" style={{color: 'var(--text-main)'}}>Messages</h1>
           <div className="flex gap-2">
-            <button onClick={() => setShowSearch(!showSearch)} className="bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border-color)] text-xs font-bold px-2 py-1 rounded-lg hover:border-[#4A90C2] transition">🔍</button>
-            <button onClick={() => setShowGroupModal(true)} className="bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border-color)] text-xs font-bold px-2 py-1 rounded-lg hover:border-[#E76F51] transition">Groupe</button>
-            <button onClick={() => setActiveChat({ type: 'dm', id: 'nouveau', name: 'Nouveau contact' })} className="bg-[#1A1513] text-white text-xs font-bold px-2 py-1 rounded-lg hover:bg-black transition">+ Pacte</button>
+            <button onClick={() => setShowSearch(!showSearch)} className="bg-[var(--bg-main)] border text-xs font-bold px-2 py-1 rounded-lg">🔍</button>
+            <button onClick={() => setShowGroupModal(true)} className="bg-[var(--bg-main)] border text-xs font-bold px-2 py-1 rounded-lg">Groupe</button>
+            <button onClick={() => setActiveChat({ type: 'dm', id: 'nouveau', name: 'Nouveau contact' })} className="bg-[#1A1513] text-white text-xs font-bold px-2 py-1 rounded-lg">+ Pacte</button>
           </div>
         </div>
+
+        {showSearch && (
+          <div className="mb-4">
+            <input type="text" placeholder="Chercher un pseudo..." className="w-full border p-2 rounded-lg bg-[var(--bg-main)] text-sm mb-2" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+            {searchResults.map(u => (
+              <div key={u.handle} className="flex justify-between items-center p-2 bg-[var(--bg-surface)] border rounded-lg mb-1">
+                <span className="font-bold text-sm cursor-pointer hover:underline" onClick={() => { setActiveChat({type:'dm', id:u.handle, name:u.handle}); setShowSearch(false); setSearchQuery(''); }}>@{u.handle}</span>
+                <button onClick={() => addFriend(u.handle)} className="text-[0.65rem] bg-[#E76F51] text-white px-2 py-1 rounded font-bold">+ Ami</button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {groups.length > 0 && (
           <div className="mb-4">
             <h2 className="text-xs font-mono font-bold text-[var(--text-muted)] mb-2">Groupes</h2>
             {groups.map(g => (
-              <div key={g.id} onClick={() => setActiveChat({ type: 'group', id: g.id, name: g.name })} className="p-2 rounded-xl cursor-pointer hover:bg-[var(--bg-main)] transition flex items-center gap-2 mb-1">
+              <div key={g.id} onClick={() => setActiveChat({ type: 'group', id: g.id, name: g.name })} className="p-2 rounded-xl cursor-pointer hover:bg-[var(--bg-main)] flex items-center gap-2 mb-1">
                 <div className="w-8 h-8 rounded-lg bg-[#2C1810] text-white flex items-center justify-center font-bold text-sm">G</div>
                 <div className="font-bold text-sm truncate" style={{ color: 'var(--text-main)' }}>{g.name}</div>
               </div>
@@ -472,55 +356,13 @@ function MessagesInner() {
           </div>
         )}
 
-        {showSearch && (
-          <div className="mb-4">
-            <input 
-              type="text" 
-              placeholder="Chercher un pseudo..." 
-              className="w-full border border-[var(--border-color)] p-2 rounded-lg bg-[var(--bg-main)] text-sm mb-2"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-            {searchResults.map(u => (
-              <div key={u.handle} className="flex justify-between items-center p-2 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-lg mb-1">
-                <span className="font-bold text-sm cursor-pointer hover:underline" onClick={() => { setActiveChat({type:'dm', id:u.handle, name:u.handle}); setShowSearch(false); setSearchQuery(''); }}>
-                  @{u.handle}
-                </span>
-                <button onClick={() => addFriend(u.handle)} className="text-[0.65rem] bg-[#E76F51] text-white px-2 py-1 rounded font-bold">+ Ami</button>
-              </div>
-            ))}
-          </div>
-        )}
-
         <h2 className="text-xs font-mono font-bold text-[var(--text-muted)] mb-2">Discussions</h2>
-        {activeContacts.map(c => {
-          const isFriend = friendHandles.has(c.handle);
-          return (
-            <div key={c.id} onClick={() => setActiveChat({ type: 'dm', id: c.handle, name: c.handle })} className="p-2 rounded-xl cursor-pointer hover:bg-[var(--bg-main)] transition flex items-center gap-2 mb-1">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-white" style={{ background: isFriend ? '#4A90C2' : '#C75A22' }}>
-                {c.handle[0].toUpperCase()}
-              </div>
-              <div className="font-bold text-sm" style={{color: isFriend ? '#4A90C2' : '#C75A22'}}>@{c.handle}</div>
-            </div>
-          );
-        })}
-        {activeContacts.length === 0 && <p className="text-xs text-[var(--text-muted)] italic mb-4">Aucune discussion active.</p>}
-
-        <div className="mt-6 border-t border-[var(--border-color)] pt-4">
-          <h2 className="text-xs font-mono font-bold text-[var(--text-muted)] mb-2">Suggestions</h2>
-          {suggestions.length > 0 ? (
-            suggestions.map(c => (
-              <div key={c.id} onClick={() => setActiveChat({ type: 'dm', id: c.handle, name: c.handle })} className="p-2 rounded-xl cursor-pointer hover:bg-[var(--bg-main)] transition flex items-center gap-2 mb-1 opacity-70 hover:opacity-100">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-[var(--text-muted)] bg-[var(--bg-main)] border border-[var(--border-color)]">
-                  {c.handle[0].toUpperCase()}
-                </div>
-                <div className="font-bold text-sm text-[var(--text-muted)]">@{c.handle}</div>
-              </div>
-            ))
-          ) : (
-            <p className="text-xs text-[var(--text-muted)] italic">Aucune suggestion pour le moment.</p>
-          )}
-        </div>
+        {activeContacts.map(c => (
+          <div key={c.id} onClick={() => setActiveChat({ type: 'dm', id: c.handle, name: c.handle })} className="p-2 rounded-xl cursor-pointer hover:bg-[var(--bg-main)] flex items-center gap-2 mb-1">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-white" style={{ background: friendHandles.has(c.handle) ? '#4A90C2' : '#C75A22' }}>{c.handle[0].toUpperCase()}</div>
+            <div className="font-bold text-sm" style={{color: friendHandles.has(c.handle) ? '#4A90C2' : '#C75A22'}}>@{c.handle}</div>
+          </div>
+        ))}
       </div>
 
       {/* CHAT */}
@@ -528,21 +370,16 @@ function MessagesInner() {
         <div className={`bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl flex flex-col overflow-hidden w-full md:w-2/3 relative`}>
           <div className="p-4 border-b border-[var(--border-color)] flex justify-between items-center flex-wrap gap-2">
             <div className="flex items-center gap-3">
-              <button onClick={() => setActiveChat(null)} className="md:hidden text-xl font-bold" style={{color: 'var(--text-main)'}}>←</button>
-              <h2 className="text-lg font-bold" style={{color: 'var(--text-main)'}}>
-                {activeChat.type === 'group' ? `👥 ${activeChat.name}` : `@${activeChat.name}`}
-              </h2>
+              <button onClick={() => setActiveChat(null)} className="md:hidden text-xl font-bold">←</button>
+              <h2 className="text-lg font-bold" style={{color: 'var(--text-main)'}}>{activeChat.type === 'group' ? `👥 ${activeChat.name}` : `@${activeChat.name}`}</h2>
             </div>
             <div className="flex gap-2">
               {activeChat.type === 'group' && (
-                <>
-                  <button onClick={() => setShowMembersList(true)} className="bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border-color)] text-xs font-bold px-3 py-1 rounded-lg hover:border-[#4A90C2] transition">👥 Membres</button>
-                  <button onClick={() => setShowAddMemberModal(true)} className="bg-[#4A90C2] text-white text-xs font-bold px-3 py-1 rounded-lg hover:bg-[#2D6A9E] transition">+ Ajouter</button>
-                </>
+                <button onClick={() => setShowAddMemberModal(true)} className="bg-[#4A90C2] text-white text-xs font-bold px-3 py-1 rounded-lg">+ Ajouter</button>
               )}
-              <button onClick={() => setShowSharedVault(true)} className="bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border-color)] text-xs font-bold px-3 py-1 rounded-lg hover:border-[#E76F51] transition">Coffre</button>
-              <button onClick={sealDiscussion} disabled={isSealingChat} className="bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border-color)] text-xs font-bold px-3 py-1 rounded-lg hover:border-[#E76F51] transition disabled:opacity-50">{isSealingChat ? '...' : 'Sceller'}</button>
-              <button onClick={startPact} className="bg-[#4A90C2] text-white text-xs font-bold px-3 py-1 rounded-lg hover:bg-[#2D6A9E] transition">+ Pacte</button>
+              <button onClick={() => setShowSharedVault(true)} className="bg-[var(--bg-main)] border text-xs font-bold px-3 py-1 rounded-lg">Coffre</button>
+              <button onClick={sealDiscussion} disabled={isSealingChat} className="bg-[var(--bg-main)] border text-xs font-bold px-3 py-1 rounded-lg">{isSealingChat ? '...' : 'Sceller'}</button>
+              <button onClick={startPact} className="bg-[#4A90C2] text-white text-xs font-bold px-3 py-1 rounded-lg">+ Pacte</button>
             </div>
           </div>
 
@@ -552,60 +389,44 @@ function MessagesInner() {
                 const [id] = m.content.replace('[PACTE]', '').split('|');
                 return <PactMessage key={i} pactId={id} onOpen={setActivePact} />;
               }
-
-              const isAudio = m.content.startsWith('[AUDIO]');
-              const audioSrc = isAudio ? m.content.replace('[AUDIO]', '') : null;
-
-              return (
-                <DecryptedMessage key={i} message={m} myHandle={myHandle} activeChat={activeChat} getHandleColor={getHandleColor} />
-              );
+              return <DecryptedMessage key={i} message={m} myHandle={myHandle} activeChat={activeChat} getHandleColor={getHandleColor} />;
             })}
             <div ref={messagesEndRef} />
           </div>
 
           <div className="p-4 border-t border-[var(--border-color)] flex gap-2 items-center">
-            <button onClick={isRecording ? stopRecording : startRecording} className={`p-2 rounded-xl font-bold text-xl ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-[var(--bg-main)] border border-[var(--border-color)]'}`} style={{ color: isRecording ? 'white' : 'var(--text-main)' }}>
+            <button onClick={isRecording ? stopRecording : startRecording} className={`p-2 rounded-xl font-bold text-xl ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-[var(--bg-main)] border'}`}>
               {isRecording ? `${recordingTime}s` : 'M'}
             </button>
-            <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Écrire..." className="flex-1 bg-[var(--bg-main)] border border-[var(--border-color)] rounded-xl px-4 py-2 text-sm outline-none focus:border-[#E76F51]" style={{color: 'var(--text-main)'}} onKeyDown={e => e.key === 'Enter' && sendMessage()} />
+            <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Écrire..." className="flex-1 bg-[var(--bg-main)] border rounded-xl px-4 py-2 text-sm outline-none" onKeyDown={e => e.key === 'Enter' && sendMessage()} />
             <button onClick={sendMessage} className="bg-[#E76F51] text-white px-4 py-2 rounded-xl font-bold">Envoyer</button>
           </div>
 
           {showSharedVault && (
             <div className="absolute inset-0 bg-[var(--bg-surface)] z-20 flex flex-col rounded-2xl">
-              <div className="p-4 border-b border-[var(--border-color)] flex justify-between items-center">
-                <h3 className="font-bold text-lg" style={{ color: 'var(--text-main)' }}>Coffre Partagé</h3>
+              <div className="p-4 border-b flex justify-between items-center">
+                <h3 className="font-bold text-lg">Coffre Partagé</h3>
                 <button onClick={() => setShowSharedVault(false)} className="text-xl opacity-50">✕</button>
               </div>
               <div className="flex-1 p-4 overflow-y-auto">
-                <p className="text-xs text-[var(--text-muted)] italic mb-4">Retrouvez ici tous les pactes échangés dans cette discussion.</p>
-                {sharedPacts.length === 0 ? (
-                  <p className="text-center text-sm text-[var(--text-muted)] py-10">Aucun pacte pour le moment.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {sharedPacts.map(p => (
-                      <div key={p.id} onClick={() => { setShowSharedVault(false); setActivePact(p.id); }} className="bg-[var(--bg-main)] border border-[var(--border-color)] p-4 rounded-xl cursor-pointer hover:border-[#E76F51] transition">
-                        <div className="font-bold" style={{color: 'var(--text-main)'}}>{p.title}</div>
-                        <div className="text-xs text-[var(--text-muted)] mt-1">Cliquez pour voir les détails et signer</div>
-                      </div>
-                    ))}
+                {sharedPacts.map(p => (
+                  <div key={p.id} onClick={() => { setShowSharedVault(false); setActivePact(p.id); }} className="bg-[var(--bg-main)] border p-4 rounded-xl cursor-pointer hover:border-[#E76F51] mb-2">
+                    <div className="font-bold">{p.title}</div>
                   </div>
-                )}
+                ))}
               </div>
             </div>
           )}
         </div>
       ) : (
-        <div className="hidden md:flex flex-1 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl items-center justify-center text-[var(--text-muted)]">
-          Sélectionnez une discussion.
-        </div>
+        <div className="hidden md:flex flex-1 bg-[var(--bg-surface)] border rounded-2xl items-center justify-center text-[var(--text-muted)]">Sélectionnez une discussion.</div>
       )}
 
       {showGroupModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-[var(--bg-surface)] w-full max-w-sm rounded-3xl p-6">
-            <h2 className="text-2xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Créer un Groupe</h2>
-            <input type="text" placeholder="Nom du groupe" className="w-full border border-[var(--border-soft)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} value={groupName} onChange={e => setGroupName(e.target.value)} />
+            <h2 className="text-2xl font-bold mb-4">Créer un Groupe</h2>
+            <input type="text" placeholder="Nom du groupe" className="w-full border p-3 rounded-xl mb-4" value={groupName} onChange={e => setGroupName(e.target.value)} />
             <div className="flex gap-2">
               <button onClick={() => setShowGroupModal(false)} className="flex-1 py-2 font-bold opacity-50">Annuler</button>
               <button onClick={createGroup} className="flex-1 bg-[#4A90C2] text-white py-2 rounded-xl font-bold">Créer</button>
@@ -616,61 +437,54 @@ function MessagesInner() {
 
       {activePact && <PactModal pactId={activePact} onClose={() => setActivePact(null)} />}
 
-      {/* MODALE AJOUTER MEMBRE (Recherche) */}
       {showAddMemberModal && activeChat && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-[var(--bg-surface)] w-full max-w-sm rounded-3xl p-6 flex flex-col max-h-[80vh]">
-            <h2 className="text-xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Ajouter un membre</h2>
-            <input 
-              type="text" 
-              placeholder="Chercher un pseudo..." 
-              className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" 
-              value={memberSearchQuery}
-              onChange={e => setMemberSearchQuery(e.target.value)}
-            />
-            
+            <h2 className="text-xl font-bold mb-4">Ajouter un membre</h2>
+            <input type="text" placeholder="Chercher un pseudo..." className="w-full border p-3 rounded-xl mb-4" value={memberSearchQuery} onChange={e => setMemberSearchQuery(e.target.value)} />
             <div className="flex-1 overflow-y-auto mb-4">
               {memberSearchResults.map(u => (
-                <div key={u.handle} className="flex justify-between items-center p-2 border-b border-[var(--border-color)]">
-                  <span className="font-bold text-sm" style={{color: 'var(--text-main)'}}>@{u.handle}</span>
+                <div key={u.handle} className="flex justify-between items-center p-2 border-b">
+                  <span className="font-bold text-sm">@{u.handle}</span>
                   <button onClick={() => addMemberToGroup(u.handle)} className="bg-[#4A90C2] text-white px-3 py-1 rounded-lg text-xs font-bold">Ajouter</button>
                 </div>
               ))}
-              {memberSearchQuery.length > 1 && memberSearchResults.length === 0 && (
-                <p className="text-sm text-center text-[var(--text-muted)] mt-4">Aucun résultat.</p>
-              )}
             </div>
-
-            <button onClick={() => setShowAddMemberModal(false)} className="w-full py-2 rounded-lg bg-[var(--bg-main)] font-bold text-[var(--text-main)] mt-2">Fermer</button>
+            <button onClick={() => setShowAddMemberModal(false)} className="w-full py-2 rounded-lg bg-[var(--bg-main)] font-bold">Fermer</button>
           </div>
         </div>
       )}
+    </div>
+  );
+}
 
-      {/* MODALE LISTE DES MEMBRES */}
-      {showMembersList && activeChat && (
-        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-[var(--bg-surface)] w-full max-w-sm rounded-3xl p-6 flex flex-col max-h-[80vh]">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold" style={{color: 'var(--text-main)'}}>Membres du groupe</h2>
-              <button onClick={() => setShowMembersList(false)} className="text-2xl opacity-50">✕</button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto">
-              {groupMembers.map(m => (
-                <div key={m.handle} className="flex justify-between items-center p-3 border-b border-[var(--border-color)]">
-                  <div>
-                    <span className="font-bold text-sm block" style={{color: 'var(--text-main)'}}>@{m.handle}</span>
-                    <span className="text-[0.65rem] text-[var(--text-muted)]">{m.role || 'Membre'}</span>
-                  </div>
-                  {m.handle !== myHandle && (
-                    <button onClick={() => removeMember(m.handle)} className="text-red-400 hover:text-red-600 text-xs font-bold px-2 py-1 border border-red-200 rounded">Retirer</button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+function DecryptedMessage({ message, myHandle, activeChat, getHandleColor }: any) {
+  const [decrypted, setDecrypted] = useState<string>('🔒 Déchiffrement...');
+
+  useEffect(() => {
+    let isMounted = true;
+    if (message.isTemp) { setDecrypted(message.content); return; }
+    if (message.iv && message.content) {
+      const myPriv = localStorage.getItem('sceau_secret');
+      const otherHandle = message.sender === myHandle ? activeChat.id : message.sender;
+      fetch(`/api/user-profile/${otherHandle}`).then(r => r.json()).then(d => {
+        if (d.pubkey && myPriv) {
+          decryptFromSender(message.content, message.iv, myPriv, d.pubkey).then(txt => { if (isMounted) setDecrypted(txt); });
+        } else { setDecrypted('🔒 Clé introuvable'); }
+      }).catch(() => setDecrypted('🔒 Erreur de clé'));
+    } else { setDecrypted(message.content); }
+    return () => { isMounted = false; };
+  }, [message, activeChat]);
+
+  const isAudio = decrypted.startsWith('[AUDIO]');
+  const audioSrc = isAudio ? decrypted.replace('[AUDIO]', '') : null;
+
+  return (
+    <div className={`max-w-[80%] p-3 rounded-xl text-sm ${message.sender === myHandle ? 'bg-[#E76F51] text-white ml-auto rounded-br-none' : 'bg-[var(--bg-main)] border border-[var(--border-color)] rounded-bl-none'} ${message.isTemp ? 'opacity-60' : ''}`}>
+      {activeChat.type === 'group' && message.sender !== myHandle && (
+        <div className="text-[0.6rem] font-bold mb-1" style={{ color: getHandleColor(message.sender) }}>@{message.sender}</div>
       )}
+      {isAudio ? <audio controls src={audioSrc!} className="h-10 w-56" /> : decrypted}
     </div>
   );
 }
@@ -687,20 +501,13 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
   async function signPact() {
     const pubkey = localStorage.getItem('sceau_pubkey');
     if (!pubkey) return alert("Connecte-toi.");
-    
     setIsSigning(true);
     const res = await fetch('/api/pacts/sign', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pact_id: pactId, pubkey }) });
     const data = await res.json();
-    
     if (data.success) {
-      if (data.isNowSealed) {
-        fireConfetti();
-        setJustSealed(true);
-      }
+      if (data.isNowSealed) { fireConfetti(); setJustSealed(true); }
       loadPact();
-    } else {
-      alert(data.error);
-    }
+    } else { alert(data.error); }
     setIsSigning(false);
   }
 
@@ -709,10 +516,7 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
     setIsDownloading(true);
     const verifyUrl = `${window.location.origin}/o/${pact.id}`;
     const qrDataUrl = await QRCode.toDataURL(verifyUrl, { width: 300, margin: 1 });
-    generatePactCertificate(
-      pact.title, pact.description, pact.creator, pact.signataires || [], 
-      pact.hash_str || 'Hash en cours de calcul', qrDataUrl, pact.id
-    );
+    generatePactCertificate(pact.title, pact.description, pact.creator, pact.signataires || [], pact.hash_str || 'Hash en cours', qrDataUrl, pact.id);
     setIsDownloading(false);
   }
 
@@ -728,17 +532,10 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
            <div className="text-6xl mb-4">🏆</div>
            <h2 className="text-3xl font-serif font-bold text-[#2C1810] mb-2">Pacte Scellé !</h2>
            <p className="text-sm text-gray-600 mb-6">L'empreinte de ce contrat a été gravée sur Bitcoin pour l'éternité.</p>
-           
            <div className="space-y-3">
-             <a href={`/api/pacts/${pact.id}/ots`} download className="w-full block bg-[#5D7A3A] text-white py-3 rounded-xl font-bold shadow-md hover:bg-[#4A6330] transition">
-               Télécharger la preuve .ots
-             </a>
-             <button onClick={downloadCertificate} disabled={isDownloading} className="w-full bg-[#E9C46A] text-[#2C1810] py-3 rounded-xl font-bold shadow-md hover:bg-[#F4D03F] transition">
-               {isDownloading ? 'Génération...' : 'Télécharger le Certificat PDF'}
-             </button>
-             <button onClick={onClose} className="w-full py-2 font-bold text-gray-500 hover:text-gray-800 transition">
-               Fermer
-             </button>
+             <a href={`/api/pacts/${pact.id}/ots`} download className="w-full block bg-[#5D7A3A] text-white py-3 rounded-xl font-bold shadow-md hover:bg-[#4A6330] transition">Télécharger la preuve .ots</a>
+             <button onClick={downloadCertificate} disabled={isDownloading} className="w-full bg-[#E9C46A] text-[#2C1810] py-3 rounded-xl font-bold shadow-md hover:bg-[#F4D03F] transition">{isDownloading ? 'Génération...' : 'Télécharger le Certificat PDF'}</button>
+             <button onClick={onClose} className="w-full py-2 font-bold text-gray-500 hover:text-gray-800 transition">Fermer</button>
            </div>
         </div>
       </div>
@@ -750,24 +547,19 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
   return (
     <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
       <div className={`bg-white w-full max-w-lg rounded-2xl border shadow-2xl relative max-h-[90vh] overflow-y-auto ${isSealed ? 'border-[#E9C46A]' : 'border-[#E5E5E5]'}`}>
-        
         {isSealed && (
-          <div className="absolute top-0 left-0 w-full bg-[#E9C46A] text-[#2C1810] py-1.5 rounded-t-2xl text-center text-xs font-bold tracking-widest uppercase">
-            Contrat Scellé sur Bitcoin
-          </div>
+          <div className="absolute top-0 left-0 w-full bg-[#E9C46A] text-[#2C1810] py-1.5 rounded-t-2xl text-center text-xs font-bold tracking-widest uppercase">Contrat Scellé sur Bitcoin</div>
         )}
-
         <div className={`p-6 ${isSealed ? 'mt-6' : ''}`}>
           <div className="mb-6">
             <h2 className="text-2xl font-serif font-bold text-gray-900 leading-tight">{pact.title}</h2>
             <p className="text-xs font-mono text-gray-500 mt-1">Proposé par @{pact.creator}</p>
           </div>
 
-          {pact.description && (
-            <div className="bg-gray-50 border border-gray-100 rounded-lg p-4 mb-6">
-              <p className="text-sm text-gray-700 leading-relaxed">"{pact.description}"</p>
-            </div>
-          )}
+          <div className="mb-6">
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Description</h3>
+            <p className="text-sm text-gray-700 italic bg-gray-50 p-3 rounded-lg border border-gray-100">"{pact.description || 'Aucune description fournie.'}"</p>
+          </div>
 
           {pact.media_urls && pact.media_urls.length > 0 && (
             <div className="mb-6">
@@ -776,7 +568,7 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
                 {pact.media_urls.map((url: string, i: number) => (
                   <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between text-sm font-medium text-gray-700 hover:text-black bg-white p-3 rounded-lg border border-gray-200 hover:border-gray-400 transition">
                     <span>Document {i + 1}</span>
-                    <span className="text-xs text-blue-600 font-bold">Télécharger</span>
+                    <span className="text-xs text-blue-600 font-bold">Consulter</span>
                   </a>
                 ))}
               </div>
@@ -800,26 +592,22 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
 
           <div className="flex flex-col gap-3">
             {isSealed ? (
-              <>
-                <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg text-center mb-2">
-                  <p className="text-[0.65rem] text-gray-500 font-bold uppercase mb-1">Empreinte SHA-256</p>
-                  <p className="text-[0.6rem] font-mono text-gray-800 break-all">{pact.hash_str}</p>
-                </div>
-                <button onClick={downloadCertificate} disabled={isDownloading} className="w-full bg-black text-white py-3.5 rounded-xl font-bold hover:bg-gray-800 transition">
-                  {isDownloading ? 'Génération...' : 'Télécharger le Certificat PDF'}
-                </button>
-                <a href={`/api/pacts/${pact.id}/ots`} download className="w-full block text-center bg-[#5D7A3A] text-white py-3.5 rounded-xl font-bold hover:bg-[#4A6330] transition">
-                  Télécharger la preuve .ots
-                </a>
-              </>
+              <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg text-center mb-2">
+                <p className="text-[0.65rem] text-gray-500 font-bold uppercase mb-1">Empreinte SHA-256</p>
+                <p className="text-[0.6rem] font-mono text-gray-800 break-all">{pact.hash_str}</p>
+              </div>
             ) : (
               <button onClick={signPact} disabled={hasSigned || isSigning} className={`w-full py-3.5 rounded-xl font-bold text-white transition ${hasSigned ? 'bg-green-600 cursor-default' : 'bg-black hover:bg-gray-800'}`}>
                 {isSigning ? 'Ancrage en cours...' : hasSigned ? 'Vous avez signé' : 'Contresigner le contrat'}
               </button>
             )}
-            <button onClick={onClose} className="w-full py-2 text-sm font-bold text-gray-400 hover:text-gray-800 transition">
-              Fermer
-            </button>
+            
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <button onClick={downloadCertificate} disabled={isDownloading} className="bg-[#1A1513] text-white py-2 rounded-lg font-bold text-xs hover:bg-black transition">{isDownloading ? '...' : '📄 Certificat PDF'}</button>
+              <a href={`/api/pacts/${pact.id}/ots`} download className="bg-[#5D7A3A] text-white py-2 rounded-lg font-bold text-xs hover:bg-[#4A6330] transition text-center flex items-center justify-center">⛓️ Preuve .ots</a>
+            </div>
+
+            <button onClick={onClose} className="w-full py-2 text-sm font-bold text-gray-400 hover:text-gray-800 transition">Fermer</button>
           </div>
         </div>
       </div>
