@@ -3,7 +3,7 @@ import { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { sha256 } from '@noble/hashes/sha256';
 import { generatePactCertificate } from '@/lib/pdf';
-import { encryptText, decryptText } from '@/lib/crypto';
+import { encryptForRecipient, decryptFromSender } from '@/lib/crypto';
 import QRCode from 'qrcode';
 
 function fireConfetti() {

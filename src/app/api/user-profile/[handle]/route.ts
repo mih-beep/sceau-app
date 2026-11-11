@@ -8,7 +8,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ handle: 
 
   try {
     const user = await pool.query(
-      "SELECT id, handle, bio, role, open_to_collaboration FROM users WHERE LOWER(handle) = LOWER($1)",
+      "SELECT id, handle, bio, role, open_to_collaboration, encode(pubkey, 'base64') as pubkey FROM users WHERE LOWER(handle) = LOWER($1)",
       [handle]
     );
     if (user.rows.length === 0) return NextResponse.json({ error: 'Introuvable' }, { status: 404 });
@@ -43,6 +43,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ handle: 
 
     return NextResponse.json({
       handle: user.rows[0].handle,
+      pubkey: user.rows[0].pubkey, // <-- NOUVEAU
       bio: user.rows[0].bio,
       role: user.rows[0].role,
       open_to_collaboration: user.rows[0].open_to_collaboration || false,
