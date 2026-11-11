@@ -346,8 +346,8 @@ export async function POST(req: Request) {
     const scanResults = await Promise.all(pagesToScan.map(p => scanPage(p)));
     
     let insertedCount = 0;
-    for (let i = 0; i < pages.length; i++) {
-      const pageUrl = pages[i];
+    for (let i = 0; i < pagesToScan.length; i++) {
+      const pageUrl = pagesToScan[i];
       const pageData = scanResults[i];
       if (!pageData) continue;
       
@@ -361,7 +361,7 @@ export async function POST(req: Request) {
         await pool.query(`
           INSERT INTO web_archives (user_id, url, site_root, title, last_hash, last_content, last_status, pages_scanned, scan_count)
           VALUES ($1, $2, $3, $4, $5, $6, 'intact', $7, 1)
-        `, [userId, pageUrl, siteRoot, pageData.title, pageData.hash, pageData.text, pages.length]);
+        `, [userId, pageUrl, siteRoot, pageData.title, pageData.hash, pageData.text, pagesToScan.length]);
         insertedCount++;
       }
     }
@@ -369,7 +369,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ 
       success: true, 
       pages_scanned: insertedCount,
-      total_pages: pages.length,
+      total_pages: pagesToScan.length,
       site_root: siteRoot,
     });
   } catch (e: any) {
