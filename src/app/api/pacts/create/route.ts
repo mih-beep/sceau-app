@@ -15,6 +15,7 @@ export async function POST(req: Request) {
     const data = await req.formData();
     const title = ((data.get('title') as string) || '').trim();
     const description = ((data.get('description') as string) || '').trim();
+    const iv = (data.get('iv') as string) || null;
     const pubkey = data.get('pubkey') as string;
     const groupId = (data.get('group_id') as string) || null;
     const requiredSignatures = parseInt((data.get('required_signatures') as string) || '2', 10);
@@ -60,9 +61,9 @@ export async function POST(req: Request) {
     try {
       await client.query('BEGIN');
       const pact = await client.query(
-        `INSERT INTO pacts (title, description, creator_id, group_id, required_signatures, hash, media_urls, is_hosted, category, theme)
-         VALUES ($1, $2, $3, $4, $5, decode($6, 'base64'), $7, $8, 'Art', $9) RETURNING id`,
-        [title, description, creatorId, groupId, requiredSignatures, hash, JSON.stringify(mediaUrls), mediaUrls.length > 0, theme]
+        `INSERT INTO pacts (title, description, creator_id, group_id, required_signatures, hash, media_urls, is_hosted, category, theme, iv)
+         VALUES ($1, $2, $3, $4, $5, decode($6, 'base64'), $7, $8, 'Art', $9, $10) RETURNING id`,
+        [title, description, creatorId, groupId, requiredSignatures, hash, JSON.stringify(mediaUrls), mediaUrls.length > 0, theme, iv]
       );
       pactId = pact.rows[0].id;
       await client.query(

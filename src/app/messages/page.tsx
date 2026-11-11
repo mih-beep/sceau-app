@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { sha256 } from '@noble/hashes/sha256';
 import { generatePactCertificate } from '@/lib/pdf';
+import { encryptText, decryptText } from '@/lib/crypto';
 import QRCode from 'qrcode';
 
 function fireConfetti() {
@@ -22,6 +23,40 @@ function fireConfetti() {
     });
     setTimeout(() => el.remove(), 3000);
   }
+}
+
+// Composant pour déchiffrer les messages à la volée
+function DecryptedMessage({ message, myHandle, activeChat, getHandleColor }: any) {
+  const [decrypted, setDecrypted] = useState<string>('🔒 Déchiffrement...');
+
+  useEffect(() => {
+    let isMounted = true;
+    if (message.isTemp) {
+      setDecrypted(message.content); // Message local, déjà en clair
+      return;
+    }
+
+    if (message.iv && message.content) {
+      decryptText(message.content, message.iv).then(txt => {
+        if (isMounted) setDecrypted(txt);
+      });
+    } else {
+      setDecrypted(message.content); // Ancien message non chiffré
+    }
+    return () => { isMounted = false; };
+  }, [message]);
+
+  const isAudio = decrypted.startsWith('[AUDIO]');
+  const audioSrc = isAudio ? decrypted.replace('[AUDIO]', '') : null;
+
+  return (
+    <div className={`max-w-[80%] p-3 rounded-xl text-sm ${message.sender === myHandle ? 'bg-[#E76F51] text-white ml-auto rounded-br-none' : 'bg-[var(--bg-main)] border border-[var(--border-color)] rounded-bl-none'} ${message.isTemp ? 'opacity-60' : ''}`}>
+      {activeChat.type === 'group' && message.sender !== myHandle && (
+        <div className="text-[0.6rem] font-bold mb-1" style={{ color: getHandleColor(message.sender) }}>@{message.sender}</div>
+      )}
+      {isAudio ? <audio controls src={audioSrc!} className="h-10 w-56" /> : decrypted}
+    </div>
+  );
 }
 
 function PactMessage({ pactId, onOpen }: { pactId: string, onOpen: (id: string) => void }) {
@@ -283,13 +318,26 @@ function MessagesInner() {
     const msg = newMessage;
     setNewMessage('');
     const tempId = `temp-${Date.now()}`;
+    
+    // 1. On affiche le message en clair (pour l'expéditeur)
     setMessages(prev => [...prev, { content: msg, sender: myHandle, created_at: new Date().toISOString(), isTemp: true, id: tempId }]);
 
     try {
+      // 2. On chiffre le message
+      const { ciphertext, iv } = await encryptText(msg);
+
       if (activeChat.type === 'dm') {
-        await fetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeChat.id, content: msg }) });
+        await fetch('/api/messages', { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify({ sender_handle: myHandle, receiver_handle: activeChat.id, content: ciphertext, iv }) 
+        });
       } else {
-        await fetch('/api/groups/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ group_id: activeChat.id, sender_handle: myHandle, content: msg }) });
+        await fetch('/api/groups/messages', { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify({ group_id: activeChat.id, sender_handle: myHandle, content: ciphertext, iv }) 
+        });
       }
       setTimeout(() => setMessages(prev => prev.filter(m => m.id !== tempId)), 500);
     } catch (e) { console.error(e); }
@@ -509,12 +557,7 @@ function MessagesInner() {
               const audioSrc = isAudio ? m.content.replace('[AUDIO]', '') : null;
 
               return (
-                <div key={i} className={`max-w-[80%] p-3 rounded-xl text-sm ${m.sender === myHandle ? 'bg-[#E76F51] text-white ml-auto rounded-br-none' : 'bg-[var(--bg-main)] border border-[var(--border-color)] rounded-bl-none'} ${m.isTemp ? 'opacity-60' : ''}`}>
-                  {activeChat.type === 'group' && m.sender !== myHandle && (
-                    <div className="text-[0.6rem] font-bold mb-1" style={{ color: getHandleColor(m.sender) }}>@{m.sender}</div>
-                  )}
-                  {isAudio ? <audio controls src={audioSrc!} className="h-10 w-56" /> : m.content}
-                </div>
+                <DecryptedMessage key={i} message={m} myHandle={myHandle} activeChat={activeChat} getHandleColor={getHandleColor} />
               );
             })}
             <div ref={messagesEndRef} />

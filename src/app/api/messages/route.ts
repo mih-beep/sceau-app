@@ -31,7 +31,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { sender_handle, receiver_handle, content } = await req.json();
+    const { sender_handle, receiver_handle, content, iv } = await req.json();
     if (!sender_handle || !receiver_handle || !content) {
       return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
     }
@@ -44,8 +44,8 @@ export async function POST(req: Request) {
     }
 
     await pool.query(
-      "INSERT INTO messages (sender_id, receiver_id, content) VALUES ($1, $2, $3)",
-      [sender.rows[0].id, receiver.rows[0].id, content]
+      "INSERT INTO messages (sender_id, receiver_id, content, iv) VALUES ($1, $2, $3, $4)",
+      [sender.rows[0].id, receiver.rows[0].id, content, iv || null]
     );
     return NextResponse.json({ success: true });
   } catch (error: any) { 

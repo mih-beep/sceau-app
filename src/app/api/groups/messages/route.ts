@@ -17,12 +17,12 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const { group_id, sender_handle, content, is_audio } = await req.json();
+  const { group_id, sender_handle, content, is_audio, iv } = await req.json();
   try {
     const senderId = (await pool.query("SELECT id FROM users WHERE handle = $1", [sender_handle])).rows[0]?.id;
     await pool.query(
-      "INSERT INTO group_messages (group_id, sender_id, content, is_audio) VALUES ($1, $2, $3, $4)",
-      [group_id, senderId, content, is_audio === true]
+      "INSERT INTO group_messages (group_id, sender_id, content, is_audio, iv) VALUES ($1, $2, $3, $4, $5)",
+      [group_id, senderId, content, is_audio === true, iv || null]
     );
     return NextResponse.json({ success: true });
   } catch (error) { return NextResponse.json({ error: 'Erreur' }, { status: 500 }); }
