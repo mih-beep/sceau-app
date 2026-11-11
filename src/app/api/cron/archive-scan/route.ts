@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { pool } from '@/db/pool';
 import { sha256 } from '@noble/hashes/sha256';
 import { Resend } from 'resend';
+import { summarizeChange } from '@/lib/oracle-summary';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -75,9 +76,12 @@ export async function GET(req: Request) {
         if (archive.last_hash !== newHash) {
           const diffResult = generateDiff(archive.last_content || '', newText);
           
+          // 🧠 Résumé IA du changement
+          const aiSummary = await summarizeChange(archive.last_content || '', newText, archive.url);
+          
           await pool.query(
-            "UPDATE web_archives SET last_status = 'modified', last_checked_at = NOW(), diff_data = $1, last_hash = $2, last_content = $3 WHERE id = $4",
-            [JSON.stringify(diffResult), newHash, newText, archive.id]
+            "UPDATE web_archives SET last_status = 'modified', last_checked_at = NOW(), diff_data = $1, last_hash = $2, last_content = $3, ai_summary = $5 WHERE id = $4",
+            [JSON.stringify(diffResult), newHash, newText, archive.id, aiSummary]
           );
 
           if (resend && archive.email) {
@@ -104,6 +108,8 @@ export async function GET(req: Request) {
           );
         }
         scanned++;
+        // Pause 500ms entre chaque résumé pour respecter le rate limit de Groq
+        await new Promise(r => setTimeout(r, 500));
       } catch (e) {
         // En cas d'erreur, on marque en erreur
         await pool.query(

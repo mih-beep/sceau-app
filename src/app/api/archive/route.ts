@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/db/pool';
 import { sha256 } from '@noble/hashes/sha256';
+import { summarizeChange } from '@/lib/oracle-summary';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -246,14 +247,19 @@ export async function POST(req: Request) {
 
       if (oldHash !== scan.hash) {
         const diffResult = generateDiff(oldContent, scan.text);
+        
+        // 🧠 Résumé IA du changement
+        const aiSummary = await summarizeChange(oldContent, scan.text, targetUrl);
+        
         await pool.query(
           `UPDATE web_archives 
            SET last_status = 'modified', last_checked_at = NOW(), diff_data = $1, 
-               last_hash = $2, last_content = $3, scan_count = COALESCE(scan_count, 0) + 1 
+               last_hash = $2, last_content = $3, scan_count = COALESCE(scan_count, 0) + 1,
+               ai_summary = $5
            WHERE id = $4`,
-          [JSON.stringify(diffResult), scan.hash, scan.text, url]
+          [JSON.stringify(diffResult), scan.hash, scan.text, url, aiSummary]
         );
-        return NextResponse.json({ status: 'modified', changes: diffResult.changesCount });
+        return NextResponse.json({ status: 'modified', changes: diffResult.changesCount, summary: aiSummary });
       } else {
         await pool.query(
           "UPDATE web_archives SET last_status = 'intact', last_checked_at = NOW(), scan_count = COALESCE(scan_count, 0) + 1 WHERE id = $1",
