@@ -6,287 +6,85 @@ import Link from 'next/link';
 export default function Settings() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
-
-  const [oldHandle, setOldHandle] = useState('');
-  const [newHandle, setNewHandle] = useState('');
-  const [bio, setBio] = useState('');
-  const [role, setRole] = useState('createur');
-  const [openToCollab, setOpenToCollab] = useState(false);
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [birthDate, setBirthDate] = useState('');
-  const [identityCount, setIdentityCount] = useState(0);
-  const [identityHistory, setIdentityHistory] = useState<any[]>([]);
   const [pubkey, setPubkey] = useState('');
-  const [apiKeys, setApiKeys] = useState<any[]>([]);
-  const [newKeyName, setNewKeyName] = useState('');
-  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
-  const [isGeneratingKey, setIsGeneratingKey] = useState(false);
+  const [data, setData] = useState<any>({ handle: '', bio: '', role: '' });
 
   useEffect(() => {
-    const h = localStorage.getItem('sceau_handle');
     const p = localStorage.getItem('sceau_pubkey');
-    if (!h || !p) { router.push('/login'); return; }
-
-    setOldHandle(h);
-    setNewHandle(h);
+    if (!p) { router.push('/login'); return; }
     setPubkey(p);
 
     fetch(`/api/profil?pubkey=${encodeURIComponent(p)}`)
       .then(r => r.json())
-      .then(d => {
-        if (d.handle) {
-          setBio(d.bio || '');
-          setRole(d.role || 'createur');
-          setOpenToCollab(d.open_to_collaboration === true);
-          setFirstName(d.first_name || '');
-          setLastName(d.last_name || '');
-          setBirthDate(d.birth_date ? d.birth_date.split('T')[0] : '');
-          setIdentityCount(d.identity_changes_count || 0);
-          setIdentityHistory(d.identity_history || []);
-        }
-        setLoading(false);
-      })
+      .then(d => { if (d.handle) setData(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, [router]);
 
-  async function saveProfile() {
-    setSaving(true); setMsg('');
-    const res = await fetch('/api/profil/update', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        pubkey,
-        old_handle: oldHandle,
-        new_handle: newHandle,
-        bio,
-        role,
-        open_to_collaboration: openToCollab,
-        first_name: firstName,
-        last_name: lastName,
-        birth_date: birthDate,
-      }),
-    });
-    const data = await res.json();
-
-    if (res.ok) {
-      setMsg('✅ Profil mis à jour !');
-      localStorage.setItem('sceau_handle', data.new_handle);
-      setOldHandle(data.new_handle);
-    } else {
-      setMsg('❌ ' + data.error);
-    }
-    setSaving(false);
-  }
-
-  async function loadApiKeys() {
-    if (!pubkey) return;
-    const res = await fetch(`/api/auth/api-keys?pubkey=${encodeURIComponent(pubkey)}`);
-    if (res.ok) {
-      const d = await res.json();
-      setApiKeys(d.keys || []);
-    }
-  }
-
-  useEffect(() => {
-    if (pubkey) loadApiKeys();
-  }, [pubkey]);
-
-  async function generateApiKey() {
-    if (!newKeyName.trim()) return alert("Donne un nom à ta clé (ex: WordPress, GitHub)");
-    setIsGeneratingKey(true);
-    const res = await fetch('/api/auth/api-keys', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pubkey, name: newKeyName })
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setGeneratedKey(data.key);
-      setNewKeyName('');
-      loadApiKeys();
-    } else {
-      alert('Erreur: ' + data.error);
-    }
-    setIsGeneratingKey(false);
-  }
-
-  async function revokeApiKey(id: string) {
-    if (!confirm('Voulez-vous vraiment révoquer cette clé ? Les plugins qui l\'utilisent cesseront de fonctionner.')) return;
-    const res = await fetch(`/api/auth/api-keys?pubkey=${encodeURIComponent(pubkey)}&id=${id}`, { method: 'DELETE' });
-    if (res.ok) loadApiKeys();
-    else alert('Erreur lors de la révocation');
-  }
-
   function logout() {
-    localStorage.clear();
-    router.push('/login');
+    if(confirm("Se déconnecter de cet appareil ? Vos clés resteront sécurisées sur votre navigateur.")) {
+      localStorage.clear();
+      router.push('/login');
+    }
   }
 
   if (loading) return <div className="p-10 text-center font-mono">Chargement...</div>;
 
   return (
-    <div className="p-6 pb-32 md:pb-6 max-w-2xl md:max-w-4xl mx-auto font-sans w-full">
+    <div className="p-6 pb-32 max-w-2xl mx-auto font-sans w-full">
       <div className="flex items-center gap-4 mb-8">
         <Link href="/profil" className="text-2xl opacity-50 hover:opacity-100 transition">←</Link>
-        <h1 className="text-3xl font-bold" style={{color: 'var(--text-main)'}}>Paramètres.</h1>
+        <h1 className="text-3xl font-bold" style={{color: 'var(--text-main)'}}>Paramètres</h1>
       </div>
 
       <div className="space-y-6">
+        {/* Section Identité */}
         <div className="bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm">
-          <h2 className="text-lg font-bold mb-4" style={{color: 'var(--text-main)'}}>👤 Identité publique</h2>
-
-          <label className="block text-xs font-bold text-[var(--text-muted)] mb-1 font-mono">Pseudo</label>
-          <input type="text" value={newHandle} onChange={e => setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))} className="w-full border border-[var(--border-soft)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} />
-
-          <label className="block text-xs font-bold text-[var(--text-muted)] mb-1 font-mono">Bio / Description</label>
-          <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full border border-[var(--border-soft)] p-3 rounded-xl mb-4 bg-transparent" style={{color: 'var(--text-main)'}} placeholder="Parle de toi en quelques mots..." />
-
-          <label className="block text-xs font-bold text-[var(--text-muted)] mb-1 font-mono">Ton rôle</label>
-          <select value={role} onChange={e => setRole(e.target.value)} className="w-full border border-[var(--border-soft)] p-3 rounded-xl bg-transparent mb-4" style={{color: 'var(--text-main)'}}>
-            <option value="createur">Créateur / Artiste</option>
-            <option value="freelance">Freelance</option>
-            <option value="entreprise">Entreprise / Agence</option>
-            <option value="etudiant">Étudiant</option>
-          </select>
-
-          <label className="flex items-center gap-3 mb-6 cursor-pointer bg-[#F0F6FC] p-3 rounded-xl border border-[#C9D8E8]">
-            <input type="checkbox" checked={openToCollab} onChange={e => setOpenToCollab(e.target.checked)} className="w-4 h-4 accent-[#4A90C2]" />
-            <span className="text-sm font-bold text-[#2D6A9E]">🤝 Ouvert aux collaborations / partenariats</span>
-          </label>
-
-          <button onClick={saveProfile} disabled={saving} className="w-full bg-[#E76F51] text-white py-3 rounded-xl font-bold disabled:opacity-50">
-            {saving ? 'Sauvegarde...' : 'Sauvegarder les modifications'}
-          </button>
-          {msg && <p className="text-center font-bold mt-3" style={{color: msg.includes('✅') ? '#7A9B5A' : '#C44A2E'}}>{msg}</p>}
+          <h2 className="text-lg font-bold mb-4" style={{color: 'var(--text-main)'}}>👤 Profil Public</h2>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-bold text-[var(--text-muted)] uppercase block mb-1">Pseudo</label>
+              <input type="text" value={`@${data.handle}`} disabled className="w-full bg-[var(--bg-main)] border border-[var(--border-color)] p-3 rounded-xl text-[var(--text-muted)]" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-[var(--text-muted)] uppercase block mb-1">Bio</label>
+              <textarea disabled value={data.bio || ''} className="w-full bg-[var(--bg-main)] border border-[var(--border-color)] p-3 rounded-xl text-[var(--text-muted)]" rows={2} />
+            </div>
+            <p className="text-xs italic text-[var(--text-muted)] text-right">Pour modifier ces informations, passez par l'édition du profil (bientôt).</p>
+          </div>
         </div>
 
-        <div className={`p-6 rounded-2xl border ${identityCount >= 3 ? 'bg-red-50 border-red-200' : 'bg-[#F0F6FC] border-[#C9D8E8]'}`}>
-          <div className="flex justify-between items-start mb-2">
-            <h2 className={`text-lg font-bold ${identityCount >= 3 ? 'text-red-700' : 'text-[#2D6A9E]'}`}>🛡️ Identité de confiance (Privée)</h2>
-            {identityCount > 0 && (
-              <div className="relative group cursor-help">
-                <span className="bg-orange-100 text-orange-600 font-bold px-2 py-1 rounded text-xs border border-orange-200">
-                  ⚠️ {3 - identityCount} modification(s) restante(s)
-                </span>
-                <div className="absolute right-0 top-full mt-2 w-64 bg-gray-900 text-white text-xs p-3 rounded-lg shadow-xl hidden group-hover:block z-50">
-                  <p className="font-bold mb-1 border-b border-gray-700 pb-1">Historique des changements</p>
-                  {identityHistory.map((h: any, i: number) => (
-                    <p key={i} className="mt-1 opacity-80">Le {new Date(h.date).toLocaleDateString()} : {h.old_name} → {h.new_name}</p>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          <p className={`text-xs mb-4 italic ${identityCount >= 3 ? 'text-red-600' : 'text-[#2D6A9E]'}`}>
-            Ces informations servent uniquement à prouver que ce compte vous appartient. <strong>Vous ne pouvez les modifier que 3 fois maximum.</strong>
-          </p>
-          
-          <div className="flex gap-4 mb-4">
-            <div className="flex-1">
-              <label className="block text-xs font-bold text-[#2D6A9E] mb-1 font-mono">Prénom</label>
-              <input type="text" disabled={identityCount >= 3} value={firstName} onChange={e => setFirstName(e.target.value)} className="w-full border-2 border-[#C9D8E8] p-3 rounded-xl bg-white focus:border-[#4A90C2] outline-none disabled:opacity-50 disabled:bg-gray-100" />
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs font-bold text-[#2D6A9E] mb-1 font-mono">Nom</label>
-              <input type="text" disabled={identityCount >= 3} value={lastName} onChange={e => setLastName(e.target.value)} className="w-full border-2 border-[#C9D8E8] p-3 rounded-xl bg-white focus:border-[#4A90C2] outline-none disabled:opacity-50 disabled:bg-gray-100" />
-            </div>
-          </div>
-          
-          <label className="block text-xs font-bold text-[#2D6A9E] mb-1 font-mono">Date de naissance</label>
-          <input type="date" disabled={identityCount >= 3} value={birthDate} onChange={e => setBirthDate(e.target.value)} className="w-full border-2 border-[#C9D8E8] p-3 rounded-xl bg-white focus:border-[#4A90C2] outline-none disabled:opacity-50 disabled:bg-gray-100" />
-        </div>
-
-        <div className="bg-[#FDF8F0] p-6 rounded-2xl border border-[#EFE0CA]">
-          <h2 className="text-lg font-bold mb-2" style={{color: '#A88620'}}>🔑 Clé cryptographique</h2>
-          <p className="text-sm text-[#7A5A3A] mb-3">C'est l'empreinte de ton identité souveraine sur SCEAU. Garde-la secrète.</p>
+        {/* Section Clé Cryptographique */}
+        <div className="bg-[#FDF8F0] p-6 rounded-2xl border border-[#EFE0CA] shadow-sm">
+          <h2 className="text-lg font-bold mb-2 text-[#A88620]">🔑 Clé d'Identité (Souveraine)</h2>
+          <p className="text-xs text-[#7A5A3A] mb-3">C'est votre signature numérique. Ne la partagez jamais.</p>
           <div className="bg-white p-3 rounded-xl border border-[#EFE0CA] overflow-x-auto">
             <code className="text-xs font-mono text-gray-600 whitespace-nowrap">{pubkey}</code>
           </div>
         </div>
 
-        <div className="bg-[#F0F6FC] p-6 rounded-2xl border border-[#C9D8E8]">
-          <h2 className="text-lg font-bold mb-2 text-[#2D6A9E]">🔌 Clés API (Développeurs & Plugins)</h2>
-          <p className="text-xs text-[#2D6A9E] mb-4 italic">Générez une clé pour connecter SCEAU à votre site WordPress, GitHub ou une application externe.</p>
+        {/* Section API */}
+        <div className="bg-[#F0F6FC] p-6 rounded-2xl border border-[#C9D8E8] shadow-sm">
+          <h2 className="text-lg font-bold mb-2 text-[#2D6A9E]">🔌 API & Intégrations</h2>
+          <p className="text-xs text-[#2D6A9E] mb-4">Connectez SCEAU à vos propres outils (WordPress, GitHub, etc.).</p>
+          <button className="bg-[#4A90C2] text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md">Gérer mes clés API</button>
+        </div>
 
-          {generatedKey && (
-            <div className="bg-[#FFFCF7] border border-[#E9C46A] p-4 rounded-xl mb-4">
-              <p className="text-xs font-bold text-[#A88620] mb-1">⚠️ Copiez cette clé maintenant, elle ne sera plus jamais affichée :</p>
-              <div className="flex gap-2">
-                <code className="flex-1 bg-[var(--bg-main)] p-2 rounded text-xs break-all border border-[var(--border-color)]">{generatedKey}</code>
-                <button onClick={() => { navigator.clipboard.writeText(generatedKey); alert('Copié !'); }} className="bg-[#E9C46A] text-white px-3 rounded font-bold text-xs">Copier</button>
-              </div>
-              <button onClick={() => setGeneratedKey(null)} className="text-xs text-[#A88620] font-bold mt-2 underline">J'ai copié la clé, la fermer.</button>
-            </div>
-          )}
-
-          <div className="flex flex-col sm:flex-row gap-2 mb-4">
-            <input 
-              type="text" 
-              placeholder="Nom (ex: Mon site WordPress)" 
-              className="flex-1 min-w-0 border-2 border-[#C9D8E8] p-2 rounded-xl bg-white focus:border-[#4A90C2] outline-none text-sm" 
-              value={newKeyName} 
-              onChange={e => setNewKeyName(e.target.value)} 
-            />
-            <button 
-              onClick={generateApiKey} 
-              disabled={isGeneratingKey}
-              className="bg-[#4A90C2] text-white px-4 py-2 rounded-xl font-bold text-sm shadow-md disabled:opacity-50 shrink-0"
-            >
-              {isGeneratingKey ? '...' : 'Générer'}
-            </button>
-          </div>
-
-          <div className="mt-6 pt-6 border-t border-[#C9D8E8]">
-            <h3 className="text-sm font-bold text-[#2D6A9E] mb-3">Plugins pour Professionnels</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <a href="/downloads/sceau-wordpress.zip" download className="flex items-center justify-center bg-[#2D6A9E] text-white py-2 rounded-lg font-bold text-sm shadow hover:bg-[#1E507A] transition">
-                Télécharger pour WordPress
-              </a>
-              <a href="/downloads/sceau-github-action.yml" download className="flex items-center justify-center bg-[#1A1513] text-white py-2 rounded-lg font-bold text-sm shadow hover:bg-black transition">
-                Télécharger pour GitHub
-              </a>
-            </div>
-          </div>
-
-          {apiKeys.length > 0 && (
-            <div className="space-y-2 mt-4 border-t border-[#C9D8E8] pt-4">
-              <p className="text-xs font-bold text-[#2D6A9E] mb-2">Vos clés actives :</p>
-              {apiKeys.map(k => (
-                <div key={k.id} className="flex justify-between items-center bg-white p-2 rounded-lg border border-[#C9D8E8] text-xs">
-                  <span className="font-bold">{k.name}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[#8A7A72]">
-                      {k.last_used_at ? `Utilisée le ${new Date(k.last_used_at).toLocaleDateString('fr-FR')}` : 'Jamais utilisée'}
-                    </span>
-                    <button onClick={() => revokeApiKey(k.id)} className="text-red-400 hover:text-red-600 font-bold" title="Révoquer">✕</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-6 pt-6 border-t border-[#C9D8E8]">
-            <h3 className="text-sm font-bold text-[#2D6A9E] mb-3">📦 Télécharger les Plugins (SCEAU Pro)</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <a href="/downloads/sceau-wordpress.zip" download className="flex items-center justify-center gap-2 bg-[#2D6A9E] text-white py-2 rounded-lg font-bold text-sm shadow hover:bg-[#1E507A] transition">
-                <span>🔌</span> Plugin WordPress
-              </a>
-              <a href="/downloads/sceau-github-action.yml" download className="flex items-center justify-center gap-2 bg-[#2C1810] text-white py-2 rounded-lg font-bold text-sm shadow hover:bg-black transition">
-                <span>🐙</span> GitHub Action (YML)
-              </a>
-            </div>
-            <p className="text-[0.65rem] text-[#2D6A9E] mt-2 italic text-center">Installez le plugin et collez-y votre clé API.</p>
+        {/* Section Légal */}
+        <div className="bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm">
+          <h2 className="text-lg font-bold mb-4" style={{color: 'var(--text-main)'}}>⚖️ Cadre Légal</h2>
+          <div className="flex flex-col gap-2">
+            <Link href="/legal" className="text-sm font-bold text-[#4A90C2] hover:underline">Conditions Générales d'Utilisation</Link>
+            <Link href="/legal" className="text-sm font-bold text-[#4A90C2] hover:underline">Politique de Confidentialité (RGPD)</Link>
+            <Link href="/legal" className="text-sm font-bold text-[#4A90C2] hover:underline">Mentions Légales</Link>
           </div>
         </div>
 
-        <div className="bg-[#FDF4F0] p-6 rounded-2xl border border-[#D64545]">
+        {/* Danger Zone */}
+        <div className="bg-[#FDF0F0] p-6 rounded-2xl border border-[#D64545]">
           <h2 className="text-lg font-bold mb-2 text-[#A02E2E]">⚠️ Zone sensible</h2>
-          <p className="text-sm text-[#A02E2E] mb-4">Déconnecte-toi de cet appareil. Ton compte restera intact.</p>
-          <button onClick={logout} className="w-full border-2 border-[#D64545] text-[#D64545] py-3 rounded-xl font-bold hover:bg-[#D64545] hover:text-white transition">
-            Se déconnecter
+          <p className="text-xs text-[#A02E2E] mb-4">Ces actions sont irréversibles.</p>
+          <button onClick={logout} className="w-full border-2 border-[#D64545] text-[#D64545] py-2 rounded-xl font-bold hover:bg-[#D64545] hover:text-white transition">
+            Se déconnecter de cet appareil
           </button>
         </div>
       </div>
