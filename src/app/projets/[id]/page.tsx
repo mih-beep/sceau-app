@@ -9,6 +9,7 @@ export default function ProjetDetail() {
   const router = useRouter();
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showUpdate, setShowUpdate] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteHandle, setInviteHandle] = useState('');

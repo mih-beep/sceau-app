@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 const MAX_PAGES = 200; // Limite par batch (le cron fera le reste)
-const FREE_LIMIT = 5;  // Sites gratuits (pas pages)
+const FREE_LIMIT = 5;  // Sites gratuits (pas pagesToScan)
 const PRO_LIMIT = 50;
 
 function isSafeUrl(urlString: string): boolean {
@@ -130,7 +130,7 @@ export async function GET(req: Request) {
     const userId = user.rows[0].id;
     const isPro = user.rows[0].is_pro || false;
 
-    const pages = await pool.query(`
+    const pagesToScan = await pool.query(`
       SELECT id, url, site_root, title, last_status, last_checked_at, created_at,
              diff_data, pages_scanned, scan_count, ai_summary
       FROM web_archives WHERE user_id = $1 ORDER BY created_at ASC
@@ -138,7 +138,7 @@ export async function GET(req: Request) {
 
     // Regroupement par site_root
     const sitesMap = new Map<string, any>();
-    for (const page of pages.rows) {
+    for (const page of pagesToScan.rows) {
       const siteRoot = page.site_root || (() => {
         try { return new URL(page.url).origin; } catch { return page.url; }
       })();
@@ -154,13 +154,13 @@ export async function GET(req: Request) {
           last_checked_at: page.last_checked_at,
           created_at: page.created_at,
           scan_count: page.scan_count || 1,
-          pages: [],
+          pagesToScan: [],
           recent_changes: [],
         });
       }
 
       const site = sitesMap.get(siteRoot);
-      site.pages.push(page);
+      site.pagesToScan.push(page);
       if (page.site_root === null || page.url === siteRoot || page.url === `${siteRoot}/`) {
         site.root_id = page.id;
         site.main_title = page.title || site.main_title;
@@ -188,8 +188,8 @@ export async function GET(req: Request) {
         new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime()
       );
       site.recent_changes = site.recent_changes.slice(0, 5);
-      site.children_count = site.pages.length - 1;
-      delete site.pages;
+      site.children_count = site.pagesToScan.length - 1;
+      delete site.pagesToScan;
       return site;
     });
 
@@ -289,7 +289,7 @@ export async function POST(req: Request) {
       }, { status: 403 });
     }
 
-    // Si le site existe déjà, on ajoute juste les nouvelles pages
+    // Si le site existe déjà, on ajoute juste les nouvelles pagesToScan
     // Sinon, on crawle comme d'habitude
 
     // === CRAWL EXHAUSTIF (BFS) AVEC LIMITE DE TEMPS ===
@@ -332,7 +332,7 @@ export async function POST(req: Request) {
           const newLinks = extractInternalLinks(html, normalizedUrl);
           queue.push(...newLinks);
         }
-      } catch { /* ignore les pages mortes */ }
+      } catch { /* ignore les pagesToScan mortes */ }
     }
 
     const scanResults = await Promise.all(pagesToScan.map(p => scanPage(p)));
@@ -381,7 +381,7 @@ export async function DELETE(req: Request) {
     const user = await pool.query("SELECT id FROM users WHERE encode(pubkey, 'base64') = $1", [pubkey]);
     if (user.rows.length === 0) return NextResponse.json({ error: 'Inconnu' }, { status: 401 });
 
-    // Si c'est un site entier, on supprime toutes ses pages
+    // Si c'est un site entier, on supprime toutes ses pagesToScan
     const site = await pool.query(
       "SELECT site_root FROM web_archives WHERE id = $1 AND user_id = $2",
       [id, user.rows[0].id]
