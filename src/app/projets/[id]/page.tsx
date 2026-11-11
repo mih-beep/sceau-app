@@ -25,7 +25,7 @@ export default function ProjetDetail() {
     try {
       const res = await fetch(`/api/projects/${params.id}`);
       const d = await res.json();
-      if (!d.error) setProject(d);
+      if (d && d.id) setProject(d);
     } catch (e) {}
     setLoading(false);
   };
@@ -83,7 +83,19 @@ export default function ProjetDetail() {
   }
 
   if (loading) return <div className="p-10 text-center font-mono">Chargement...</div>;
-  if (!project) return <div className="p-10 text-center">Projet introuvable.</div>;
+  
+  if (errorMsg || !project) {
+    return (
+      <div className="p-10 text-center font-sans flex flex-col items-center justify-center min-h-[50vh]">
+        <div className="text-5xl mb-4">🔍</div>
+        <h2 className="text-2xl font-bold mb-2" style={{color: 'var(--text-main)'}}>Oups...</h2>
+        <p className="text-[var(--text-muted)] mb-6 max-w-md mx-auto">{errorMsg || "Ce projet n'existe pas."}</p>
+        <Link href="/projets" className="bg-[#1A1513] text-white px-6 py-2 rounded-xl font-bold">
+          Retour aux projets
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 pb-32 md:pb-6 max-w-4xl mx-auto font-sans w-full">

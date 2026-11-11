@@ -1,8 +1,19 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/db/pool';
 
+// Validation basique d'UUID pour éviter que PostgreSQL ne plante
+function isValidUUID(str: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
+
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  
+  // On vérifie le format de l'ID AVANT d'appeler la base de données
+  if (!isValidUUID(id)) {
+    return NextResponse.json({ error: 'ID de projet invalide (format incorrect)' }, { status: 400 });
+  }
+
   try {
     const projRes = await pool.query(`
       SELECT p.*, u.handle as author, parent.title as parent_title
@@ -47,6 +58,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     });
   } catch (e: any) {
     console.error('[projects/[id] GET]', e);
-    return NextResponse.json({ error: 'Erreur' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Erreur serveur lors de la récupération du projet.',
+      details: e?.message 
+    }, { status: 500 });
   }
 }
