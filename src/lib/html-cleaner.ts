@@ -77,6 +77,10 @@ export function isSignificantChange(oldText: string, newText: string): boolean {
   for (const l of newLines) if (!oldLines.has(l)) added++;
   for (const l of oldLines) if (!newLines.has(l)) removed++;
 
-  // Ignore les micro-changements (moins de 3 lignes modifiées)
-  return added + removed >= 3;
+  // Si moins de 3 lignes changent, on regarde si un chiffre a changé (prix, date)
+  let hasNumber = false;
+  for (const l of newLines) if (!oldLines.has(l) && /\d/.test(l)) hasNumber = true;
+  for (const l of oldLines) if (!newLines.has(l) && /\d/.test(l)) hasNumber = true;
+  
+  return added + removed >= 3 || hasNumber;
 }

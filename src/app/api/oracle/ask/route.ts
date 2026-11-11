@@ -42,10 +42,10 @@ export async function POST(req: Request) {
       const q = await pool.query(`
         SELECT id, url, title, last_content, last_checked_at, last_hash
         FROM web_archives
-        WHERE url = $1
+        WHERE url = $1 AND user_id = $2
         ORDER BY last_checked_at DESC
         LIMIT 5
-      `, [url]);
+      `, [url, userId]);
       captures = q.rows;
     } catch (e) { /* archive vide */ }
 
@@ -94,7 +94,7 @@ export async function POST(req: Request) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-70b-versatile',
+        model: 'llama3-70b-8192',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userMessage },
@@ -117,7 +117,7 @@ export async function POST(req: Request) {
     try {
       await pool.query(`
         INSERT INTO oracle_queries (user_id, url, question, answer, sources, captures_used, model)
-        VALUES ($1, $2, $3, $4, $5, $6, 'llama-3.1-70b-versatile')
+        VALUES ($1, $2, $3, $4, $5, $6, 'llama3-70b-8192')
       `, [
         userId, url, question, answer,
         JSON.stringify(captures.map(c => ({ 
