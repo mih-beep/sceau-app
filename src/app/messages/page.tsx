@@ -142,6 +142,11 @@ function MessagesInner() {
 
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [groupName, setGroupName] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [activePact, setActivePact] = useState<string | null>(null);
   const [isSealingChat, setIsSealingChat] = useState(false);
   const [showSharedVault, setShowSharedVault] = useState(false);
@@ -174,6 +179,16 @@ function MessagesInner() {
   }, [targetUser]);
 
   useEffect(() => {
+    if (!searchQuery || searchQuery.length < 2) { setSearchResults([]); return; }
+    const delay = setTimeout(async () => {
+      const res = await fetch(`/api/users/search?q=${searchQuery}&me=${myHandle}`);
+      const d = await res.json();
+      setSearchResults(d.users || []);
+    }, 400);
+    return () => clearTimeout(delay);
+  }, [searchQuery, myHandle]);
+
+  useEffect(() => {
     if (!activeChat || !myHandle) return;
     const load = () => {
       const endpoint = activeChat.type === 'dm'
@@ -204,6 +219,23 @@ function MessagesInner() {
       prevMessagesLength.current = messages.length;
     }
   }, [messages]);
+
+  async function addFriend(targetHandle: string) {
+    await fetch('/api/friends', { method: 'POST', body: JSON.stringify({ me: myHandle, target: targetHandle }) });
+    alert(`Demande d'ami envoyée à @${targetHandle} !`);
+  }
+
+  async function addMemberToGroup(targetHandle: string) {
+    if (!myPubkey || !activeChat) return;
+    const res = await fetch(`/api/groups/${activeChat.id}/members`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pubkey: myPubkey, targetHandle })
+    });
+    const d = await res.json();
+    if (res.ok) { alert('Membre ajouté !'); setShowAddMemberModal(false); setMemberSearchQuery(''); }
+    else alert(d.error);
+  }
 
   async function sendMessage() {
     if (!newMessage.trim() || !activeChat) return;
@@ -333,6 +365,7 @@ function MessagesInner() {
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-xl font-bold" style={{color: 'var(--text-main)'}}>Messages</h1>
           <div className="flex gap-2">
+            <button onClick={() => setShowSearch(!showSearch)} className="bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border-color)] text-xs font-bold px-2 py-1 rounded-lg hover:border-[#4A90C2] transition">🔍</button>
             <button onClick={() => setShowGroupModal(true)} className="bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border-color)] text-xs font-bold px-2 py-1 rounded-lg hover:border-[#E76F51] transition">Groupe</button>
             <button onClick={() => setActiveChat({ type: 'dm', id: 'nouveau', name: 'Nouveau contact' })} className="bg-[#1A1513] text-white text-xs font-bold px-2 py-1 rounded-lg hover:bg-black transition">+ Pacte</button>
           </div>
@@ -345,6 +378,26 @@ function MessagesInner() {
               <div key={g.id} onClick={() => setActiveChat({ type: 'group', id: g.id, name: g.name })} className="p-2 rounded-xl cursor-pointer hover:bg-[var(--bg-main)] transition flex items-center gap-2 mb-1">
                 <div className="w-8 h-8 rounded-lg bg-[#2C1810] text-white flex items-center justify-center font-bold text-sm">G</div>
                 <div className="font-bold text-sm truncate" style={{ color: 'var(--text-main)' }}>{g.name}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {showSearch && (
+          <div className="mb-4">
+            <input 
+              type="text" 
+              placeholder="Chercher un pseudo..." 
+              className="w-full border border-[var(--border-color)] p-2 rounded-lg bg-[var(--bg-main)] text-sm mb-2"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+            {searchResults.map(u => (
+              <div key={u.handle} className="flex justify-between items-center p-2 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-lg mb-1">
+                <span className="font-bold text-sm cursor-pointer hover:underline" onClick={() => { setActiveChat({type:'dm', id:u.handle, name:u.handle}); setShowSearch(false); setSearchQuery(''); }}>
+                  @{u.handle}
+                </span>
+                <button onClick={() => addFriend(u.handle)} className="text-[0.65rem] bg-[#E76F51] text-white px-2 py-1 rounded font-bold">+ Ami</button>
               </div>
             ))}
           </div>
@@ -392,6 +445,9 @@ function MessagesInner() {
               </h2>
             </div>
             <div className="flex gap-2">
+              {activeChat.type === 'group' && (
+                <button onClick={() => setShowAddMemberModal(true)} className="bg-[#4A90C2] text-white text-xs font-bold px-3 py-1 rounded-lg hover:bg-[#2D6A9E] transition">+ Inviter</button>
+              )}
               <button onClick={() => setShowSharedVault(true)} className="bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border-color)] text-xs font-bold px-3 py-1 rounded-lg hover:border-[#E76F51] transition">Coffre</button>
               <button onClick={sealDiscussion} disabled={isSealingChat} className="bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border-color)] text-xs font-bold px-3 py-1 rounded-lg hover:border-[#E76F51] transition disabled:opacity-50">{isSealingChat ? '...' : 'Sceller'}</button>
               <button onClick={startPact} className="bg-[#4A90C2] text-white text-xs font-bold px-3 py-1 rounded-lg hover:bg-[#2D6A9E] transition">+ Pacte</button>
@@ -472,6 +528,26 @@ function MessagesInner() {
       )}
 
       {activePact && <PactModal pactId={activePact} onClose={() => setActivePact(null)} />}
+
+      {/* MODALE AJOUTER MEMBRE AU GROUPE */}
+      {showAddMemberModal && activeChat && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-[var(--bg-surface)] w-full max-w-sm rounded-3xl p-6">
+            <h2 className="text-xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Inviter dans le groupe</h2>
+            <input 
+              type="text" 
+              placeholder="@pseudo" 
+              className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" 
+              value={memberSearchQuery}
+              onChange={e => setMemberSearchQuery(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <button onClick={() => setShowAddMemberModal(false)} className="flex-1 py-2 rounded-lg bg-[var(--bg-main)] font-bold text-[var(--text-main)]">Annuler</button>
+              <button onClick={() => addMemberToGroup(memberSearchQuery)} className="flex-1 py-2 rounded-lg bg-[#4A90C2] text-white font-bold">Inviter</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
