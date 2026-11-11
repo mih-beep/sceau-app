@@ -149,6 +149,15 @@ export default function Cockpit() {
       <div className="p-6 bg-[var(--bg-surface)] border-t border-[var(--border-color)]">
         <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)] mb-3">À faire</h3>
         <div className="space-y-2 mb-6">
+          {/* Lien direct SCEAU Oracle ajouté ici */}
+          <Link href="/oracle" className="flex items-center justify-between p-3 rounded-lg bg-[#FDF4F0] border border-[#FCE0D6] hover:bg-[#FCEAD6] transition group mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🔮</span>
+              <span className="text-sm font-bold text-[#C44A2E]">Lancer SCEAU Oracle</span>
+            </div>
+            <span className="text-[#C44A2E] group-hover:translate-x-1 transition">→</span>
+          </Link>
+          
           <Link href="/messages" className="flex items-center justify-between p-2 rounded-lg hover:bg-[var(--bg-main)] transition group">
             <div className="flex items-center gap-2">
               <span className="text-lg"></span>
