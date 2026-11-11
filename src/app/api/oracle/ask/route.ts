@@ -94,7 +94,7 @@ export async function POST(req: Request) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
+        model: 'llama-3.1-70b-versatile',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userMessage },
@@ -117,7 +117,7 @@ export async function POST(req: Request) {
     try {
       await pool.query(`
         INSERT INTO oracle_queries (user_id, url, question, answer, sources, captures_used, model)
-        VALUES ($1, $2, $3, $4, $5, $6, 'llama-3.1-8b-instant')
+        VALUES ($1, $2, $3, $4, $5, $6, 'llama-3.1-70b-versatile')
       `, [
         userId, url, question, answer,
         JSON.stringify(captures.map(c => ({ 
