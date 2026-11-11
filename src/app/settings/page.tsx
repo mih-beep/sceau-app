@@ -66,7 +66,7 @@ export default function Settings() {
         <div className="bg-[#F0F6FC] p-6 rounded-2xl border border-[#C9D8E8] shadow-sm">
           <h2 className="text-lg font-bold mb-2 text-[#2D6A9E]">🔌 API & Intégrations</h2>
           <p className="text-xs text-[#2D6A9E] mb-4">Connectez SCEAU à vos propres outils (WordPress, GitHub, etc.).</p>
-          <button className="bg-[#4A90C2] text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md">Gérer mes clés API</button>
+          <Link href="/settings/keys" className="inline-block bg-[#4A90C2] text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-[#2D6A9E] transition">Gérer mes clés API</Link>
         </div>
 
         {/* Section Légal */}

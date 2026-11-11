@@ -46,12 +46,14 @@ export default function Profil() {
     public: data.seals.filter((s:any) => s.visibility === 'public' && !s.is_flash).length,
     private: data.seals.filter((s:any) => s.visibility === 'private' && !s.is_flash).length,
     flash: data.seals.filter((s:any) => s.is_flash).length,
+    extensions: data.seals.filter((s:any) => s.category === 'Web').length,
   };
 
   const filteredSeals = data.seals.filter((seal: any) => {
     if (activeTab === 'flash') return seal.is_flash === true;
     if (activeTab === 'public') return seal.visibility === 'public' && !seal.is_flash;
     if (activeTab === 'private') return seal.visibility === 'private' && !seal.is_flash;
+    if (activeTab === 'extensions') return seal.category === 'Web';
     return false;
   });
 
@@ -92,8 +94,11 @@ export default function Profil() {
 
       {/* Actions Rapides */}
       <div className="flex gap-3 mb-8">
+        <a href="/downloads/chrome-extension.zip" download className="flex-1 bg-[#F0F6FC] text-[#2D6A9E] border border-[#C9D8E8] p-3 rounded-xl font-bold text-center text-sm shadow-sm hover:bg-[#E0EDF8] transition">
+          🧩 Télécharger l'Extension
+        </a>
         <Link href={`/u/${data.handle}`} className="flex-1 bg-[var(--text-main)] text-[var(--bg-surface)] p-3 rounded-xl font-bold text-center text-sm shadow-md hover:opacity-80 transition">
-          👁️ Voir mon profil public
+          👁️ Profil public
         </Link>
         <button onClick={() => generatePortfolioPDF(data.handle, data.seals, '', '', data.is_pro)} className="flex-1 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] text-[var(--text-main)] p-3 rounded-xl font-bold text-sm hover:border-[#E76F51] transition">
           📄 Exporter Portfolio
@@ -106,6 +111,7 @@ export default function Profil() {
           <button onClick={() => setActiveTab('public')} className={`flex-1 py-3 text-sm font-bold ${activeTab === 'public' ? 'bg-[#F5F9EE] text-[#5D7A3A]' : 'opacity-50'}`}>🌍 Public ({counts.public})</button>
           <button onClick={() => setActiveTab('private')} className={`flex-1 py-3 text-sm font-bold ${activeTab === 'private' ? 'bg-[#FDF4F0] text-[#C44A2E]' : 'opacity-50'}`}>🔒 Privé ({counts.private})</button>
           <button onClick={() => setActiveTab('flash')} className={`flex-1 py-3 text-sm font-bold ${activeTab === 'flash' ? 'bg-[#2C1810] text-white' : 'opacity-50'}`}>⚡ Flash ({counts.flash})</button>
+          <button onClick={() => setActiveTab('extensions')} className={`flex-1 py-3 text-sm font-bold ${activeTab === 'extensions' ? 'bg-[#F0F6FC] text-[#2D6A9E]' : 'opacity-50'}`}>🔌 Ext ({counts.extensions})</button>
         </div>
 
         <div className="p-4 space-y-2">

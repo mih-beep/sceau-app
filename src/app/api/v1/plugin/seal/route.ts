@@ -83,7 +83,7 @@ export async function POST(req: Request) {
         false, null, 0, false, false, 0, false,
         $4, $5, $6
       ) RETURNING id`,
-      [hashB64, userId, title, otsProof, otsProof ? new Date() : null, category || 'Art']
+      [hashB64, userId, title, otsProof, otsProof ? new Date() : null, 'Web']
     );
 
     return NextResponse.json({
