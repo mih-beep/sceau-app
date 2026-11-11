@@ -1,6 +1,7 @@
 // E2EE avec Diffie-Hellman (X25519) + AES-GCM 256
 import { ed25519, x25519 } from '@noble/curves/ed25519';
 
+// Helper pour convertir en Base64
 function bufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   let binary = '';
@@ -8,6 +9,7 @@ function bufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
   return btoa(binary);
 }
 
+// Helper pour convertir depuis Base64
 function base64ToBuffer(base64: string): Uint8Array {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -15,25 +17,38 @@ function base64ToBuffer(base64: string): Uint8Array {
   return bytes;
 }
 
-// Convertit une clé publique Ed25519 (pour la signature) en clé X25519 (pour le chiffrement)
+// Helper ULTIME pour satisfaire TypeScript et l'API Web Crypto
+// On crée une copie stricte pour s'assurer que c'est un ArrayBuffer et pas un SharedArrayBuffer
+function toArrayBuffer(buf: Uint8Array): ArrayBuffer {
+  return new Uint8Array(buf).buffer as ArrayBuffer;
+}
+
+// Conversion Ed25519 -> X25519 (Public)
 function edPubToX25519(edPubBase64: string): Uint8Array {
   const edPub = base64ToBuffer(edPubBase64);
   return ed25519.utils.toMontgomery(edPub);
 }
 
-// Convertit une clé privée Ed25519 en clé privée X25519
+// Conversion Ed25519 -> X25519 (Privé)
 function edPrivToX25519(edPrivBase64: string): Uint8Array {
   const edPriv = base64ToBuffer(edPrivBase64);
   return ed25519.utils.toMontgomerySecret(edPriv);
 }
 
-// Dérive une clé AES-GCM à partir du secret partagé Diffie-Hellman
+// Dérive une clé AES-GCM à partir du secret partagé
 async function deriveAesKey(sharedSecret: Uint8Array): Promise<CryptoKey> {
+  const secretBuffer = toArrayBuffer(sharedSecret);
   const keyMaterial = await crypto.subtle.importKey(
-    'raw', sharedSecret, { name: 'HKDF' }, false, ['deriveKey']
+    'raw', secretBuffer, { name: 'HKDF' }, false, ['deriveKey']
   );
+  
   return crypto.subtle.deriveKey(
-    { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(0), info: new Uint8Array(0) },
+    { 
+      name: 'HKDF', 
+      hash: 'SHA-256', 
+      salt: new Uint8Array(0).buffer as ArrayBuffer, 
+      info: new Uint8Array(0).buffer as ArrayBuffer 
+    },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
     false,
@@ -41,7 +56,7 @@ async function deriveAesKey(sharedSecret: Uint8Array): Promise<CryptoKey> {
   );
 }
 
-// Calcule le secret partagé entre moi et le destinataire
+// Calcule le secret partagé
 async function getSharedKey(myEdPrivBase64: string, theirEdPubBase64: string): Promise<CryptoKey> {
   const myXPriv = edPrivToX25519(myEdPrivBase64);
   const theirXPub = edPubToX25519(theirEdPubBase64);
@@ -49,7 +64,7 @@ async function getSharedKey(myEdPrivBase64: string, theirEdPubBase64: string): P
   return deriveAesKey(sharedSecret);
 }
 
-// CHIFFRER : Le message pour le destinataire
+// CHIFFRER
 export async function encryptForRecipient(
   text: string,
   myEdPrivBase64: string,
@@ -61,7 +76,11 @@ export async function encryptForRecipient(
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encoded = new TextEncoder().encode(text);
   
-  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, encoded);
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: toArrayBuffer(iv) }, 
+    aesKey, 
+    toArrayBuffer(encoded)
+  );
   
   return {
     ciphertext: bufferToBase64(encrypted),
@@ -69,7 +88,7 @@ export async function encryptForRecipient(
   };
 }
 
-// DÉCHIFFRER : Le message reçu
+// DÉCHIFFRER
 export async function decryptFromSender(
   ciphertextBase64: string,
   ivBase64: string,
@@ -83,7 +102,12 @@ export async function decryptFromSender(
     const iv = base64ToBuffer(ivBase64);
     const ciphertext = base64ToBuffer(ciphertextBase64);
     
-    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, aesKey, ciphertext);
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: toArrayBuffer(iv) }, 
+      aesKey, 
+      toArrayBuffer(ciphertext)
+    );
+    
     return new TextDecoder().decode(decrypted);
   } catch (e) {
     console.error('[E2EE] Impossible de déchiffrer');
