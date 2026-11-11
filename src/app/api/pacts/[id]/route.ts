@@ -8,42 +8,48 @@ function isValidUUID(str: string): boolean {
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   
-  // Vérification du format de l'ID avant de requêter
   if (!isValidUUID(id)) {
-    console.error('[pacts/[id]] Format d ID invalide:', id);
     return NextResponse.json({ error: 'Format d ID invalide' }, { status: 400 });
   }
 
   try {
-    const pact = await pool.query(`
+    // 1. On récupère les infos de base
+    const pactRes = await pool.query(`
       SELECT p.id, p.title, p.description, p.required_signatures, p.status, p.created_at, 
-             u.handle as creator, 
-             encode(p.hash, 'base64') as hash_str,
-             p.media_urls
+             u.handle as creator
       FROM pacts p JOIN users u ON p.creator_id = u.id 
       WHERE p.id = $1
     `, [id]);
     
-    if (pact.rows.length === 0) return NextResponse.json({ error: 'Introuvable' }, { status: 404 });
+    if (pactRes.rows.length === 0) return NextResponse.json({ error: 'Introuvable' }, { status: 404 });
+    const pact = pactRes.rows[0];
+
+    // 2. On récupère le hash et medias séparément pour éviter les crashs si les colonnes manquent
+    let hash_str = null;
+    let media_urls = [];
+    try {
+      const extra = await pool.query("SELECT encode(hash, 'base64') as hash_str, media_urls FROM pacts WHERE id = $1", [id]);
+      if (extra.rows.length > 0) {
+        hash_str = extra.rows[0].hash_str;
+        media_urls = typeof extra.rows[0].media_urls === 'string' ? JSON.parse(extra.rows[0].media_urls) : (extra.rows[0].media_urls || []);
+      }
+    } catch (e) {
+      console.warn('[pacts] Colonnes optionnelles manquantes (hash/media_urls)');
+    }
 
     const signatures = await pool.query(
       "SELECT u.handle FROM pact_signatures s JOIN users u ON s.user_id = u.id WHERE s.pact_id = $1 ORDER BY s.created_at ASC", 
       [id]
     );
     
-    let medias = [];
-    try {
-      medias = typeof pact.rows[0].media_urls === 'string' 
-        ? JSON.parse(pact.rows[0].media_urls) 
-        : (pact.rows[0].media_urls || []);
-    } catch(e) {}
-    
     return NextResponse.json({ 
-      ...pact.rows[0], 
-      media_urls: medias,
+      ...pact, 
+      hash_str,
+      media_urls,
       signataires: signatures.rows.map(r => r.handle) 
     });
-  } catch (e) {
-    return NextResponse.json({ error: 'Erreur' }, { status: 500 });
+  } catch (e: any) {
+    console.error('[pacts GET]', e);
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }

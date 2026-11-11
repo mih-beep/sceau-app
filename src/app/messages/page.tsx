@@ -147,6 +147,9 @@ function MessagesInner() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [memberSearchResults, setMemberSearchResults] = useState<any[]>([]);
+  const [showMembersList, setShowMembersList] = useState(false);
+  const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [activePact, setActivePact] = useState<string | null>(null);
   const [isSealingChat, setIsSealingChat] = useState(false);
   const [showSharedVault, setShowSharedVault] = useState(false);
@@ -187,6 +190,27 @@ function MessagesInner() {
     }, 400);
     return () => clearTimeout(delay);
   }, [searchQuery, myHandle]);
+
+  // Recherche de profils pour l'invitation
+  useEffect(() => {
+    if (!memberSearchQuery || memberSearchQuery.length < 2) { setMemberSearchResults([]); return; }
+    const delay = setTimeout(async () => {
+      const res = await fetch(`/api/users/search?q=${memberSearchQuery}`);
+      const d = await res.json();
+      setMemberSearchResults(d.users || []);
+    }, 400);
+    return () => clearTimeout(delay);
+  }, [memberSearchQuery]);
+
+  // Charger les membres quand on ouvre un groupe
+  useEffect(() => {
+    if (activeChat?.type === 'group') {
+      fetch(`/api/groups/${activeChat.id}/members`)
+        .then(r => r.json())
+        .then(d => setGroupMembers(d.members || []))
+        .catch(() => {});
+    }
+  }, [activeChat, showMembersList]);
 
   useEffect(() => {
     if (!activeChat || !myHandle) return;
@@ -233,8 +257,25 @@ function MessagesInner() {
       body: JSON.stringify({ pubkey: myPubkey, targetHandle })
     });
     const d = await res.json();
-    if (res.ok) { alert('Membre ajouté !'); setShowAddMemberModal(false); setMemberSearchQuery(''); }
+    if (res.ok) { 
+      alert(`@${targetHandle} ajouté au groupe !`); 
+      setMemberSearchQuery(''); 
+      setMemberSearchResults([]); 
+      setShowMembersList(true); // Rafraîchir la liste
+    }
     else alert(d.error);
+  }
+
+  async function removeMember(targetHandle: string) {
+    if (!myPubkey || !activeChat) return;
+    if (!confirm(`Retirer @${targetHandle} du groupe ?`)) return;
+    const res = await fetch(`/api/groups/${activeChat.id}/members?pubkey=${encodeURIComponent(myPubkey)}&target=${targetHandle}`, { method: 'DELETE' });
+    if (res.ok) {
+      setGroupMembers(groupMembers.filter(m => m.handle !== targetHandle));
+    } else {
+      const d = await res.json();
+      alert(d.error);
+    }
   }
 
   async function sendMessage() {
@@ -446,7 +487,10 @@ function MessagesInner() {
             </div>
             <div className="flex gap-2">
               {activeChat.type === 'group' && (
-                <button onClick={() => setShowAddMemberModal(true)} className="bg-[#4A90C2] text-white text-xs font-bold px-3 py-1 rounded-lg hover:bg-[#2D6A9E] transition">+ Inviter</button>
+                <>
+                  <button onClick={() => setShowMembersList(true)} className="bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border-color)] text-xs font-bold px-3 py-1 rounded-lg hover:border-[#4A90C2] transition">👥 Membres</button>
+                  <button onClick={() => setShowAddMemberModal(true)} className="bg-[#4A90C2] text-white text-xs font-bold px-3 py-1 rounded-lg hover:bg-[#2D6A9E] transition">+ Ajouter</button>
+                </>
               )}
               <button onClick={() => setShowSharedVault(true)} className="bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border-color)] text-xs font-bold px-3 py-1 rounded-lg hover:border-[#E76F51] transition">Coffre</button>
               <button onClick={sealDiscussion} disabled={isSealingChat} className="bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border-color)] text-xs font-bold px-3 py-1 rounded-lg hover:border-[#E76F51] transition disabled:opacity-50">{isSealingChat ? '...' : 'Sceller'}</button>
@@ -529,21 +573,57 @@ function MessagesInner() {
 
       {activePact && <PactModal pactId={activePact} onClose={() => setActivePact(null)} />}
 
-      {/* MODALE AJOUTER MEMBRE AU GROUPE */}
+      {/* MODALE AJOUTER MEMBRE (Recherche) */}
       {showAddMemberModal && activeChat && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-[var(--bg-surface)] w-full max-w-sm rounded-3xl p-6">
-            <h2 className="text-xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Inviter dans le groupe</h2>
+          <div className="bg-[var(--bg-surface)] w-full max-w-sm rounded-3xl p-6 flex flex-col max-h-[80vh]">
+            <h2 className="text-xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Ajouter un membre</h2>
             <input 
               type="text" 
-              placeholder="@pseudo" 
+              placeholder="Chercher un pseudo..." 
               className="w-full border-2 border-[var(--border-color)] p-3 rounded-xl mb-4 bg-transparent" 
               value={memberSearchQuery}
               onChange={e => setMemberSearchQuery(e.target.value)}
             />
-            <div className="flex gap-2">
-              <button onClick={() => setShowAddMemberModal(false)} className="flex-1 py-2 rounded-lg bg-[var(--bg-main)] font-bold text-[var(--text-main)]">Annuler</button>
-              <button onClick={() => addMemberToGroup(memberSearchQuery)} className="flex-1 py-2 rounded-lg bg-[#4A90C2] text-white font-bold">Inviter</button>
+            
+            <div className="flex-1 overflow-y-auto mb-4">
+              {memberSearchResults.map(u => (
+                <div key={u.handle} className="flex justify-between items-center p-2 border-b border-[var(--border-color)]">
+                  <span className="font-bold text-sm" style={{color: 'var(--text-main)'}}>@{u.handle}</span>
+                  <button onClick={() => addMemberToGroup(u.handle)} className="bg-[#4A90C2] text-white px-3 py-1 rounded-lg text-xs font-bold">Ajouter</button>
+                </div>
+              ))}
+              {memberSearchQuery.length > 1 && memberSearchResults.length === 0 && (
+                <p className="text-sm text-center text-[var(--text-muted)] mt-4">Aucun résultat.</p>
+              )}
+            </div>
+
+            <button onClick={() => setShowAddMemberModal(false)} className="w-full py-2 rounded-lg bg-[var(--bg-main)] font-bold text-[var(--text-main)] mt-2">Fermer</button>
+          </div>
+        </div>
+      )}
+
+      {/* MODALE LISTE DES MEMBRES */}
+      {showMembersList && activeChat && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-[var(--bg-surface)] w-full max-w-sm rounded-3xl p-6 flex flex-col max-h-[80vh]">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold" style={{color: 'var(--text-main)'}}>Membres du groupe</h2>
+              <button onClick={() => setShowMembersList(false)} className="text-2xl opacity-50">✕</button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto">
+              {groupMembers.map(m => (
+                <div key={m.handle} className="flex justify-between items-center p-3 border-b border-[var(--border-color)]">
+                  <div>
+                    <span className="font-bold text-sm block" style={{color: 'var(--text-main)'}}>@{m.handle}</span>
+                    <span className="text-[0.65rem] text-[var(--text-muted)]">{m.role || 'Membre'}</span>
+                  </div>
+                  {m.handle !== myHandle && (
+                    <button onClick={() => removeMember(m.handle)} className="text-red-400 hover:text-red-600 text-xs font-bold px-2 py-1 border border-red-200 rounded">Retirer</button>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         </div>
