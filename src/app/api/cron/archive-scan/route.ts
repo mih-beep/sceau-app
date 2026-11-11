@@ -44,10 +44,14 @@ export async function GET(req: Request) {
   }
 
   try {
+    // LIMITE À 5 SITES PAR EXÉCUTION pour éviter le timeout de Vercel (max 60s)
+    // Le cron tournera toutes les nuits et prendra les 5 suivants.
     const archives = await pool.query(`
       SELECT a.id, a.url, a.last_hash, a.last_content, u.email 
       FROM web_archives a 
       JOIN users u ON a.user_id = u.id
+      ORDER BY a.last_checked_at ASC
+      LIMIT 5
     `);
     
     const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
@@ -77,8 +81,13 @@ export async function GET(req: Request) {
           
           console.log(`[cron] 📝 Changement significatif : ${archive.url}`);
           
-          // 🧠 Résumé IA du changement
-          const aiSummary = await summarizeChange(archive.last_content || '', newText, archive.url);
+          // 🧠 Résumé IA du changement (sécurisé)
+          let aiSummary = null;
+          try {
+            aiSummary = await summarizeChange(archive.last_content || '', newText, archive.url);
+          } catch (aiErr) {
+            console.warn('[cron] IA a échoué pour', archive.url, aiErr);
+          }
           console.log(`[cron] 🧠 Résumé : ${aiSummary || '(pas de résumé)'}`);
           
           await pool.query(
@@ -121,7 +130,12 @@ export async function GET(req: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, scanned, modifiedCount });
+    return NextResponse.json({ 
+      success: true, 
+      scanned, 
+      modifiedCount,
+      message: `Scan terminé : ${scanned} sites vérifiés, ${modifiedCount} modifiés.` 
+    });
   } catch (e) {
     return NextResponse.json({ error: 'Cron Error' }, { status: 500 });
   }
