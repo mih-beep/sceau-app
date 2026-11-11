@@ -26,14 +26,54 @@ function fireConfetti() {
 
 function PactMessage({ pactId, onOpen }: { pactId: string, onOpen: (id: string) => void }) {
   const [pact, setPact] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
-    fetch(`/api/pacts/${pactId}`).then(r => r.json()).then(d => {
-      if (!d.error) setPact(d);
-    });
+    let isMounted = true;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // Timeout de 8s
+
+    fetch(`/api/pacts/${pactId}`, { signal: controller.signal })
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Erreur de chargement');
+        return data;
+      })
+      .then(d => {
+        if (isMounted) {
+          setPact(d);
+          clearTimeout(timeoutId);
+        }
+      })
+      .catch(err => {
+        if (isMounted) {
+          console.error('[PactMessage] Erreur:', err);
+          setError(err.name === 'AbortError' ? 'Délai dépassé' : err.message);
+          clearTimeout(timeoutId);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+      clearTimeout(timeoutId);
+    };
   }, [pactId]);
 
-  if (!pact) return <div className="p-4 bg-[var(--bg-main)] rounded-xl text-center text-xs font-mono my-2 border border-[var(--border-color)]" style={{ color: 'var(--text-muted)' }}>Chargement du pacte...</div>;
+  if (error) return (
+    <div className="p-4 bg-[#FDF4F0] rounded-xl text-center text-xs font-mono my-2 border border-[#FCE0D6] text-[#C44A2E]">
+      ❌ Impossible de charger le pacte ({error}).
+      <br/>
+      <span className="opacity-70 text-[0.65rem]">ID: {pactId}</span>
+    </div>
+  );
+
+  if (!pact) return (
+    <div className="p-4 bg-[var(--bg-main)] rounded-xl text-center text-xs font-mono my-2 border border-[var(--border-color)] flex items-center justify-center gap-2" style={{ color: 'var(--text-muted)' }}>
+      <span className="w-3 h-3 border-2 border-t-transparent border-[var(--text-muted)] rounded-full animate-spin"></span>
+      Chargement du pacte...
+    </div>
+  );
 
   const isSealed = pact.status === 'scelle';
   const progress = Math.min(100, ((pact.signataires?.length || 0) / pact.required_signatures) * 100);

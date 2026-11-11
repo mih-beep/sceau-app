@@ -1,8 +1,19 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/db/pool';
 
+function isValidUUID(str: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
+
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  
+  // Vérification du format de l'ID avant de requêter
+  if (!isValidUUID(id)) {
+    console.error('[pacts/[id]] Format d ID invalide:', id);
+    return NextResponse.json({ error: 'Format d ID invalide' }, { status: 400 });
+  }
+
   try {
     const pact = await pool.query(`
       SELECT p.id, p.title, p.description, p.required_signatures, p.status, p.created_at, 
