@@ -5,7 +5,7 @@ import { sha256 } from '@noble/hashes/sha256';
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
-const MAX_PAGES = 50; // Limite par batch (le cron fera le reste)
+const MAX_PAGES = 200; // Limite par batch (le cron fera le reste)
 const FREE_LIMIT = 5;  // Sites gratuits (pas pages)
 const PRO_LIMIT = 50;
 
@@ -81,7 +81,7 @@ async function fetchSitemap(siteRoot: string): Promise<string[]> {
     if (!res.ok) return [];
     const xml = await res.text();
     const matches = xml.match(/<loc>([^<]+)<\/loc>/g) || [];
-    return matches.map(m => m.replace(/<\/?loc>/g, '').trim()).slice(0, MAX_PAGES);
+    return matches.map(m => m.replace(/<\/?loc>/g, '').trim());
   } catch { return []; }
 }
 
