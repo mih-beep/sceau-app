@@ -5,7 +5,7 @@ import { sha256 } from '@noble/hashes/sha256';
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
-const MAX_PAGES = 10;
+const MAX_PAGES = 50; // Limite par batch (le cron fera le reste)
 const FREE_LIMIT = 5;  // Sites gratuits (pas pages)
 const PRO_LIMIT = 50;
 
@@ -65,7 +65,6 @@ function extractInternalLinks(html: string, baseUrl: string): string[] {
       const url = new URL(match[1], baseUrl);
       if (url.hostname === base.hostname && url.protocol.startsWith('http')) {
         url.hash = '';
-        url.search = ''; // ignore query strings pour éviter les doublons
         links.add(url.toString());
       }
     } catch { /* ignore */ }
@@ -295,24 +294,50 @@ export async function POST(req: Request) {
     // Si le site existe déjà, on ajoute juste les nouvelles pages
     // Sinon, on crawle comme d'habitude
 
-    let pages: string[] = [];
+    // === CRAWL EXHAUSTIF (BFS) AVEC LIMITE DE TEMPS ===
+    const startTime = Date.now();
+    const TIME_LIMIT_MS = 25000; // 25 secondes pour éviter le timeout Vercel
+    const MAX_PAGES_PER_BATCH = 50;
+
+    // Récupération des URLs de départ (Sitemap ou page d'accueil)
+    let urlsToVisit: string[] = [];
     const sitemapPages = await fetchSitemap(siteRoot);
     if (sitemapPages.length > 0) {
-      pages = sitemapPages;
+      urlsToVisit = sitemapPages;
     } else {
       const rootHtml = await fetch(url, {
         headers: { 'User-Agent': 'SCEAU-Bot/1.0' },
         signal: AbortSignal.timeout(8000),
       }).then(r => r.ok ? r.text() : null).catch(() => null);
-
-      if (!rootHtml) {
-        return NextResponse.json({ error: 'Impossible de joindre le site.' }, { status: 400 });
-      }
-      const internalLinks = extractInternalLinks(rootHtml, url);
-      pages = [url, ...internalLinks.filter(l => l !== url)].slice(0, MAX_PAGES);
+      if (!rootHtml) return NextResponse.json({ error: 'Impossible de joindre le site.' }, { status: 400 });
+      urlsToVisit = [url, ...extractInternalLinks(rootHtml, url)];
     }
 
-    const scanResults = await Promise.all(pages.map(p => scanPage(p)));
+    const visited = new Set<string>();
+    const pagesToScan: string[] = [];
+    const queue = [...urlsToVisit];
+
+    while (queue.length > 0 && (Date.now() - startTime) < TIME_LIMIT_MS && pagesToScan.length < MAX_PAGES_PER_BATCH) {
+      const currentUrl = queue.shift()!;
+      const normalizedUrl = currentUrl.split('#')[0];
+      if (visited.has(normalizedUrl)) continue;
+      visited.add(normalizedUrl);
+      pagesToScan.push(normalizedUrl);
+
+      try {
+        const res = await fetch(normalizedUrl, {
+          headers: { 'User-Agent': 'SCEAU-Bot/1.0' },
+          signal: AbortSignal.timeout(5000),
+        });
+        if (res.ok) {
+          const html = await res.text();
+          const newLinks = extractInternalLinks(html, normalizedUrl);
+          queue.push(...newLinks);
+        }
+      } catch { /* ignore les pages mortes */ }
+    }
+
+    const scanResults = await Promise.all(pagesToScan.map(p => scanPage(p)));
     
     let insertedCount = 0;
     for (let i = 0; i < pages.length; i++) {
