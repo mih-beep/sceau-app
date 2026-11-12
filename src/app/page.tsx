@@ -29,7 +29,7 @@ export default function Home() {
           Le web oublie.<br/>SCEAU <span className="text-[#E76F51] italic">se souvient.</span>
         </h1>
         <p className="text-lg md:text-xl text-[var(--text-muted)] mb-10 max-w-2xl mx-auto">
-          Les sites changent en douce. Les IA inventent. SCEAU enregistre ce qui est affiché sur le web, à la seconde près, et le grave sur Bitcoin. Pour toujours.
+          Les sites changent en douce. Les IA inventent. SCEAU enregistre ce qui est affiché sur le web, à la seconde près, et le grave sur Blockchain. Pour toujours.
         </p>
         <div className="flex justify-center gap-4">
           <Link href="/signup" className="bg-[#1A1513] text-white px-8 py-4 rounded-xl font-bold text-lg">Commencer à sceller</Link>
@@ -51,11 +51,11 @@ export default function Home() {
             </div>
             <div className="bg-[var(--bg-main)] p-8 rounded-2xl border">
               <h3 className="text-xl font-bold mb-2">🤝 SCEAU Pacte</h3>
-              <p className="text-sm text-[var(--text-muted)]">Un contrat numérique. Rédigez, ajoutez des fichiers, faites signer. Une fois toutes les signatures réunies, le pacte est scellé sur Bitcoin.</p>
+              <p className="text-sm text-[var(--text-muted)]">Un contrat numérique. Rédigez, ajoutez des fichiers, faites signer. Une fois toutes les signatures réunies, le pacte est scellé sur Blockchain.</p>
             </div>
             <div className="bg-[var(--bg-main)] p-8 rounded-2xl border">
-              <h3 className="text-xl font-bold mb-2">💻 SCEAU AI (Local)</h3>
-              <p className="text-sm text-[var(--text-muted)]">Une IA qui tourne sur votre ordinateur, connectée à SCEAU Oracle. Elle ne vous mentira jamais, et vos données restent chez vous.</p>
+              <h3 className="text-xl font-bold mb-2">📁 SCEAU Projets</h3>
+              <p className="text-sm text-[var(--text-muted)]">Le Git de la preuve. Gérez des dossiers complexes, suivez chaque version de vos fichiers et scellez l'ensemble via un Arbre de Merkle.</p>
             </div>
           </div>
         </div>
