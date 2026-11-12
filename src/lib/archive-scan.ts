@@ -99,8 +99,8 @@ function diffPayload(diff: LineDiff) {
     added: diff.added.length,
     removed: diff.removed.length,
     details: [
-      ...diff.removed.slice(0, 50).map((t) => ({ type: 'removed', text: cut(t) })),
-      ...diff.added.slice(0, 50).map((t) => ({ type: 'added', text: cut(t) })),
+      ...diff.removed.slice(0, 50).map((t: string) => ({ type: 'removed', text: cut(t) })),
+      ...diff.added.slice(0, 50).map((t: string) => ({ type: 'added', text: cut(t) })),
     ],
   };
 }

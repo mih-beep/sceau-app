@@ -3,14 +3,23 @@ import { parse } from 'node-html-parser';
 import { submitToOts } from './ots';
 import { sha256 } from '@noble/hashes/sha256';
 
-const MAX_PAGES = 200;
-const TIME_LIMIT_MS = 25000;
+const MAX_PAGES = 10; // Réduit pour Vercel (timeout 30s), le Cron fera le reste
+const TIME_LIMIT_MS = 20000;
 
-export async function crawlSite(startUrl: string) {
+export type CrawledPage = {
+  url: string;
+  title: string;
+  text: string;
+  html: string;
+  hash: string;
+  ots_proof: string | null;
+};
+
+export async function crawlSite(startUrl: string): Promise<CrawledPage[]> {
   const startTime = Date.now();
   const visited = new Set<string>();
   const queue = [startUrl];
-  const results: any[] = [];
+  const results: CrawledPage[] = [];
 
   while (queue.length > 0 && Date.now() - startTime < TIME_LIMIT_MS && results.length < MAX_PAGES) {
     const url = queue.shift()!;
@@ -20,25 +29,31 @@ export async function crawlSite(startUrl: string) {
     const res = await safeFetch(url);
     if (!res.ok) continue;
 
-    // 1. Hachage
-    const text = parse(res.html).text;
+    // 1. Nettoyage et Hachage
+    const root = parse(res.html);
+    const text = root.textContent.replace(/\s+/g, ' ').trim();
     const hashBytes = sha256(new TextEncoder().encode(text));
     const hashHex = Buffer.from(hashBytes).toString('hex');
 
-    // 2. Ancrage Bitcoin (OpenTimestamps)
-    const ots = await submitToOts(hashBytes);
-    
+    // 2. Ancrage Bitcoin
+    let otsProof = null;
+    try {
+      const ots = await submitToOts(hashBytes);
+      if (ots.ok && ots.proof) otsProof = ots.proof.toString('base64');
+    } catch (e) {}
+
     results.push({
       url: res.finalUrl,
-      title: parse(res.html).querySelector('title')?.text || url,
-      content: text,
+      title: root.querySelector('title')?.text || url,
+      text,
+      html: res.html,
       hash: hashHex,
-      ots_proof: ots.ok ? ots.proof?.toString('base64') : null
+      ots_proof: otsProof
     });
 
-    // 3. Extraction des liens internes
+    // 3. Liens internes (typage strict)
     const base = new URL(url);
-    parse(res.html).querySelectorAll('a').forEach(a => {
+    root.querySelectorAll('a').forEach((a: any) => {
       try {
         const link = new URL(a.getAttribute('href') || '', url);
         if (link.hostname === base.hostname && link.protocol.startsWith('http') && !visited.has(link.toString())) {
