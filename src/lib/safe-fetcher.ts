@@ -8,14 +8,29 @@ const TIMEOUT_MS = 8000;
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_REDIRECTS = 3;
 
-function isPrivateIp(hostname: string): boolean {
+import dns from 'dns/promises';
+
+async function isPrivateIp(hostname: string): Promise<boolean> {
   const h = hostname.toLowerCase();
   if (h === 'localhost' || h === '127.0.0.1' || h === '::1' || h === '0.0.0.0') return true;
-  if (/^10\./.test(h)) return true;
-  if (/^192\.168\./.test(h)) return true;
-  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(h)) return true;
-  if (/^169\.254\./.test(h)) return true;
-  if (/^fc00:/i.test(h) || /^fe80:/i.test(h)) return true;
+  
+  // 1. Vérification textuelle (rapide)
+  if (/^10\./.test(h) || /^192\.168\./.test(h) || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(h) || /^169\.254\./.test(h) || /^fc00:/i.test(h) || /^fe80:/i.test(h)) {
+    return true;
+  }
+
+  // 2. Vérification DNS (anti-rebinding)
+  try {
+    const addresses = await dns.resolve4(h);
+    for (const ip of addresses) {
+      if (
+        /^10\./.test(ip) || /^127\./.test(ip) || /^192\.168\./.test(ip) ||
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(ip) || /^169\.254\./.test(ip)
+      ) return true;
+    }
+  } catch (e) {
+    return true; // Si on ne peut pas résoudre, on bloque par précaution
+  }
   return false;
 }
 
@@ -39,7 +54,7 @@ export async function safeFetch(inputUrl: string): Promise<FetchResult> {
     return { ok: false, error: 'HTTPS obligatoire' };
   }
 
-  if (isPrivateIp(url.hostname)) {
+  if (await isPrivateIp(url.hostname)) {
     return { ok: false, error: 'Adresse interne interdite' };
   }
 
@@ -70,7 +85,7 @@ export async function safeFetch(inputUrl: string): Promise<FetchResult> {
         if (!location) return { ok: false, error: 'Redirection sans location', statusCode: res.status };
         
         const nextUrl = new URL(location, currentUrl);
-        if (!isSafeProtocol(nextUrl) || isPrivateIp(nextUrl.hostname)) {
+        if (!isSafeProtocol(nextUrl) || await isPrivateIp(nextUrl.hostname)) {
           return { ok: false, error: 'Redirection vers destination interdite', statusCode: res.status };
         }
         currentUrl = nextUrl.toString();
@@ -118,14 +133,8 @@ export async function safeFetch(inputUrl: string): Promise<FetchResult> {
   return { ok: false, error: 'Trop de redirections' };
 }
 
-export function cleanHtmlToText(html: string): string {
-  return html
-    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, '')
-    .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gim, '')
-    .replace(/<[^>]*>/g, '\n')
-    .replace(/\n\s*\n/g, '\n')
-    .trim();
-}
+// Le nettoyage du HTML vit dans un seul module (html-cleaner) pour tout le pipeline.
+export { cleanHtmlToText } from './html-cleaner';
 
 export function extractTitle(html: string, fallbackUrl: string): string {
   const t = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
