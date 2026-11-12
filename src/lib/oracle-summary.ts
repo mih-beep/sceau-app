@@ -40,3 +40,12 @@ export async function summarizeDiff(diff: LineDiff, url: string): Promise<{ summ
 export function describeDiff(diff: LineDiff): string {
   return `${diff.removed.length} ligne(s) retirée(s), ${diff.added.length} ajoutée(s)`;
 }
+
+// Alias pour la compatibilité avec les routes API existantes
+import { significantDiff } from './html-cleaner';
+
+export async function summarizeChange(oldText: string, newText: string, url: string): Promise<string | null> {
+  const diff = significantDiff(oldText, newText);
+  const result = await summarizeDiff(diff, url);
+  return result.summary;
+}

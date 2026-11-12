@@ -45,3 +45,10 @@ export function significantDiff(oldText: string, newText: string): LineDiff {
 
   return { removed, added };
 }
+
+// Alias pour la compatibilité avec les routes API existantes
+export function isSignificantChange(oldText: string, newText: string): boolean {
+  const diff = significantDiff(oldText, newText);
+  // On considère que c'est significatif s'il y a au moins une ligne ajoutée ou supprimée
+  return diff.added.length > 0 || diff.removed.length > 0;
+}
