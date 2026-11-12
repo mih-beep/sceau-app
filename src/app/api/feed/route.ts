@@ -44,7 +44,8 @@ export async function GET(req: Request) {
         s.project_id, s.version_number,
         (SELECT COUNT(*) FROM likes WHERE seal_id = s.id AND reaction_type = 'like') as likes_like,
         (SELECT COUNT(*) FROM likes WHERE seal_id = s.id AND reaction_type = 'wow') as likes_wow,
-        (SELECT COUNT(*) FROM likes WHERE seal_id = s.id AND reaction_type = 'inspired') as likes_inspired
+        (SELECT COUNT(*) FROM likes WHERE seal_id = s.id AND reaction_type = 'inspired') as likes_inspired,
+        (SELECT COUNT(*) FROM likes WHERE seal_id = s.id AND reaction_type = 'laugh') as likes_laugh
       FROM seals s JOIN users u ON s.author_id = u.id
       WHERE ${whereClause} ORDER BY s.timestamp DESC LIMIT 30
     `;
