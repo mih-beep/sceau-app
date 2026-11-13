@@ -1,0 +1,266 @@
+import { NextResponse } from 'next/server';
+import { pool } from '@/db/pool';
+import { safeFetch, extractTitle } from '@/lib/safe-fetcher';
+import { cleanHtmlToText, CLEANER_VERSION } from '@/lib/html-cleaner';
+import { ensureArchiveSchema, hashText, scanArchive, type ArchiveRow, type ScanOutcome } from '@/lib/archive-scan';
+import { apiError } from '@/lib/api-error';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
+
+type Row = {
+  id: string;
+  url: string;
+  site_root: string | null;
+  title: string | null;
+  status: string | null;
+  last_checked_at: string | null;
+  created_at: string;
+  scan_count: number | null;
+  ai_summary: string | null;
+};
+
+type ChangeRow = {
+  archive_id: string;
+  detected_at: string;
+  ai_summary: string | null;
+  diff_data: { details?: { type: string; text: string }[] } | null;
+  url: string;
+  title: string | null;
+};
+
+function originOf(url: string): string {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return url;
+  }
+}
+
+async function getUser(pubkey: string) {
+  const r = await pool.query("SELECT id, is_pro FROM users WHERE encode(pubkey, 'base64') = $1", [pubkey]);
+  return r.rows[0] as { id: string; is_pro: boolean } | undefined;
+}
+
+// GET : liste à plat (`archives`, utilisée par /archive) ET regroupée par site (`sites`, utilisée par /archive/[id])
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const pubkey = searchParams.get('pubkey');
+  if (!pubkey) return NextResponse.json({ error: 'Clé manquante' }, { status: 401 });
+
+  try {
+    const user = await getUser(pubkey);
+    if (!user) return NextResponse.json({ error: 'Inconnu' }, { status: 401 });
+    await ensureArchiveSchema();
+
+    const rowsQ = await pool.query(
+      `SELECT id, url, site_root, title, COALESCE(last_status, status, 'intact') AS status,
+              last_checked_at, created_at, scan_count, ai_summary
+       FROM web_archives WHERE user_id = $1 ORDER BY created_at ASC`,
+      [user.id]
+    );
+    const rows = rowsQ.rows as Row[];
+
+    // Historique des changements (derniers 200)
+    let changes: ChangeRow[] = [];
+    try {
+      const cq = await pool.query(
+        `SELECT c.archive_id, c.detected_at, c.ai_summary, c.diff_data, a.url, a.title
+         FROM web_archive_changes c JOIN web_archives a ON a.id = c.archive_id
+         WHERE a.user_id = $1 ORDER BY c.detected_at DESC LIMIT 200`,
+        [user.id]
+      );
+      changes = cq.rows as ChangeRow[];
+    } catch (e) {
+      console.warn('[archive] historique indisponible :', (e as Error).message);
+    }
+
+    // Regroupement par site : la racine est la page dont l'URL est la racine du site, sinon la plus ancienne
+    const groups = new Map<string, Row[]>();
+    for (const r of rows) {
+      const key = r.site_root || originOf(r.url);
+      const list = groups.get(key) || [];
+      list.push(r);
+      groups.set(key, list);
+    }
+
+    const sites = [...groups.entries()].map(([siteRoot, pages]) => {
+      const root =
+        pages.find((p) => p.url.replace(/\/+$/, '') === siteRoot.replace(/\/+$/, '')) || pages[0];
+      const ids = new Set(pages.map((p) => p.id));
+      const siteChanges = changes.filter((c) => ids.has(c.archive_id)).slice(0, 20);
+      const lastChecked = pages
+        .map((p) => p.last_checked_at)
+        .filter((d): d is string => !!d)
+        .sort()
+        .pop();
+
+      return {
+        root_id: root.id,
+        site_root: siteRoot,
+        main_title: (() => {
+          try {
+            return new URL(siteRoot).hostname;
+          } catch {
+            return root.title || siteRoot;
+          }
+        })(),
+        children_count: pages.length - 1,
+        children_modified: pages.filter((p) => p.status === 'modified').length,
+        scan_count: Math.max(...pages.map((p) => p.scan_count || 0)),
+        last_checked_at: lastChecked || root.created_at,
+        pages: pages.map((p) => ({
+          id: p.id,
+          url: p.url,
+          title: p.title,
+          status: p.status,
+          is_root: p.id === root.id,
+          last_checked_at: p.last_checked_at,
+        })),
+        recent_changes: siteChanges.map((c) => {
+          const d = c.diff_data?.details || [];
+          return {
+            page_id: c.archive_id,
+            page_url: c.url,
+            page_title: c.title,
+            changed_at: c.detected_at,
+            ai_summary: c.ai_summary,
+            preview: {
+              removed: d.find((x) => x.type === 'removed')?.text ?? null,
+              added: d.find((x) => x.type === 'added')?.text ?? null,
+            },
+          };
+        }),
+      };
+    });
+
+    return NextResponse.json({
+      archives: [...rows].reverse(), // plus récentes d'abord (liste /archive)
+      sites,
+      is_pro: user.is_pro,
+      limit: user.is_pro ? 50 : 3,
+    });
+  } catch (e) {
+    return apiError(e, 'Erreur');
+  }
+}
+
+// POST : ajouter une URL, ou { action: 'check', url: <id>, scope?: 'site' } pour revérifier
+export async function POST(req: Request) {
+  const body = (await req.json().catch(() => ({}))) as { pubkey?: string; url?: string; action?: string; scope?: string };
+  const { pubkey, url, action, scope } = body;
+  if (!pubkey || !url) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
+
+  try {
+    const user = await getUser(pubkey);
+    if (!user) return NextResponse.json({ error: 'Inconnu' }, { status: 401 });
+    await ensureArchiveSchema();
+
+    // --- Vérification (le champ `url` contient l'identifiant de l'archive, comme avant) ---
+    if (action === 'check') {
+      const one = await pool.query(
+        `SELECT id, url, title, last_hash, last_content, clean_version, site_root FROM web_archives WHERE id = $1 AND user_id = $2`,
+        [url, user.id]
+      );
+      if (one.rows.length === 0) return NextResponse.json({ error: 'Archive introuvable' }, { status: 404 });
+      const first = one.rows[0] as ArchiveRow & { site_root: string | null };
+
+      let targets: ArchiveRow[] = [first];
+      if (scope === 'site') {
+        const root = first.site_root || originOf(first.url);
+        const all = await pool.query(
+          `SELECT id, url, title, last_hash, last_content, clean_version FROM web_archives
+           WHERE user_id = $1 AND COALESCE(site_root, '') IN ($2, '') ORDER BY created_at ASC LIMIT 8`,
+          [user.id, root]
+        );
+        const sameSite = (all.rows as ArchiveRow[]).filter((r) => originOf(r.url) === root || r.id === first.id);
+        if (sameSite.length) targets = sameSite;
+      }
+
+      const results: ScanOutcome[] = [];
+      for (let i = 0; i < targets.length; i += 4) {
+        const part = await Promise.all(
+          targets.slice(i, i + 4).map((t) =>
+            scanArchive(t).catch((e): ScanOutcome => ({ id: t.id, url: t.url, status: 'error', error: (e as Error).message, logs: [] }))
+          )
+        );
+        results.push(...part);
+      }
+      const modified = results.filter((r) => r.status === 'modified').length;
+      const errors = results.filter((r) => r.status === 'error');
+
+      if (errors.length === results.length) {
+        return NextResponse.json({ error: `Vérification impossible : ${errors[0].error}` }, { status: 502 });
+      }
+      return NextResponse.json({
+        status: modified > 0 ? 'modified' : 'intact',
+        scanned: results.length - errors.length,
+        modified,
+        errors: errors.length,
+        results: results.map((r) => ({ id: r.id, status: r.status, summary: r.summary ?? null, error: r.error })),
+      });
+    }
+
+    // --- Nouvelle URL ---
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return NextResponse.json({ error: 'URL invalide' }, { status: 400 });
+    }
+    if (parsed.protocol !== 'https:') {
+      return NextResponse.json({ error: 'Seules les adresses HTTPS sont acceptées (https://…).' }, { status: 400 });
+    }
+
+    const countQuery = await pool.query('SELECT COUNT(*) AS count FROM web_archives WHERE user_id = $1', [user.id]);
+    const maxLimit = user.is_pro ? 50 : 3;
+    if (parseInt(countQuery.rows[0].count, 10) >= maxLimit) {
+      return NextResponse.json(
+        { error: `Quota atteint (${maxLimit} URLs max). Passez à SCEAU PRO pour en ajouter plus.` },
+        { status: 403 }
+      );
+    }
+
+    const dup = await pool.query('SELECT id FROM web_archives WHERE user_id = $1 AND url = $2', [user.id, parsed.toString()]);
+    if (dup.rows.length > 0) return NextResponse.json({ error: 'Cette URL est déjà surveillée.' }, { status: 409 });
+
+    const f = await safeFetch(parsed.toString());
+    if (!f.ok) {
+      return NextResponse.json({ error: `Impossible de lire cette page : ${f.error}` }, { status: 400 });
+    }
+    const text = cleanHtmlToText(f.html);
+    if (text.length < 20) {
+      return NextResponse.json(
+        { error: 'Cette page ne contient pas de texte lisible (page vide, protégée, ou affichée uniquement par JavaScript).' },
+        { status: 400 }
+      );
+    }
+
+    const insert = await pool.query(
+      `INSERT INTO web_archives (user_id, url, site_root, title, last_hash, last_content, clean_version, last_status, status, scan_count)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'intact', 'intact', 1) RETURNING id`,
+      [user.id, parsed.toString(), parsed.origin, extractTitle(f.html, parsed.toString()), hashText(text), text, CLEANER_VERSION]
+    );
+    return NextResponse.json({ success: true, id: insert.rows[0].id });
+  } catch (e) {
+    return apiError(e, 'Erreur lors du traitement');
+  }
+}
+
+// DELETE : supprimer une URL
+export async function DELETE(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const pubkey = searchParams.get('pubkey');
+  const id = searchParams.get('id');
+  if (!pubkey || !id) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
+
+  try {
+    const user = await getUser(pubkey);
+    if (!user) return NextResponse.json({ error: 'Inconnu' }, { status: 401 });
+    await pool.query('DELETE FROM web_archives WHERE id = $1 AND user_id = $2', [id, user.id]);
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    return apiError(e, 'Erreur');
+  }
+}
