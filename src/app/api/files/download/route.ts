@@ -5,29 +5,25 @@ import { Readable } from 'node:stream';
 
 export const runtime = 'nodejs';
 
-/**
- * Proxy de téléchargement universel.
- * Usage : GET /api/files/download?url=<url R2 publique>
- * Force le Content-Disposition: attachment.
- */
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const rawUrl = searchParams.get('url');
   if (!rawUrl) return NextResponse.json({ error: 'url requis' }, { status: 400 });
 
-  const endpoint = (process.env.AWS_ENDPOINT_URL_S3 || '').replace(/\/$/, '');
-  const bucket = (process.env.S3_BUCKET || '').replace(/^\/+|\/+$/g, '');
-  const prefix = `${endpoint}/${bucket}/`;
-
-  if (!rawUrl.startsWith(prefix)) {
-    return NextResponse.json({ error: 'URL non autorisée' }, { status: 403 });
+  // On récupère la clé de manière plus souple
+  let key = rawUrl.split('/').slice(-2).join('/'); // Garde les 2 derniers segments
+  if (rawUrl.includes('/seal/')) {
+      key = rawUrl.substring(rawUrl.indexOf('/seal/') + 1);
   }
 
-  const key = rawUrl.slice(prefix.length);
   const filename = decodeURIComponent(key.split('/').pop() || 'fichier');
 
   try {
-    const obj = await r2Client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    const obj = await r2Client.send(new GetObjectCommand({ 
+      Bucket: process.env.S3_BUCKET || 'sceau-storage', 
+      Key: key 
+    }));
+    
     if (!obj.Body) return NextResponse.json({ error: 'Fichier introuvable' }, { status: 404 });
 
     let stream: ReadableStream;
@@ -37,10 +33,7 @@ export async function GET(req: Request) {
       stream = obj.Body as unknown as ReadableStream;
     }
 
-    // Fallback ASCII pour le header
-    const safe = filename
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
+    const safe = filename.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
 
     return new NextResponse(stream, {
       headers: {
@@ -51,6 +44,10 @@ export async function GET(req: Request) {
     });
   } catch (e) {
     console.error('[files/download]', e);
-    return NextResponse.json({ error: 'Erreur téléchargement' }, { status: 500 });
+    // Fallback : si c'est une URL directe Supabase, on redirige
+    if (rawUrl.includes('supabase.co')) {
+        return NextResponse.redirect(rawUrl);
+    }
+    return NextResponse.json({ error: 'Erreur téléchargement : ' + (e as Error).message }, { status: 500 });
   }
 }

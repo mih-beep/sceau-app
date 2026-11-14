@@ -107,7 +107,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             ))}
           </div>
 
-          <div className="p-6 border-t border-[#332824]">
+          <div className="p-6 border-t border-[#332824] flex justify-between items-center">
             <Link href="/profil" className="flex items-center gap-3 hover:opacity-80 transition group">
               <div className="w-8 h-8 rounded-full bg-[#E76F51] text-white flex items-center justify-center font-bold text-xs shadow-sm">
                 {handle ? handle[0].toUpperCase() : '?'}
@@ -117,6 +117,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <p className="text-[0.65rem] text-[#8A7A72]">Paramètres du compte</p>
               </div>
             </Link>
+            <button onClick={toggleTheme} className="text-xl opacity-60 hover:opacity-100 transition" title="Changer le thème">
+              {isDark ? '☀️' : '🌙'}
+            </button>
           </div>
         </aside>
 

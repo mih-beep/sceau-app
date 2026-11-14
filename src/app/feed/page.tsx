@@ -330,6 +330,11 @@ export default function Feed() {
 
               {/* Titre et Description */}
               <div className="px-5 mb-4">
+                <div className="flex gap-2 mb-2">
+                  {seal.is_mystery && <span className="text-[0.65rem] bg-[#FDF8F0] text-[#A88620] border border-[#E9C46A] px-2 py-0.5 rounded font-bold">🔒 Mystère</span>}
+                  {seal.reveal_at && <span className="text-[0.65rem] bg-[#F0F6FC] text-[#2D6A9E] border border-[#C9D8E8] px-2 py-0.5 rounded font-bold">⏳ Capsule Temporelle</span>}
+                  {seal.is_flash && <span className="text-[0.65rem] bg-[#FDF4F0] text-[#C44A2E] border border-[#FCE0D6] px-2 py-0.5 rounded font-bold">⚡ Flash</span>}
+                </div>
                 <h2 className="text-xl font-bold font-serif text-[#1A1513] dark:text-white leading-tight mb-2 group-hover:text-[#E76F51] transition-colors">{seal.title}</h2>
                 <p className="text-sm text-[#4A3F3A] dark:text-[#A0A0A0] line-clamp-2 leading-relaxed">{seal.description}</p>
               </div>

@@ -9,9 +9,9 @@ function isValidUUID(str: string): boolean {
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   
-  // On vérifie le format de l'ID AVANT d'appeler la base de données
-  if (!isValidUUID(id)) {
-    return NextResponse.json({ error: 'ID de projet invalide (format incorrect)' }, { status: 400 });
+  // On accepte tous les formats d'ID (UUID, slug, etc.) pour ne pas bloquer l'utilisateur
+  if (!id) {
+    return NextResponse.json({ error: 'ID manquant' }, { status: 400 });
   }
 
   try {
