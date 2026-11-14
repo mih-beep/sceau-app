@@ -306,45 +306,74 @@ export default function Feed() {
             const fileType = seal.is_hosted && seal.file_path ? getFileType(seal.file_path) : 'none';
             
             return (
-            <div key={seal.id} onClick={() => setSelectedSeal(seal)} className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-color)] shadow-sm cursor-pointer hover:shadow-md transition overflow-hidden flex flex-col">
+            <div key={seal.id} onClick={() => setSelectedSeal(seal)} className="bg-white dark:bg-[#1A1A1A] rounded-3xl border border-[#EADFD4] dark:border-[#2A2A2A] shadow-sm cursor-pointer hover:shadow-lg transition duration-300 overflow-hidden flex flex-col group">
               
+              {/* Header avec Avatar et Badge */}
+              <div className="p-5 pb-3 flex justify-between items-start">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#F0F6FC] text-[#4A90C2] flex items-center justify-center font-bold text-lg border border-[#C9D8E8]">
+                    {seal.author[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm text-[#1A1513] dark:text-white flex items-center gap-1">
+                      @{seal.author} <span className="text-[#3F8F5C] text-xs">✓</span>
+                    </div>
+                    <div className="text-[0.65rem] text-[#8A7A72]">
+                      {new Date(seal.timestamp).toLocaleDateString('fr-FR')}
+                    </div>
+                  </div>
+                </div>
+                <span className="px-3 py-1 rounded-full text-[0.65rem] font-bold uppercase tracking-wider bg-[#FDF4F0] text-[#C44A2E] border border-[#FCE0D6]">
+                  {seal.category || 'Art'}
+                </span>
+              </div>
+
+              {/* Titre et Description */}
+              <div className="px-5 mb-4">
+                <h2 className="text-xl font-bold font-serif text-[#1A1513] dark:text-white leading-tight mb-2 group-hover:text-[#E76F51] transition-colors">{seal.title}</h2>
+                <p className="text-sm text-[#4A3F3A] dark:text-[#A0A0A0] line-clamp-2 leading-relaxed">{seal.description}</p>
+              </div>
+
+              {/* Média (Optionnel) */}
               {seal.is_hosted && seal.file_path && (
-                <div className="w-full h-48 bg-[var(--bg-main)] relative flex items-center justify-center overflow-hidden border-b border-[var(--border-color)]">
+                <div className="mx-5 mb-4 rounded-xl overflow-hidden border border-[#EADFD4] dark:border-[#2A2A2A] bg-[#F9F6F0] dark:bg-[#111] relative h-40">
                   {fileType === 'image' && <img src={seal.file_path} alt={seal.title} className="w-full h-full object-cover" />}
                   {fileType === 'video' && (
                     <div className="relative w-full h-full flex items-center justify-center bg-black">
-                      <video src={seal.file_path} className="w-full h-full object-cover opacity-50" />
-                      <div className="absolute text-white text-3xl opacity-80">▶</div>
+                      <video src={seal.file_path} className="w-full h-full object-cover opacity-70" />
+                      <div className="absolute text-white text-3xl opacity-90 drop-shadow-md">▶</div>
                     </div>
                   )}
                   {fileType === 'pdf' && (
-                    <div className="flex flex-col items-center justify-center text-[#E76F51]">
-                      <div className="text-5xl mb-2">📄</div>
-                      <span className="font-mono text-xs font-bold uppercase tracking-widest text-[var(--text-main)]">Document PDF</span>
-                    </div>
-                  )}
-                  {fileType === 'other' && (
-                    <div className="flex flex-col items-center justify-center text-[#4A90C2]">
-                      <div className="text-5xl mb-2">📎</div>
-                      <span className="font-mono text-xs font-bold uppercase tracking-widest text-[var(--text-main)]">Fichier joint</span>
+                    <div className="flex flex-col items-center justify-center h-full text-[#C44A2E] bg-[#FDF4F0]">
+                      <div className="text-3xl mb-1">📄</div>
+                      <span className="font-mono text-[0.6rem] font-bold uppercase tracking-widest">Document PDF</span>
                     </div>
                   )}
                   {fileType === 'audio' && (
-                    <div className="flex flex-col items-center justify-center text-[#5D7A3A]">
-                      <div className="text-5xl mb-2">🎵</div>
-                      <span className="font-mono text-xs font-bold uppercase tracking-widest text-[var(--text-main)]">Fichier Audio</span>
+                    <div className="flex flex-col items-center justify-center h-full text-[#5D7A3A] bg-[#F0FAF4]">
+                      <div className="text-3xl mb-1">🎵</div>
+                      <span className="font-mono text-[0.6rem] font-bold uppercase tracking-widest">Audio</span>
                     </div>
                   )}
                 </div>
               )}
 
-              <div className="p-6 flex-1 flex flex-col">
-                <div className="flex justify-between items-start mb-2">
-                  <h2 className="text-2xl font-bold" style={{ color: 'var(--text-main)' }}>{seal.title}</h2>
+              {/* Footer avec Likes / Actions */}
+              <div className="mt-auto px-5 py-3 border-t border-[#EADFD4] dark:border-[#2A2A2A] flex justify-between items-center bg-[#FDFBF7] dark:bg-[#222]">
+                <div className="flex gap-4 text-xs font-bold text-[#8A7A72]">
+                  <span className="flex items-center gap-1 hover:text-[#E76F51] transition">
+                    ❤️ {seal.likes_like || 0}
+                  </span>
+                  <span className="flex items-center gap-1 hover:text-[#E76F51] transition">
+                    💬 {seal.comments_count || 0}
+                  </span>
                 </div>
-                <p className="text-sm text-[var(--text-muted)] mb-2 font-mono">Par @{seal.author} • {seal.category}</p>
-                <p className="text-sm text-[var(--text-muted)] italic line-clamp-2 mt-auto">{seal.description}</p>
+                <span className="text-[0.65rem] font-bold text-[#E76F51] flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                  Ouvrir le cadran →
+                </span>
               </div>
+
             </div>
           )})}
         </div>
