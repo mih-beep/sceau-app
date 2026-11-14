@@ -138,7 +138,14 @@ export default function ProjetDetail() {
             {amIOwner && (
               <button onClick={() => setShowInvite(true)} className="bg-white border-2 border-gray-200 text-gray-700 px-4 py-2 rounded-xl font-bold text-sm hover:border-[#4A90C2]">👥 Inviter</button>
             )}
-            <button onClick={() => generateProjectCertificate(project.title, project.author, project.merkle_root, project.files, project.created_at)} className="bg-white border-2 border-gray-200 text-gray-700 px-4 py-2 rounded-xl font-bold text-sm hover:border-[#E76F51]">📄 PDF</button>
+            <button onClick={() => generateProjectCertificate(project.title, project.author, project.merkle_root, project.files, project.created_at)} className="bg-white border-2 border-gray-200 text-gray-700 px-4 py-2 rounded-xl font-bold text-sm hover:border-[#E76F51]">📄 Certificat PDF</button>
+            
+            <button onClick={() => {
+              const data = { title: project.title, merkle_root: project.merkle_root, files: project.files.map((f: any) => ({ name: f.file_name, hash: f.file_hash, size: f.file_size })) };
+              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a'); a.href = url; a.download = `manifest-${project.title}.json`; a.click();
+            }} className="bg-white border-2 border-gray-200 text-gray-700 px-4 py-2 rounded-xl font-bold text-sm hover:border-[#4A90C2]">📄 Manifeste JSON</button>
           </div>
 
           {project.members && project.members.length > 0 && (
@@ -154,16 +161,29 @@ export default function ProjetDetail() {
 
           <h3 className="font-bold text-lg mb-3">📁 Fichiers ({project.files.length})</h3>
           <div className="border rounded-xl overflow-hidden mb-6">
-            {project.files.map((f: any) => (
-              <div key={f.id} className="flex justify-between items-center p-3 border-b last:border-0 bg-gray-50">
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-sm text-gray-800 truncate">{f.file_name}</p>
-                  <p className="text-[0.65rem] font-mono text-gray-500 truncate">Hash : {f.file_hash.slice(0, 20)}...</p>
-                  {f.uploaded_by_handle && <p className="text-[0.65rem] text-[#4A90C2] font-bold mt-1">Ajouté par @{f.uploaded_by_handle}</p>}
+            {project.files.map((f: any) => {
+              const isFolder = f.file_name.includes('/') || f.file_name.endsWith('/');
+              return (
+                <div key={f.id} className="flex justify-between items-center p-3 border-b last:border-0 bg-gray-50 hover:bg-gray-100 transition">
+                  <div className="min-w-0 flex-1 flex items-center gap-3">
+                    <span className="text-xl">{isFolder ? '📁' : '📄'}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-sm text-gray-800 break-all">{f.file_name}</p>
+                      <p className="text-[0.65rem] font-mono text-gray-500 truncate">SHA-256 : {f.file_hash.slice(0, 20)}...</p>
+                      {f.uploaded_by_handle && <p className="text-[0.65rem] text-[#4A90C2] font-bold mt-1">Par @{f.uploaded_by_handle}</p>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                    <span className="text-xs font-bold text-gray-400">{(f.file_size / 1024).toFixed(0)} Ko</span>
+                    {f.file_path && (
+                      <a href={`/api/files/download?url=${encodeURIComponent(f.file_path)}`} className="bg-[#4A90C2] text-white px-3 py-1 rounded text-xs font-bold hover:bg-[#2D6A9E] transition">
+                        ⬇️
+                      </a>
+                    )}
+                  </div>
                 </div>
-                <span className="text-xs font-bold text-gray-400 shrink-0 ml-3">{(f.file_size / 1024).toFixed(0)} Ko</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {project.versions && project.versions.length > 1 && (

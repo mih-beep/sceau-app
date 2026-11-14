@@ -301,7 +301,16 @@ function SealContent() {
           <div className="bg-[#FDF8F0] p-4 rounded-xl border border-[#EFE0CA]">
             <label className="text-xs font-mono font-bold uppercase block mb-2" style={{ color: '#A88620' }}>Dossier (Multi-fichiers)</label>
             <p className="text-xs text-[#A88620] mb-2 italic">SCEAU va créer un Arbre de Merkle et ancrer une seule preuve pour tout le dossier.</p>
-            <input type="file" multiple className="w-full text-sm" onChange={e => setProjectFiles(Array.from(e.target.files || []))} />
+            <label className="block w-full cursor-pointer bg-white border-2 border-dashed border-[#EFE0CA] hover:border-[#E9C46A] p-4 rounded-xl text-center transition">
+              <span className="text-sm font-bold text-[#A88620]">📂 Sélectionner un dossier complet</span>
+              <input 
+                type="file" 
+                multiple 
+                {...({ webkitdirectory: "", directory: "" } as any)} 
+                className="hidden" 
+                onChange={e => setProjectFiles(Array.from(e.target.files || []))} 
+              />
+            </label>
             {projectFiles.length > 0 && <p className="text-xs mt-2 text-[#5D7A3A] font-bold">Fichier : {projectFiles.length} fichier(s) sélectionné(s)</p>}
           </div>
         )}
