@@ -49,30 +49,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const isActive = (path: string) => pathname === path;
   const isToolsActive = pathname === '/seal' || pathname === '/verify';
 
-  const navSections = [
+    const navSections = [
     {
       title: 'Espace Public',
       links: [
-        { name: 'Le Flux', path: '/feed' },
-        { name: "L'Atelier", path: '/seal' },
+        { name: 'Sceau Feed', path: '/feed' },
       ]
     },
     {
       title: 'Espace Pro',
       links: [
-        { name: 'SCEAU Projets', path: '/projets' },
-        { name: 'SCEAU Archive', path: '/archive' },
-        { name: 'SCEAU Oracle', path: '/oracle' },
-        { name: 'Mon Profil', path: '/profil' },
-        { name: 'Vérification', path: '/verify' },
-        { name: 'Messagerie & Pactes', path: '/messages' },
+        { name: 'Sceau Atelier', path: '/seal' },
+        { name: 'Sceau Projets', path: '/projets' },
+        { name: 'Sceau Archive', path: '/archive' },
+        { name: 'Sceau Oracle', path: '/oracle' },
+        { name: 'Sceau Profil', path: '/profil' },
+        { name: 'Sceau Vérification', path: '/verify' },
+        { name: 'Sceau Pacte', path: '/messages' },
       ]
     },
     {
       title: 'Réseau',
       links: [
-        { name: 'Communauté', path: '/friends' },
-        { name: 'Paramètres', path: '/settings' },
+        { name: 'Sceau Communauté', path: '/friends' },
+        { name: 'Sceau Paramètres', path: '/settings' },
       ]
     }
   ];

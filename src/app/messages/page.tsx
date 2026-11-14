@@ -514,9 +514,42 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
   async function downloadCertificate() {
     if (!pact) return;
     setIsDownloading(true);
-    const verifyUrl = `${window.location.origin}/o/${pact.id}`;
-    const qrDataUrl = await QRCode.toDataURL(verifyUrl, { width: 300, margin: 1 });
-    generatePactCertificate(pact.title, pact.description, pact.creator, pact.signataires || [], pact.hash_str || 'Hash en cours', qrDataUrl, pact.id);
+    try {
+      const verifyUrl = `${window.location.origin}/o/${pact.id}`;
+      const qrDataUrl = await QRCode.toDataURL(verifyUrl, { width: 300, margin: 1 });
+
+      // Récupérer les dates individuelles des signatures (via pact_signatures)
+      const detailsRes = await fetch(`/api/pacts/${pact.id}/details`);
+      const details = detailsRes.ok ? await detailsRes.json() : { signataires: [] };
+
+      generatePactCertificate({
+        title: pact.title,
+        description: pact.description || '',
+        creator: pact.creator,
+        creatorSignedAt: details.signataires?.[0]?.signedAt || pact.created_at,
+        signataires: (details.signataires || []).map((s: any) => ({
+          handle: s.handle,
+          signedAt: s.signedAt,
+        })),
+        pactHash: pact.hash_str || '0000000000000000000000000000000000000000000000000000000000000000',
+        merkleRoot: details.merkleRoot || 'N/A',
+        files: (details.files || []).map((f: any, i: number) => ({
+          name: f.name,
+          size: f.size,
+          hash: f.hash,
+          downloadUrl: `${window.location.origin}/api/pacts/${pact.id}/files/${i}`,
+        })),
+        otsProof: pact.ots_proof || null,
+        sealedAt: pact.scelle_at || new Date().toISOString(),
+        pactId: pact.id,
+        theme: pact.theme || 'serieux',
+        qrCodeDataUrl: qrDataUrl,
+        verifyUrl,
+      });
+    } catch (e) {
+      console.error(e);
+      alert('Erreur génération certificat : ' + (e as Error).message);
+    }
     setIsDownloading(false);
   }
 

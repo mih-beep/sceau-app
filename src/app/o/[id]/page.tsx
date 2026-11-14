@@ -164,12 +164,22 @@ export default function PublicSealPage() {
         </button>
 
         {seal.is_hosted && seal.file_path && (
-          <a
-            href={downloadUrl()}
-            className="block w-full text-center bg-[var(--text-main)] text-[var(--bg-surface)] py-3 rounded-xl font-bold shadow-md hover:opacity-80 transition mb-6"
-          >
-            📂 Découvrir l'œuvre originale
-          </a>
+          <div className="space-y-2 mb-6">
+            <a
+              href={seal.file_path}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full text-center bg-[var(--text-main)] text-[var(--bg-surface)] py-3 rounded-xl font-bold shadow-md hover:opacity-80 transition"
+            >
+              👁️ Voir le fichier original
+            </a>
+            <a
+              href={`/api/files/download?url=${encodeURIComponent(seal.file_path)}`}
+              className="block w-full text-center bg-[#5D7A3A] text-white py-3 rounded-xl font-bold shadow-md hover:bg-[#4A6330] transition"
+            >
+              ⬇️ Télécharger le fichier (preuve préservée)
+            </a>
+          </div>
         )}
 
         <div className="border-t border-[var(--border-color)] pt-6 mt-6 text-center">

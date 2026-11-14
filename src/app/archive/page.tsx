@@ -17,7 +17,7 @@ export default function ArchivePage() {
     if (!pubkey) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/archive?pubkey=${encodeURIComponent(pubkey)}`);
+      const res = await fetch(`/api/archive?pubkey=${encodeURIComponent(fakePubkey || 'invite')}`);
       const d = await res.json();
       if (res.ok) {
         setSites(d.sites || []);
@@ -50,7 +50,7 @@ export default function ArchivePage() {
 
   async function deleteSite(siteRoot: string, mainId: string) {
     if (!pubkey || !confirm('Supprimer ce site et toutes ses pages ?')) return;
-    await fetch(`/api/archive?pubkey=${encodeURIComponent(pubkey)}&id=${mainId}`, { method: 'DELETE' });
+    await fetch(`/api/archive?pubkey=${encodeURIComponent(fakePubkey || 'invite')}&id=${mainId}`, { method: 'DELETE' });
     loadArchives();
   }
 

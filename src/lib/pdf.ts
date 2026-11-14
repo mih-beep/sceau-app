@@ -201,19 +201,39 @@ export function generatePortfolioPDF(
   doc.save(`Portfolio-${author}.pdf`);
 }
 
-export function generatePactCertificate(
-  title: string,
-  description: string,
-  creator: string,
-  signataires: string[],
-  hash: string,
-  qrCodeDataUrl: string,
-  pactId: string,
-  theme: string = 'serieux'
-) {
+export interface PactFileInfo {
+  name: string;
+  size: number;
+  hash: string;
+  downloadUrl?: string;
+}
+
+export interface PactCertificateData {
+  title: string;
+  description: string;
+  creator: string;
+  creatorSignedAt: string;
+  signataires: { handle: string; signedAt: string }[];
+  pactHash: string;
+  merkleRoot: string;
+  files: PactFileInfo[];
+  otsProof: string | null;
+  sealedAt: string;
+  pactId: string;
+  theme?: string;
+  qrCodeDataUrl: string;
+  verifyUrl: string;
+}
+
+export function generatePactCertificate(data: PactCertificateData) {
+  const {
+    title, description, creator, signataires,
+    pactHash, merkleRoot, files, otsProof, sealedAt,
+    theme = 'serieux', qrCodeDataUrl,
+  } = data;
+
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-  // Couleurs selon le thème
   const colors = {
     serieux: { border: [233, 196, 106], bg: [253, 250, 245], title: [44, 24, 16], accent: [168, 134, 32] },
     amour: { border: [244, 114, 182], bg: [253, 242, 248], title: [131, 24, 67], accent: [219, 39, 119] },
@@ -222,97 +242,155 @@ export function generatePactCertificate(
   };
   const c = colors[theme as keyof typeof colors] || colors.serieux;
 
-  // Fond Parchemin
+  // PAGE 1
   doc.setFillColor(c.bg[0], c.bg[1], c.bg[2]);
   doc.rect(0, 0, 210, 297, 'F');
-
-  // Bordure Dorée Élégante
   doc.setDrawColor(c.border[0], c.border[1], c.border[2]);
-  doc.setLineWidth(1);
+  doc.setLineWidth(1.2);
   doc.rect(10, 10, 190, 277);
   doc.rect(12, 12, 186, 273);
 
-  // Titre
   doc.setFont('times', 'bold');
-  doc.setFontSize(32);
-  doc.setTextColor(44, 24, 16);
-  doc.text("CERTIFICAT DE PACTE", 105, 35, { align: 'center' });
+  doc.setFontSize(30);
+  doc.setTextColor(c.title[0], c.title[1], c.title[2]);
+  doc.text('CERTIFICAT DE PACTE', 105, 30, { align: 'center' });
 
   doc.setFont('times', 'italic');
-  doc.setFontSize(14);
+  doc.setFontSize(12);
   doc.setTextColor(c.accent[0], c.accent[1], c.accent[2]);
-  doc.text("SCEAU · La poignée de main numérique", 105, 45, { align: 'center' });
+  doc.text('SCEAU - La poignee de main numerique', 105, 38, { align: 'center' });
 
-  // Ligne de séparation
   doc.setDrawColor(c.border[0], c.border[1], c.border[2]);
-  doc.line(60, 50, 150, 50);
+  doc.line(60, 43, 150, 43);
 
-  // Titre du Pacte
   doc.setFont('times', 'bold');
-  doc.setFontSize(22);
-  doc.setTextColor(44, 24, 16);
-  doc.text(title, 105, 70, { align: 'center' });
+  doc.setFontSize(20);
+  doc.setTextColor(c.title[0], c.title[1], c.title[2]);
+  doc.text(title, 105, 58, { align: 'center' });
 
-  // Description
   doc.setFont('times', 'italic');
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setTextColor(90, 75, 68);
-  const splitDesc = doc.splitTextToSize(`"${description}"`, 140);
-  doc.text(splitDesc, 105, 85, { align: 'center' });
+  const descLines = doc.splitTextToSize('"' + description + '"', 150);
+  doc.text(descLines, 105, 70, { align: 'center' });
 
-  // Créateur
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setTextColor(122, 90, 58);
-  doc.text(`Proposé par : @${creator}`, 105, 110, { align: 'center' });
+  doc.text('Propose par : @' + creator, 105, 85, { align: 'center' });
+  doc.text('Scelle le : ' + new Date(sealedAt).toLocaleString('fr-FR'), 105, 90, { align: 'center' });
 
-  // Signatures
   doc.setFont('times', 'bold');
-  doc.setFontSize(16);
-  doc.setTextColor(44, 24, 16);
-  doc.text("Signataires Officiels", 105, 130, { align: 'center' });
+  doc.setFontSize(13);
+  doc.setTextColor(c.title[0], c.title[1], c.title[2]);
+  doc.text('SIGNATAIRES OFFICIELS', 105, 102, { align: 'center' });
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(63, 143, 92); // Vert
-  const sigsText = signataires.map(s => `@${s}`).join('   •   ');
-  doc.text(sigsText, 105, 142, { align: 'center' });
-
-  // Le Sceau Visuel (Un cercle rouge en bas à droite)
-  doc.setDrawColor(232, 120, 60);
-  doc.setLineWidth(2);
-  doc.circle(170, 220, 20);
-  doc.setFont('times', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(232, 120, 60);
-  doc.text("SCELLÉ", 170, 218, { align: 'center' });
-  doc.setFontSize(8);
-  doc.text("BITCOIN", 170, 224, { align: 'center' });
-
-  // Hash
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(150, 150, 150);
-  const hashChunks = hash.match(/.{1,50}/g) || [hash];
-  hashChunks.forEach((chunk, i) => {
-    doc.text(chunk, 105, 250 + (i * 5), { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(63, 143, 92);
+  let y = 110;
+  signataires.forEach((s, i) => {
+    if (y > 145) return;
+    doc.text((i + 1) + '. @' + s.handle + ' - ' + new Date(s.signedAt).toLocaleString('fr-FR'), 40, y);
+    y += 6;
   });
 
-  // QR Code
-  if (qrCodeDataUrl) {
-    doc.addImage(qrCodeDataUrl, 'PNG', 25, 200, 40, 40);
-    doc.setFontSize(8);
-    doc.setTextColor(122, 90, 58);
-    doc.text("Scanner pour vérifier", 45, 245, { align: 'center' });
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(44, 24, 16);
+  doc.text('EMPREINTE SHA-256 DU PACTE', 20, 160);
+
+  doc.setFont('courier', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(90, 75, 68);
+  const pactChunks = pactHash.match(/.{1,64}/g) || [pactHash];
+  pactChunks.forEach((chunk, i) => {
+    if (160 + 6 + i * 4 > 185) return;
+    doc.text(chunk, 20, 166 + i * 4);
+  });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(44, 24, 16);
+  doc.text('RACINE MERKLE DES FICHIERS JOINTS', 20, 195);
+
+  doc.setFont('courier', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(90, 75, 68);
+  const mChunks = merkleRoot.match(/.{1,64}/g) || [merkleRoot];
+  mChunks.forEach((chunk, i) => {
+    if (195 + 6 + i * 4 > 215) return;
+    doc.text(chunk, 20, 201 + i * 4);
+  });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  if (otsProof) {
+    doc.setTextColor(93, 122, 58);
+    doc.text('ANCRAGE OPENTIMESTAMPS (Bitcoin) : CONFIRME', 20, 225);
+  } else {
+    doc.setTextColor(196, 74, 46);
+    doc.text('ANCRAGE OPENTIMESTAMPS : EN ATTENTE (confirmation sous 24h)', 20, 225);
   }
 
-  // Mention Blockchain
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(93, 122, 58);
-  doc.text("Preuve ancrée via OpenTimestamps (Bitcoin)", 105, 275, { align: 'center' });
+  if (qrCodeDataUrl) {
+    doc.addImage(qrCodeDataUrl, 'PNG', 160, 230, 35, 35);
+    doc.setFontSize(7);
+    doc.setTextColor(122, 90, 58);
+    doc.text('Verifier en ligne', 177, 270, { align: 'center' });
+  }
 
-  doc.save(`Pacte-${title.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`);
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(6.5);
+  doc.setTextColor(150, 150, 150);
+  doc.text(
+    'Ce certificat atteste l\'existence, l\'integrite et l\'horodatage du pacte ci-dessus. Toute modification, meme d\'un seul caractere, invaliderait le hash SHA-256. La preuve OTS est verifiable sur https://opentimestamps.org',
+    20, 282, { maxWidth: 170 }
+  );
+
+  if (files.length > 0) {
+    doc.addPage();
+    doc.setFillColor(c.bg[0], c.bg[1], c.bg[2]);
+    doc.rect(0, 0, 210, 297, 'F');
+
+    doc.setFont('times', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(c.title[0], c.title[1], c.title[2]);
+    doc.text('FICHIERS JOINTS AU PACTE', 105, 25, { align: 'center' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(90, 75, 68);
+    let fy = 40;
+
+    files.forEach((f, i) => {
+      if (fy > 270) return;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(44, 24, 16);
+      doc.text((i + 1) + '. ' + f.name, 20, fy);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(120, 100, 90);
+      doc.text('Taille : ' + (f.size / 1024).toFixed(1) + ' Ko', 20, fy + 4);
+      doc.text('SHA-256 : ' + f.hash, 20, fy + 8);
+      if (f.downloadUrl) {
+        doc.setTextColor(74, 144, 194);
+        doc.textWithLink('Telecharger via SCEAU', 20, fy + 12, { url: f.downloadUrl });
+      }
+      fy += 18;
+    });
+
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(6.5);
+    doc.setTextColor(150, 150, 150);
+    doc.text(
+      'Chaque fichier peut etre verifie individuellement : recalculer son SHA-256 et le comparer a celui-ci-dessus.',
+      20, 285, { maxWidth: 170 }
+    );
+  }
+
+  doc.save('Pacte-' + title.replace(/[^a-zA-Z0-9]/g, '-') + '.pdf');
 }
 
 
