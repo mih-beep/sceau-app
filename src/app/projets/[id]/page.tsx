@@ -183,7 +183,7 @@ export default function ProjetDetail() {
             {project.files.map((f: any) => {
               // Logique simple pour les couleurs (à améliorer avec les vraies données de diff)
               const isFolder = f.file_name.includes('/') || f.file_name.endsWith('/');
-              const statut = 'modifié'; // Placeholder : on affichera ajouté/modifié/supprimé quand on aura les données
+              const statut: string = 'modifié'; // Placeholder : on affichera ajouté/modifié/supprimé quand on aura les données
               
               return (
                 <div key={f.id} className="flex flex-col sm:flex-row justify-between sm:items-center p-3 border-b last:border-0 hover:bg-gray-50 transition gap-2">
