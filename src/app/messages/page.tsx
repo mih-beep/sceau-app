@@ -338,7 +338,7 @@ function MessagesInner() {
           <div className="flex gap-2">
             <button onClick={() => setShowSearch(!showSearch)} className="bg-[var(--bg-main)] border text-xs font-bold px-2 py-1 rounded-lg">🔍</button>
             <button onClick={() => setShowGroupModal(true)} className="bg-[var(--bg-main)] border text-xs font-bold px-2 py-1 rounded-lg">Groupe</button>
-            <button onClick={() => setShowSearch(!showSearch)} className="bg-[#1A1513] text-white text-xs font-bold px-2 py-1 rounded-lg">+ Nouveau</button>
+            <button onClick={() => setShowSearch(!showSearch)} className="bg-[#1A1513] text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-black transition">+ Nouveau</button>
           </div>
         </div>
 

@@ -174,19 +174,55 @@ export default function Profil() {
 
       {showPortfolioModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-[var(--bg-surface)] w-full max-w-md rounded-3xl p-6 flex flex-col max-h-[90vh]">
-            <h2 className="text-2xl font-bold mb-4" style={{color: 'var(--text-main)'}}>Configurer le Portfolio</h2>
-            <div className="flex-1 overflow-y-auto space-y-2 mb-4">
+          <div className="bg-[var(--bg-surface)] w-full max-w-lg rounded-3xl p-6 flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold" style={{color: 'var(--text-main)'}}>Configurer le Portfolio</h2>
+              <button onClick={() => setShowPortfolioModal(false)} className="text-2xl opacity-50 hover:opacity-100">✕</button>
+            </div>
+            
+            {/* Filtres de dates */}
+            <div className="flex gap-2 mb-4 bg-[var(--bg-main)] p-3 rounded-xl border border-[var(--border-color)]">
+              <div className="flex-1">
+                <label className="text-[0.65rem] font-bold text-[var(--text-muted)] uppercase block mb-1">Du</label>
+                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-lg p-2 text-sm" style={{color: 'var(--text-main)'}} />
+              </div>
+              <div className="flex-1">
+                <label className="text-[0.65rem] font-bold text-[var(--text-muted)] uppercase block mb-1">Au</label>
+                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-lg p-2 text-sm" style={{color: 'var(--text-main)'}} />
+              </div>
+              <div className="flex items-end">
+                <button 
+                  onClick={() => {
+                    // Recalcule les sélections en fonction des dates
+                    let filtered = data.seals;
+                    if (startDate) filtered = filtered.filter((s: any) => new Date(s.timestamp) >= new Date(startDate));
+                    if (endDate) filtered = filtered.filter((s: any) => new Date(s.timestamp) <= new Date(endDate));
+                    setSelectedSeals(filtered.map((s: any) => s.id));
+                  }}
+                  className="bg-[#4A90C2] text-white px-3 py-2 rounded-lg text-xs font-bold h-[38px]"
+                >
+                  Filtrer
+                </button>
+              </div>
+            </div>
+
+            {/* Liste des fichiers */}
+            <div className="flex-1 overflow-y-auto space-y-2 mb-4 pr-2">
               {data.seals.map((seal: any) => (
-                <label key={seal.id} className="flex items-center gap-3 p-3 rounded-xl border hover:bg-[var(--bg-main)] cursor-pointer">
-                  <input type="checkbox" checked={selectedSeals.includes(seal.id)} onChange={() => toggleSeal(seal.id)} className="w-5 h-5 accent-[#E76F51]" />
-                  <div className="font-bold text-sm truncate">{seal.title}</div>
+                <label key={seal.id} className="flex items-center gap-3 p-3 rounded-xl border border-[var(--border-color)] hover:bg-[var(--bg-main)] cursor-pointer">
+                  <input type="checkbox" checked={selectedSeals.includes(seal.id)} onChange={() => toggleSeal(seal.id)} className="w-5 h-5 accent-[#E76F51] rounded" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm truncate" style={{color: 'var(--text-main)'}}>{seal.title}</div>
+                    <div className="text-[0.65rem] text-[var(--text-muted)]">{new Date(seal.timestamp).toLocaleDateString('fr-FR')}</div>
+                  </div>
                 </label>
               ))}
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => setShowPortfolioModal(false)} className="flex-1 py-3 font-bold opacity-50">Annuler</button>
-              <button onClick={generatePDF} className="flex-1 bg-[var(--text-main)] text-white py-3 rounded-xl font-bold shadow-md">Générer</button>
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-2 border-t border-[var(--border-color)]">
+              <button onClick={() => { const filtered = data.seals.filter((s: any) => (startDate ? new Date(s.timestamp) >= new Date(startDate) : true) && (endDate ? new Date(s.timestamp) <= new Date(endDate) : true)); setSelectedSeals(filtered.map((s: any) => s.id)); }} className="flex-1 py-3 text-xs font-bold text-[#4A90C2] bg-[#F0F6FC] rounded-xl border border-[#C9D8E8]">Tout sélectionner</button>
+              <button onClick={generatePDF} className="flex-[2] bg-gradient-to-r from-[#E76F51] to-[#F4A261] text-white py-3 rounded-xl font-bold shadow-md">Générer le PDF</button>
             </div>
           </div>
         </div>
