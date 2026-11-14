@@ -186,6 +186,32 @@ export default function ProjetDetail() {
             })}
           </div>
 
+          {/* RÉSUMÉ DES CHANGEMENTS (Style GitHub) */}
+          <div className="mb-8 border rounded-xl p-4 bg-gray-50">
+            <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
+              <span>📊</span> Résumé des changements (v{project.version_number})
+            </h3>
+            <div className="flex gap-4 text-xs font-bold">
+              <div className="flex items-center gap-1 text-green-600 bg-green-100 px-2 py-1 rounded">
+                <span className="w-2 h-2 rounded-full bg-green-600"></span>
+                + Fichiers ajoutés
+              </div>
+              <div className="flex items-center gap-1 text-orange-600 bg-orange-100 px-2 py-1 rounded">
+                <span className="w-2 h-2 rounded-full bg-orange-600"></span>
+                ~ Fichiers modifiés
+              </div>
+              <div className="flex items-center gap-1 text-red-600 bg-red-100 px-2 py-1 rounded">
+                <span className="w-2 h-2 rounded-full bg-red-600"></span>
+                - Fichiers supprimés
+              </div>
+            </div>
+            {project.files && project.files.length > 0 && (
+              <div className="mt-3 text-xs text-gray-600">
+                <span className="font-mono">{project.files.length} fichier(s) actuellement dans la version courante.</span>
+              </div>
+            )}
+          </div>
+
           {project.versions && project.versions.length > 1 && (
             <div>
               <h3 className="font-bold text-sm mb-2">📜 Historique ({project.versions.length} versions)</h3>

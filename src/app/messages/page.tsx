@@ -606,10 +606,19 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
   }
 
   const progress = Math.min(100, ((pact.signataires?.length || 0) / pact.required_signatures) * 100);
+  
+  // Gestion du thème visuel
+  const themeColors: Record<string, { accent: string, bg: string, border: string, text: string }> = {
+    serieux: { accent: 'bg-[#1A1513]', bg: 'bg-[#FDF8F0]', border: 'border-[#E9C46A]', text: 'text-[#1A1513]' },
+    amour: { accent: 'bg-pink-500', bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-900' },
+    famille: { accent: 'bg-green-600', bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-900' },
+    amitie: { accent: 'bg-blue-500', bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-900' },
+  };
+  const currentTheme = themeColors[pact.theme || 'serieux'] || themeColors.serieux;
 
   return (
     <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className={`bg-white w-full max-w-lg rounded-2xl border shadow-2xl relative max-h-[90vh] overflow-y-auto ${isSealed ? 'border-[#E9C46A]' : 'border-[#E5E5E5]'}`}>
+      <div className={`${currentTheme.bg} w-full max-w-lg rounded-2xl border-2 shadow-2xl relative max-h-[90vh] overflow-y-auto ${isSealed ? currentTheme.border : 'border-gray-300'}`}>
         {isSealed && (
           <div className="absolute top-0 left-0 w-full bg-[#E9C46A] text-[#2C1810] py-1.5 rounded-t-2xl text-center text-xs font-bold tracking-widest uppercase">Contrat Scellé sur Bitcoin</div>
         )}
@@ -660,7 +669,7 @@ function PactModal({ pactId, onClose }: { pactId: string; onClose: () => void })
                 <p className="text-[0.6rem] font-mono text-gray-800 break-all">{pact.hash_str}</p>
               </div>
             ) : (
-              <button onClick={signPact} disabled={hasSigned || isSigning} className={`w-full py-3.5 rounded-xl font-bold text-white transition ${hasSigned ? 'bg-green-600 cursor-default' : 'bg-black hover:bg-gray-800'}`}>
+              <button onClick={signPact} disabled={hasSigned || isSigning} className={`w-full py-3.5 rounded-xl font-bold text-white transition ${hasSigned ? 'bg-green-600 cursor-default' : `${currentTheme.accent} hover:opacity-80`}`}>
                 {isSigning ? 'Ancrage en cours...' : hasSigned ? 'Vous avez signé' : 'Contresigner le contrat'}
               </button>
             )}
