@@ -5,15 +5,20 @@ import Link from 'next/link';
 export default function ProjetsPage() {
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const pubkey = localStorage.getItem('sceau_pubkey');
     if (!pubkey) { setLoading(false); return; }
 
     fetch(`/api/projects/list?pubkey=${encodeURIComponent(pubkey)}`)
-      .then(r => r.json())
+      .then(async r => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "Erreur serveur");
+        return d;
+      })
       .then(d => { setProjects(d.projects || []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .catch((e) => { setError(e.message); setLoading(false); });
   }, []);
 
   return (
@@ -46,6 +51,12 @@ export default function ProjetsPage() {
       {/* Liste */}
       {loading ? (
         <p className="text-center font-mono py-10">Chargement...</p>
+      ) : error ? (
+        <div className="text-center py-16 bg-red-50 border border-red-200 rounded-2xl">
+          <div className="text-5xl mb-4">⚠️</div>
+          <h3 className="font-bold text-lg text-red-700 mb-2">Erreur de chargement</h3>
+          <p className="text-sm text-red-600 font-mono bg-white p-3 rounded-lg inline-block">{error}</p>
+        </div>
       ) : projects.length === 0 ? (
         <div className="text-center py-16 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl">
           <div className="text-5xl mb-4">📁</div>

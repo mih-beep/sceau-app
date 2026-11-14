@@ -24,6 +24,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ projects: result.rows });
   } catch (e: any) {
     console.error('[projects/list]', e);
-    return NextResponse.json({ projects: [] });
+    return NextResponse.json({ error: 'Erreur DB : ' + e.message }, { status: 500 });
   }
 }
