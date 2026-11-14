@@ -41,7 +41,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     `, [id]);
 
     // 4. Récupérer les membres (si la table existe)
-    let membersRes = { rows: [] };
+    let membersRes: { rows: any[] } = { rows: [] };
     try {
       membersRes = await pool.query(`
         SELECT u.handle, u.id as user_id, pm.role, pm.added_at
@@ -52,7 +52,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     // 5. Récupérer les versions
     const rootId = project.root_id || project.id;
-    let versionsRes = { rows: [] };
+    let versionsRes: { rows: any[] } = { rows: [] };
     try {
       versionsRes = await pool.query(`
         SELECT id, title, version_number, created_at, ots_proof
