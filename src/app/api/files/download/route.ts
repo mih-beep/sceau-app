@@ -10,13 +10,14 @@ export async function GET(req: Request) {
   const rawUrl = searchParams.get('url');
   if (!rawUrl) return NextResponse.json({ error: 'url requis' }, { status: 400 });
 
-  // On récupère la clé de manière plus souple
-  let key = rawUrl.split('/').slice(-2).join('/'); // Garde les 2 derniers segments
+  // Extraction de la clé
+  let key = rawUrl.split('/').slice(-2).join('/');
   if (rawUrl.includes('/seal/')) {
       key = rawUrl.substring(rawUrl.indexOf('/seal/') + 1);
   }
 
   const filename = decodeURIComponent(key.split('/').pop() || 'fichier');
+  const safe = filename.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
 
   try {
     const obj = await r2Client.send(new GetObjectCommand({ 
@@ -33,18 +34,16 @@ export async function GET(req: Request) {
       stream = obj.Body as unknown as ReadableStream;
     }
 
-    const safe = filename.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
-
     return new NextResponse(stream, {
       headers: {
-        'Content-Type': obj.ContentType || 'application/octet-stream',
+        // On force TOUJOURS le téléchargement, peu importe le type de fichier
+        'Content-Type': 'application/octet-stream',
         'Content-Disposition': `attachment; filename="${safe}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
         'Content-Length': obj.ContentLength ? String(obj.ContentLength) : '',
       },
     });
   } catch (e) {
     console.error('[files/download]', e);
-    // Fallback : si c'est une URL directe Supabase, on redirige
     if (rawUrl.includes('supabase.co')) {
         return NextResponse.redirect(rawUrl);
     }

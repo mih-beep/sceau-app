@@ -14,6 +14,7 @@ export default function ProjetDetail() {
   const [showInvite, setShowInvite] = useState(false);
   const [inviteHandle, setInviteHandle] = useState('');
   const [inviteError, setInviteError] = useState('');
+  const [inviteSuggestions, setInviteSuggestions] = useState<any[]>([]);
   const [filesToDelete, setFilesToDelete] = useState<string[]>([]);
   const [newFiles, setNewFiles] = useState<File[]>([]);
   const [updating, setUpdating] = useState(false);
@@ -61,6 +62,13 @@ export default function ProjetDetail() {
     } catch (e) { alert('Erreur réseau'); }
     setUpdating(false);
   }
+
+  const searchUsers = async (q: string) => {
+    if (q.length < 2) { setInviteSuggestions([]); return; }
+    const res = await fetch(`/api/users/search?q=${q}`);
+    const d = await res.json();
+    setInviteSuggestions(d.users || []);
+  };
 
   async function handleInvite() {
     if (!project || !pubkey || !inviteHandle) return;
@@ -171,24 +179,32 @@ export default function ProjetDetail() {
           )}
 
           <h3 className="font-bold text-lg mb-3">📁 Fichiers ({project.files.length})</h3>
-          <div className="border rounded-xl overflow-hidden mb-6">
+          <div className="border rounded-xl overflow-hidden mb-6 bg-white">
             {project.files.map((f: any) => {
+              // Logique simple pour les couleurs (à améliorer avec les vraies données de diff)
               const isFolder = f.file_name.includes('/') || f.file_name.endsWith('/');
+              const statut = 'modifié'; // Placeholder : on affichera ajouté/modifié/supprimé quand on aura les données
+              
               return (
-                <div key={f.id} className="flex justify-between items-center p-3 border-b last:border-0 bg-gray-50 hover:bg-gray-100 transition">
-                  <div className="min-w-0 flex-1 flex items-center gap-3">
-                    <span className="text-xl">{isFolder ? '📁' : '📄'}</span>
+                <div key={f.id} className="flex flex-col sm:flex-row justify-between sm:items-center p-3 border-b last:border-0 hover:bg-gray-50 transition gap-2">
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <span className="text-xl shrink-0 mt-0.5">{isFolder ? '📁' : '📄'}</span>
                     <div className="min-w-0 flex-1">
-                      <p className="font-bold text-sm text-gray-800 break-all">{f.file_name}</p>
-                      <p className="text-[0.65rem] font-mono text-gray-500 truncate">SHA-256 : {f.file_hash.slice(0, 20)}...</p>
-                      {f.uploaded_by_handle && <p className="text-[0.65rem] text-[#4A90C2] font-bold mt-1">Par @{f.uploaded_by_handle}</p>}
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-bold text-sm text-gray-800 break-all">{f.file_name}</p>
+                        {statut === 'ajouté' && <span className="bg-green-100 text-green-700 text-[0.6rem] px-1.5 py-0.5 rounded font-bold uppercase">+ Ajouté</span>}
+                        {statut === 'modifié' && <span className="bg-orange-100 text-orange-700 text-[0.6rem] px-1.5 py-0.5 rounded font-bold uppercase">~ Modifié</span>}
+                        {statut === 'supprimé' && <span className="bg-red-100 text-red-700 text-[0.6rem] px-1.5 py-0.5 rounded font-bold uppercase">- Supprimé</span>}
+                      </div>
+                      <p className="text-[0.65rem] font-mono text-gray-500 truncate">SHA-256 : {f.file_hash.slice(0, 16)}...</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-3">
-                    <span className="text-xs font-bold text-gray-400">{(f.file_size / 1024).toFixed(0)} Ko</span>
+                  
+                  <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
+                    <span className="text-xs font-bold text-gray-400 whitespace-nowrap">{(f.file_size / 1024).toFixed(0)} Ko</span>
                     {f.file_path && (
-                      <a href={`/api/files/download?url=${encodeURIComponent(f.file_path)}`} className="bg-[#4A90C2] text-white px-3 py-1 rounded text-xs font-bold hover:bg-[#2D6A9E] transition">
-                        ⬇️
+                      <a href={`/api/files/download?url=${encodeURIComponent(f.file_path)}`} className="bg-[#4A90C2] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-[#2D6A9E] transition flex items-center gap-1">
+                        ⬇️ <span className="hidden sm:inline">Télécharger</span>
                       </a>
                     )}
                   </div>
@@ -276,7 +292,28 @@ export default function ProjetDetail() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowInvite(false)}>
           <div className="bg-white w-full max-w-sm rounded-2xl p-6" onClick={e => e.stopPropagation()}>
             <h2 className="text-xl font-bold mb-4">Inviter</h2>
-            <input type="text" placeholder="@pseudo" className="w-full border-2 border-gray-200 p-3 rounded-xl mb-2" value={inviteHandle} onChange={e => setInviteHandle(e.target.value)} />
+            <div className="relative">
+              <input 
+                type="text" 
+                placeholder="Chercher un pseudo..." 
+                className="w-full border-2 border-gray-200 p-3 rounded-xl mb-2" 
+                value={inviteHandle} 
+                onChange={e => { setInviteHandle(e.target.value); searchUsers(e.target.value); }} 
+              />
+              {inviteSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 bg-white border rounded-xl shadow-lg z-10 max-h-40 overflow-y-auto">
+                  {inviteSuggestions.map((u: any) => (
+                    <div 
+                      key={u.handle} 
+                      onClick={() => { setInviteHandle(u.handle); setInviteSuggestions([]); }}
+                      className="p-2 hover:bg-gray-100 cursor-pointer text-sm font-bold border-b last:border-0"
+                    >
+                      @{u.handle}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             {inviteError && <p className="text-xs text-red-500 mb-2">{inviteError}</p>}
             <div className="flex gap-2">
               <button onClick={() => setShowInvite(false)} className="flex-1 py-2 rounded-lg bg-gray-100 font-bold">Annuler</button>

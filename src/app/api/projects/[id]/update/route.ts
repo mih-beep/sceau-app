@@ -39,6 +39,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const allHashes = [...keptFilesRes.rows.map(f => f.file_hash), ...newFileRecords.map(f => f.hash)];
     const merkleRoot = buildMerkleRoot(allHashes);
 
+    // ANTI-DOUBLON : si le Merkle Root est identique, on ne crée pas de nouvelle version
+    if (merkleRoot === oldProject.merkle_root) {
+      return NextResponse.json({ error: 'Aucun changement détecté : le contenu de vos fichiers est strictement identique à la version actuelle.' }, { status: 400 });
+    }
+
     const client = await pool.connect();
     let newId: string;
     try {
