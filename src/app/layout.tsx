@@ -136,7 +136,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </nav>
 
           {/* ZONE DE CONTENU */}
-          <main className="flex-1 overflow-y-auto w-full pb-24 md:pb-0 scroll-smooth">
+          <main className="flex-1 overflow-y-auto w-full pb-32 md:pb-6 scroll-smooth">
              <div className="w-full h-full">
                {children}
              </div>

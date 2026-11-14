@@ -107,8 +107,12 @@ export default function Settings() {
           <code className="text-xs font-mono block p-2 bg-white rounded border break-all">{pubkey}</code>
         </div>
 
-        <div className="bg-[#F0F6FC] p-6 rounded-2xl border border-[#C9D8E8]">
-          <h2 className="text-lg font-bold mb-2 text-[#2D6A9E]">🔌 Clés API</h2>
+        <details className="bg-[#F0F6FC] p-6 rounded-2xl border border-[#C9D8E8]">
+          <summary className="text-lg font-bold text-[#2D6A9E] cursor-pointer list-none flex justify-between items-center">
+            🔌 Clés API (Développeurs)
+            <span className="text-xs opacity-50">▼</span>
+          </summary>
+          <div className="mt-4">
           {generatedKey && (
             <div className="bg-[#FFFCF7] border p-3 rounded mb-3">
               <code className="text-xs break-all block mb-2">{generatedKey}</code>
@@ -127,7 +131,8 @@ export default function Settings() {
               </div>
             ))}
           </div>
-        </div>
+          </div>
+        </details>
 
         <div className="bg-[#FDF0F0] p-6 rounded-2xl border border-[#D64545]">
           <button onClick={logout} className="w-full border-2 border-[#D64545] text-[#D64545] py-2 rounded-xl font-bold">Se déconnecter</button>

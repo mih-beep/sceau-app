@@ -122,6 +122,8 @@ function MessagesInner() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [memberSearchResults, setMemberSearchResults] = useState<any[]>([]);
 
@@ -294,6 +296,14 @@ function MessagesInner() {
     alert(`Demande d'ami envoyée à @${targetHandle} !`);
   }
 
+  async function loadGroupMembers() {
+    if (!activeChat || activeChat.type !== 'group') return;
+    const res = await fetch(`/api/groups/${activeChat.id}/members`);
+    const d = await res.json();
+    setGroupMembers(d.members || []);
+    setShowMembersModal(true);
+  }
+
   async function addMemberToGroup(targetHandle: string) {
     if (!myPubkey || !activeChat) return;
     const res = await fetch(`/api/groups/${activeChat.id}/members`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pubkey: myPubkey, targetHandle }) });
@@ -328,7 +338,7 @@ function MessagesInner() {
           <div className="flex gap-2">
             <button onClick={() => setShowSearch(!showSearch)} className="bg-[var(--bg-main)] border text-xs font-bold px-2 py-1 rounded-lg">🔍</button>
             <button onClick={() => setShowGroupModal(true)} className="bg-[var(--bg-main)] border text-xs font-bold px-2 py-1 rounded-lg">Groupe</button>
-            <button onClick={() => setActiveChat({ type: 'dm', id: 'nouveau', name: 'Nouveau contact' })} className="bg-[#1A1513] text-white text-xs font-bold px-2 py-1 rounded-lg">+ Pacte</button>
+            <button onClick={() => setShowSearch(!showSearch)} className="bg-[#1A1513] text-white text-xs font-bold px-2 py-1 rounded-lg">+ Nouveau</button>
           </div>
         </div>
 
@@ -375,7 +385,10 @@ function MessagesInner() {
             </div>
             <div className="flex gap-2">
               {activeChat.type === 'group' && (
-                <button onClick={() => setShowAddMemberModal(true)} className="bg-[#4A90C2] text-white text-xs font-bold px-3 py-1 rounded-lg">+ Ajouter</button>
+                <>
+                  <button onClick={loadGroupMembers} className="bg-[var(--bg-main)] border text-xs font-bold px-3 py-1 rounded-lg">👥 Membres</button>
+                  <button onClick={() => setShowAddMemberModal(true)} className="bg-[#4A90C2] text-white text-xs font-bold px-3 py-1 rounded-lg">+</button>
+                </>
               )}
               <button onClick={() => setShowSharedVault(true)} className="bg-[var(--bg-main)] border text-xs font-bold px-3 py-1 rounded-lg">Coffre</button>
               <button onClick={sealDiscussion} disabled={isSealingChat} className="bg-[var(--bg-main)] border text-xs font-bold px-3 py-1 rounded-lg">{isSealingChat ? '...' : 'Sceller'}</button>
@@ -436,6 +449,23 @@ function MessagesInner() {
       )}
 
       {activePact && <PactModal pactId={activePact} onClose={() => setActivePact(null)} />}
+
+      {showMembersModal && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-[var(--bg-surface)] w-full max-w-sm rounded-3xl p-6 flex flex-col max-h-[80vh]">
+            <h2 className="text-xl font-bold mb-4">Membres du groupe</h2>
+            <div className="flex-1 overflow-y-auto space-y-2 mb-4">
+              {groupMembers.map((m: any) => (
+                <div key={m.handle} className="flex justify-between items-center p-2 border-b border-[var(--border-color)]">
+                  <span className="font-bold text-sm">@{m.handle}</span>
+                  {m.handle === myHandle && <span className="text-xs text-[var(--text-muted)] italic">(Vous)</span>}
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setShowMembersModal(false)} className="w-full py-2 rounded-lg bg-[var(--bg-main)] font-bold">Fermer</button>
+          </div>
+        </div>
+      )}
 
       {showAddMemberModal && activeChat && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
