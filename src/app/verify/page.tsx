@@ -84,8 +84,26 @@ export default function Verify() {
       </div>
 
       {tab === 'file' && (
-        <div className="border-2 border-dashed border-[#4A90C2] bg-[var(--bg-surface)] p-8 rounded-xl text-center">
-          <input type="file" onChange={e=>e.target.files?.[0] && verifyFile(e.target.files[0])} className="w-full text-sm" style={{color: 'var(--text-main)'}} />
+        <div 
+          className="border-2 border-dashed border-[#4A90C2] bg-[var(--bg-surface)] p-12 rounded-xl text-center transition hover:bg-[#F0F6FC] cursor-pointer"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+              verifyFile(e.dataTransfer.files[0]);
+            }
+          }}
+          onClick={() => document.getElementById('file-upload')?.click()}
+        >
+          <input 
+            id="file-upload" 
+            type="file" 
+            onChange={e=>e.target.files?.[0] && verifyFile(e.target.files[0])} 
+            className="hidden" 
+          />
+          <div className="text-4xl mb-4 text-[#4A90C2]">📂</div>
+          <p className="font-bold text-[#2D6A9E]">Glissez-déposez un fichier ici</p>
+          <p className="text-sm text-[var(--text-muted)] mt-2">ou cliquez pour parcourir</p>
         </div>
       )}
 

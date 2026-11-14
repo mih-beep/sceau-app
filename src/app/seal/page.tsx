@@ -198,7 +198,13 @@ function SealContent() {
           <p className="text-xs text-right mt-3 text-[var(--text-muted)]">Scellé le {sealedResult.date}</p>
           {sealedResult.ots && <p className="text-xs mt-2 text-[#5D7A3A] font-bold"> Preuve horodatée</p>}
         </div>
-        <button onClick={() => window.location.reload()} className="mt-8 bg-[#2C1810] text-white p-3 rounded-xl font-bold w-full">Sceller une autre œuvre</button>
+        <div className="flex flex-col gap-2 w-full mt-8">
+          <a href={`/api/seal/${sealedResult.id || sealedResult.seal_id}/certificate`} target="_blank" className="block text-center bg-[#5D7A3A] text-white p-3 rounded-xl font-bold hover:bg-[#4A6330] transition">
+            📄 Télécharger le Certificat PDF
+          </a>
+          <button onClick={() => window.location.reload()} className="bg-[#2C1810] text-white p-3 rounded-xl font-bold w-full">Sceller une autre œuvre</button>
+          <Link href="/feed" className="border border-[var(--border-soft)] text-[var(--text-main)] p-3 rounded-xl font-bold w-full text-center">Voir le Feed</Link>
+        </div>
         <Link href="/feed" className="mt-3 border border-[var(--border-soft)] text-[var(--text-main)] p-3 rounded-xl font-bold w-full text-center">Voir le Feed</Link>
       </div>
     );

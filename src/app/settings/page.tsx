@@ -104,7 +104,17 @@ export default function Settings() {
 
         <div className="bg-[#FDF8F0] p-6 rounded-2xl border border-[#EFE0CA]">
           <h2 className="text-lg font-bold mb-2 text-[#A88620]">🔑 Clé cryptographique</h2>
-          <code className="text-xs font-mono block p-2 bg-white rounded border break-all">{pubkey}</code>
+          <p className="text-xs text-[#A88620] mb-2 italic">C'est votre identité numérique. Ne la partagez jamais.</p>
+          <div className="flex gap-2 items-center">
+            <code className="text-xs font-mono block p-2 bg-white rounded border break-all flex-1">{pubkey.substring(0, 20)}...</code>
+            <button onClick={() => { navigator.clipboard.writeText(pubkey); alert('Clé copiée !'); }} className="bg-[#E9C46A] text-white px-3 py-2 rounded text-xs font-bold whitespace-nowrap">Copier</button>
+          </div>
+        </div>
+
+        <div className="bg-[#F5F9EE] p-6 rounded-2xl border border-[#A8C77E]">
+          <h2 className="text-lg font-bold mb-2 text-[#5D7A3A]">📄 Portfolio</h2>
+          <p className="text-xs text-[#5D7A3A] mb-4">Générez un PDF de toutes vos œuvres pour vos clients ou partenaires.</p>
+          <Link href="/profil" className="inline-block bg-[#5D7A3A] text-white px-6 py-2 rounded-xl font-bold text-sm">Aller sur mon profil</Link>
         </div>
 
         <details className="bg-[#F0F6FC] p-6 rounded-2xl border border-[#C9D8E8]">
