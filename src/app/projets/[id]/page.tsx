@@ -26,8 +26,17 @@ export default function ProjetDetail() {
     try {
       const res = await fetch(`/api/projects/${params.id}`);
       const d = await res.json();
+      
+      if (!res.ok) {
+        setErrorMsg(d.error + (d.details ? ` : ${d.details}` : ''));
+        setLoading(false);
+        return;
+      }
+      
       if (d && d.id) setProject(d);
-    } catch (e) {}
+    } catch (e: any) {
+      setErrorMsg(e.message);
+    }
     setLoading(false);
   };
 
@@ -90,7 +99,9 @@ export default function ProjetDetail() {
       <div className="p-10 text-center font-sans flex flex-col items-center justify-center min-h-[50vh]">
         <div className="text-5xl mb-4">🔍</div>
         <h2 className="text-2xl font-bold mb-2" style={{color: 'var(--text-main)'}}>Oups...</h2>
-        <p className="text-[var(--text-muted)] mb-6 max-w-md mx-auto">{errorMsg || "Ce projet n'existe pas."}</p>
+        <p className="text-red-500 font-mono text-sm bg-red-50 p-4 rounded-xl mb-6 max-w-lg mx-auto text-left break-words">
+          {errorMsg || "Ce projet n'existe pas."}
+        </p>
         <Link href="/projets" className="bg-[#1A1513] text-white px-6 py-2 rounded-xl font-bold">
           Retour aux projets
         </Link>
