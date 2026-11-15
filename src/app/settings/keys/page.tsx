@@ -52,12 +52,41 @@ export default function ApiKeysPage() {
         <p className="text-sm text-[#2D6A9E] mb-4">Générez une clé secrète pour connecter l'extension Chrome, WordPress, ou vos propres scripts.</p>
         
         {generatedKey && (
-          <div className="bg-[#FFFCF7] border border-[#E9C46A] p-4 rounded-xl mb-4">
-            <p className="text-xs font-bold text-[#A88620] mb-1">⚠️ Copiez cette clé maintenant, elle ne sera plus jamais affichée :</p>
-            <div className="flex gap-2">
-              <code className="flex-1 bg-white p-2 rounded text-xs break-all border">{generatedKey}</code>
-              <button onClick={() => { navigator.clipboard.writeText(generatedKey); alert('Copié !'); }} className="bg-[#E9C46A] text-white px-3 rounded font-bold text-xs">Copier</button>
+          <div className="bg-[#FFFCF7] border-2 border-[#E9C46A] p-5 rounded-xl mb-6 shadow-md">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">🔑</span>
+              <p className="text-sm font-bold text-[#A88620]">Votre nouvelle clé SCEAU</p>
             </div>
+            <p className="text-xs text-[#A88620] mb-4">C'est votre identité numérique sur SCEAU AIs. Elle est affichée <strong>une seule fois</strong> par sécurité.</p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <code className="flex-1 bg-white p-3 rounded-lg text-xs font-mono break-all border border-[#EFE0CA]">{generatedKey}</code>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => { navigator.clipboard.writeText(generatedKey); alert('Clé copiée dans le presse-papiers !'); }} 
+                  className="bg-[#4A90C2] hover:bg-[#2D6A9E] text-white px-4 py-2 rounded-lg font-bold text-xs transition whitespace-nowrap"
+                >
+                  📋 Copier
+                </button>
+                <button 
+                  onClick={() => {
+                    const blob = new Blob([`SCEAU AI - Clé d'accès personnelle
+
+Clé : ${generatedKey}
+
+Date de création : ${new Date().toLocaleDateString('fr-FR')}
+
+⚠️ Conservez ce fichier en sécurité. Cette clé vous donne accès à SCEAU Archive (3€/mois).
+Si vous la perdez, vous pourrez en générer une nouvelle sur ce site.`], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = `SCEAU_Key_${new Date().toISOString().split('T')[0]}.txt`; a.click();
+                  }} 
+                  className="bg-[#5D7A3A] hover:bg-[#4A6330] text-white px-4 py-2 rounded-lg font-bold text-xs transition whitespace-nowrap"
+                >
+                  ⬇️ Sauvegarder (.txt)
+                </button>
+              </div>
+            </div>
+            <p className="text-[0.65rem] text-[#A88620] mt-3 italic">💡 Vous avez perdu votre clé ? Révoquez-la ci-dessous et générez-en une nouvelle. Vos agents locaux n'auront qu'à la remplacer.</p>
           </div>
         )}
 
