@@ -15,6 +15,7 @@ export default function OraclePage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [mode, setMode] = useState<'oracle' | 'agent'>('oracle');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const pubkey = typeof window !== 'undefined' ? localStorage.getItem('sceau_pubkey') : null;
@@ -34,10 +35,13 @@ export default function OraclePage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/oracle/ask', {
+      const endpoint = mode === 'agent' ? '/api/agent/ask' : '/api/oracle/ask';
+      const payload = mode === 'agent' ? { question, url: url.trim() } : { pubkey, url: url.trim(), question };
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pubkey, url: url.trim(), question }),
+        body: JSON.stringify(payload),
       });
 
       const d = await res.json();
@@ -48,7 +52,7 @@ export default function OraclePage() {
       } else {
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: d.answer,
+          content: mode === 'agent' ? `[${d.agent_used.toUpperCase()}] ${d.answer}` : d.answer,
           sources: d.sources,
           captures: d.captures_used,
         }]);
@@ -75,9 +79,14 @@ export default function OraclePage() {
         </p>
       </div>
 
+      <div className="flex bg-[var(--bg-surface)] border border-[var(--border-color)] p-1 rounded-xl mb-4">
+        <button onClick={() => setMode('oracle')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${mode === 'oracle' ? 'bg-[#F0F6FC] text-[#2D6A9E] shadow' : 'opacity-50'}`}>🔮 Oracle (Vérifié)</button>
+        <button onClick={() => setMode('agent')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${mode === 'agent' ? 'bg-[#FDF4F0] text-[#C44A2E] shadow' : 'opacity-50'}`}>🤖 Agent (Libre)</button>
+      </div>
+
       <div className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-4 mb-4 shadow-sm">
         <label className="text-[0.65rem] font-mono font-bold uppercase text-[var(--text-muted)] block mb-2">
-          URL à interroger
+          URL à interroger (Optionnel pour l'Agent)
         </label>
         <input 
           type="url"
